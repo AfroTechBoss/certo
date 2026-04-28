@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Certo — Genuine Apple Products, Delivered to Nigeria</title>
+  <meta name="description" content="Buy genuine Apple products directly sourced from Apple US. Serial verified, warranty intact, delivered to your door in Nigeria." />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #faf9f7;
+      --bg-alt:      #f2f0ec;
+      --text:        #1a1714;
+      --text-muted:  #706b60;
+      --accent:      #d97757;
+      --accent-tint: #fdf0eb;
+      --accent-tint2:#f5d9cc;
+      --accent-shadow: rgba(217,119,87,0.28);
+      --border:      #e5e2db;
+      --border-light:#ede9e2;
+      --font-head:   'Syne', sans-serif;
+      --font-body:   'Inter', sans-serif;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    #root { min-height: 100vh; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- React + ReactDOM -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+
+  <!-- Babel (JSX transpiler) -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- 1. Shared data & constants (loaded first — everything else depends on these) -->
+  <script type="text/babel" src="src/data.js"></script>
+
+  <!-- 2. Utility: Tweaks panel -->
+  <script type="text/babel" src="src/tweaks-panel.jsx"></script>
+
+  <!-- 3. Shared components -->
+  <script type="text/babel" src="src/components/Nav.jsx"></script>
+
+  <!-- 4. Pages (loaded after data.js so PRODUCTS / CERTO_RATE are available) -->
+  <script type="text/babel" src="src/pages/HomePage.jsx"></script>
+  <script type="text/babel" src="src/pages/ShopPage.jsx"></script>
+  <script type="text/babel" src="src/pages/Pages.jsx"></script>
+  <script type="text/babel" src="src/pages/Checkout.jsx"></script>
+  <script type="text/babel" src="src/pages/dashboard/DashboardPage.jsx"></script>
+
+  <!-- 5. App shell (router + state — loaded last) -->
+  <script type="text/babel" src="src/App.jsx"></script>
+</body>
+</html>

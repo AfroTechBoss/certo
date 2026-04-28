@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Certo Admin</title>
+  <meta name="robots" content="noindex, nofollow" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #faf9f7;
+      --bg-alt:      #f2f0ec;
+      --text:        #1a1714;
+      --text-muted:  #706b60;
+      --accent:      #d97757;
+      --accent-tint: #fdf0eb;
+      --accent-tint2:#f5d9cc;
+      --accent-shadow: rgba(217,119,87,0.28);
+      --border:      #e5e2db;
+      --border-light:#ede9e2;
+      --font-head:   'Syne', sans-serif;
+      --font-body:   'Inter', sans-serif;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    #root { min-height: 100vh; }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <script type="text/babel" src="src/data.js"></script>
+  <script type="text/babel" src="src/pages/dashboard/DashboardPage.jsx"></script>
+
+  <script type="text/babel">
+    // ── credentials (change before going live) ──────────────────────────────
+    const ADMIN_USER = 'admin';
+    const ADMIN_PASS = 'certo2025';
+    const SESSION_KEY = 'certo_admin_auth';
+    // ────────────────────────────────────────────────────────────────────────
+
+    const LoginPage = ({ onLogin }) => {
+      const [username, setUsername] = React.useState('');
+      const [password, setPassword] = React.useState('');
+      const [error, setError]       = React.useState('');
+      const [loading, setLoading]   = React.useState(false);
+
+      const handleSubmit = (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setError('');
+        setTimeout(() => {
+          if (username === ADMIN_USER && password === ADMIN_PASS) {
+            sessionStorage.setItem(SESSION_KEY, '1');
+            onLogin();
+          } else {
+            setError('Invalid credentials.');
+            setLoading(false);
+          }
+        }, 600);
+      };
+
+      return (
+        <div style={{
+          minHeight: '100vh', display: 'flex', alignItems: 'center',
+          justifyContent: 'center', background: 'var(--bg-alt)',
+        }}>
+          <div style={{
+            background: '#fff', border: '1px solid var(--border)',
+            borderRadius: 16, padding: '48px 40px', width: '100%', maxWidth: 400,
+            boxShadow: '0 4px 24px rgba(0,0,0,0.07)',
+          }}>
+            <div style={{ marginBottom: 32, textAlign: 'center' }}>
+              <div style={{
+                fontFamily: 'var(--font-head)', fontSize: 22, fontWeight: 800,
+                letterSpacing: '-0.5px', color: 'var(--text)',
+              }}>
+                Certo
+              </div>
+              <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 6 }}>
+                Admin access only
+              </div>
+            </div>
+
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>
+                  Username
+                </label>
+                <input
+                  type="text"
+                  value={username}
+                  onChange={e => setUsername(e.target.value)}
+                  autoComplete="username"
+                  required
+                  style={{
+                    width: '100%', padding: '10px 14px', borderRadius: 8,
+                    border: '1px solid var(--border)', fontSize: 14,
+                    fontFamily: 'var(--font-body)', outline: 'none',
+                    background: 'var(--bg)',
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>
+                  Password
+                </label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  autoComplete="current-password"
+                  required
+                  style={{
+                    width: '100%', padding: '10px 14px', borderRadius: 8,
+                    border: '1px solid var(--border)', fontSize: 14,
+                    fontFamily: 'var(--font-body)', outline: 'none',
+                    background: 'var(--bg)',
+                  }}
+                />
+              </div>
+
+              {error && (
+                <div style={{
+                  fontSize: 13, color: '#c0392b', background: '#fdf0f0',
+                  border: '1px solid #f5c6c6', borderRadius: 8, padding: '8px 12px',
+                }}>
+                  {error}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                style={{
+                  marginTop: 4, padding: '12px', borderRadius: 8, border: 'none',
+                  background: loading ? 'var(--border)' : 'var(--accent)',
+                  color: loading ? 'var(--text-muted)' : '#fff',
+                  fontSize: 14, fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer',
+                  fontFamily: 'var(--font-body)', transition: 'background 0.2s',
+                }}
+              >
+                {loading ? 'Signing in…' : 'Sign in'}
+              </button>
+            </form>
+          </div>
+        </div>
+      );
+    };
+
+    const AdminShell = () => {
+      const [page, setPage] = React.useState('dashboard');
+
+      const navigate = (target) => setPage(target);
+
+      React.useEffect(() => {
+        window.scrollTo({ top: 0, behavior: 'instant' });
+      }, [page]);
+
+      const subPage = page.startsWith('dashboard-') ? page.replace('dashboard-', '') : 'orders';
+
+      const handleLogout = () => {
+        sessionStorage.removeItem(SESSION_KEY);
+        window.location.reload();
+      };
+
+      return (
+        <div>
+          {/* Minimal admin top bar */}
+          <div style={{
+            position: 'sticky', top: 0, zIndex: 100,
+            background: 'var(--bg)', borderBottom: '1px solid var(--border)',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '0 32px', height: 52,
+          }}>
+            <span style={{ fontFamily: 'var(--font-head)', fontWeight: 800, fontSize: 16, letterSpacing: '-0.3px' }}>
+              Certo <span style={{ color: 'var(--accent)' }}>Admin</span>
+            </span>
+            <button
+              onClick={handleLogout}
+              style={{
+                fontSize: 13, color: 'var(--text-muted)', background: 'none',
+                border: '1px solid var(--border)', borderRadius: 6,
+                padding: '5px 12px', cursor: 'pointer', fontFamily: 'var(--font-body)',
+              }}
+            >
+              Sign out
+            </button>
+          </div>
+
+          <DashboardPage navigate={navigate} subPage={subPage} />
+        </div>
+      );
+    };
+
+    const AdminApp = () => {
+      const [authed, setAuthed] = React.useState(
+        () => sessionStorage.getItem(SESSION_KEY) === '1'
+      );
+
+      if (!authed) return <LoginPage onLogin={() => setAuthed(true)} />;
+      return <AdminShell />;
+    };
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<AdminApp />);
+  </script>
+</body>
+</html>
