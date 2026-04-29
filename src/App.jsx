@@ -7,8 +7,8 @@ const FooterComponent = ({ navigate }) => {
   const NavLink = ({ label, target, param }) => (
     <button onClick={() => navigate(target, param || null)} style={{
       background: 'none', border: 'none', cursor: 'pointer', padding: 0,
-      fontFamily: 'var(--font-body)', fontSize: 14, color: 'rgba(255,255,255,0.55)',
-      textAlign: 'left', lineHeight: 2.2,
+      fontFamily: 'var(--font-body)', fontSize: isMobile ? 12 : 14, color: 'rgba(255,255,255,0.55)',
+      textAlign: 'left', lineHeight: 2.0,
       transition: 'color 0.15s',
     }}
       onMouseEnter={e => e.target.style.color = 'white'}
@@ -17,7 +17,7 @@ const FooterComponent = ({ navigate }) => {
   );
 
   const ColHead = ({ children }) => (
-    <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 14 }}>{children}</div>
+    <div style={{ fontFamily: 'var(--font-body)', fontSize: isMobile ? 9 : 11, fontWeight: 700, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: isMobile ? 10 : 14 }}>{children}</div>
   );
 
   return (
@@ -29,17 +29,17 @@ const FooterComponent = ({ navigate }) => {
 
           {/* Brand column — full width on mobile */}
           <div style={{ gridColumn: isMobile ? '1 / -1' : 'auto' }}>
-            <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 26, color: 'white', marginBottom: 12, letterSpacing: '-0.02em' }}>Certo</div>
-            <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, lineHeight: 1.75, color: 'rgba(255,255,255,0.5)', maxWidth: 280, marginBottom: 20 }}>
+            <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: isMobile ? 22 : 26, color: 'white', marginBottom: 10, letterSpacing: '-0.02em' }}>Certo</div>
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: isMobile ? 12 : 14, lineHeight: 1.7, color: 'rgba(255,255,255,0.5)', maxWidth: 280, marginBottom: 16 }}>
               Genuine Apple products sourced directly from the US, verified and delivered to your door in Nigeria.
             </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {[
                 '✓ Every serial number verified on Apple.com',
                 '✓ Full Apple US warranty intact',
                 '✓ 12-month Certo coverage',
               ].map(t => (
-                <span key={t} style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'rgba(255,255,255,0.45)' }}>{t}</span>
+                <span key={t} style={{ fontFamily: 'var(--font-body)', fontSize: isMobile ? 11 : 13, color: 'rgba(255,255,255,0.45)' }}>{t}</span>
               ))}
             </div>
           </div>
@@ -76,7 +76,7 @@ const FooterComponent = ({ navigate }) => {
             </div>
             <div style={{ marginTop: 24 }}>
               <ColHead>Contact</ColHead>
-              <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'rgba(255,255,255,0.45)', lineHeight: 2 }}>
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: isMobile ? 11 : 13, color: 'rgba(255,255,255,0.45)', lineHeight: 2 }}>
                 <div>hello@certo.ng</div>
                 <div>Lagos, Nigeria</div>
               </div>
@@ -86,14 +86,14 @@ const FooterComponent = ({ navigate }) => {
 
         {/* Bottom bar */}
         <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 24, display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', gap: 12 }}>
-          <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'rgba(255,255,255,0.3)' }}>© 2026 Certo Technology Ltd. All rights reserved.</span>
-          <div style={{ display: 'flex', gap: 20 }}>
+          <span style={{ fontFamily: 'var(--font-body)', fontSize: isMobile ? 11 : 13, color: 'rgba(255,255,255,0.3)' }}>© 2026 Certo Technologies. All rights reserved.</span>
+          <div style={{ display: 'flex', gap: isMobile ? 14 : 20 }}>
             {[
               { label: 'Privacy Policy',   target: 'privacy' },
               { label: 'Terms of Service', target: 'terms'   },
               { label: 'Refund Policy',    target: 'refund'  },
             ].map(({ label, target }) => (
-              <button key={label} onClick={() => navigate(target)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--font-body)', fontSize: 12, color: 'rgba(255,255,255,0.3)' }}
+              <button key={label} onClick={() => navigate(target)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--font-body)', fontSize: isMobile ? 10 : 12, color: 'rgba(255,255,255,0.3)' }}
                 onMouseEnter={e => e.target.style.color = 'rgba(255,255,255,0.65)'}
                 onMouseLeave={e => e.target.style.color = 'rgba(255,255,255,0.3)'}
               >{label}</button>

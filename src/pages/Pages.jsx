@@ -288,7 +288,7 @@ const FAQPage = () => {
         { q: 'Who runs Certo?', a: 'Certo is run by a single founder based in Lagos. Every order is personally overseen. There\'s no call center — you reach the person who runs the business.' },
         { q: 'How do I reach you?', a: 'WhatsApp is fastest. Our number is on the contact page. We also respond to email and DMs on Twitter and Instagram within 24 hours on business days.' },
         { q: 'What happens if something goes wrong?', a: 'We fix it. If your device arrives damaged, failed, or with a serial that doesn\'t check out — you get a refund or replacement. We\'ve built our business on not having to argue about this.' },
-        { q: 'Is Certo a registered business?', a: 'Yes. Certo is a registered business in Nigeria under the Corporate Affairs Commission (CAC).' },
+        { q: 'Is Certo a registered business?', a: 'Yes. Certo Technologies is a registered business in Nigeria under the Corporate Affairs Commission (CAC).' },
       ]
     },
   ];
@@ -452,7 +452,7 @@ const PrivacyPolicyPage = ({ navigate }) => {
         </Section>
 
         <Section title="Contact">
-          <P>All privacy queries go to hello@certo.ng. We are registered in Nigeria under the Corporate Affairs Commission (CAC) and operate under Nigerian data protection law (NDPA 2023).</P>
+          <P>All privacy queries go to hello@certo.ng. Certo Technologies is registered in Nigeria under the Corporate Affairs Commission (CAC) and operates under Nigerian data protection law (NDPA 2023).</P>
         </Section>
 
         <div style={{ borderTop: '1px solid var(--border)', paddingTop: 32, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
@@ -485,7 +485,7 @@ const TermsOfServicePage = ({ navigate }) => {
         <p style={{ fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--text-muted)', marginBottom: 56 }}>Last updated: April 2026</p>
 
         <Section title="Who you are buying from">
-          <P>You are purchasing from Certo Technology Ltd, a registered Nigerian business. When you place an order, you enter into a contract directly with us. We are the importer, seller, and service provider. There is no marketplace or middleman.</P>
+          <P>You are purchasing from Certo Technologies, a registered Nigerian business. When you place an order, you enter into a contract directly with us. We are the importer, seller, and service provider. There is no marketplace or middleman.</P>
         </Section>
 
         <Section title="What we promise">
@@ -510,7 +510,7 @@ const TermsOfServicePage = ({ navigate }) => {
         </Section>
 
         <Section title="Governing law">
-          <P>These terms are governed by Nigerian law. Any dispute that cannot be resolved between us directly will be referred to a mutually agreed mediator in Lagos, Nigeria. You agree that Nigerian courts have jurisdiction over any unresolved dispute.</P>
+          <P>These terms are governed by Nigerian law. Any dispute that cannot be resolved between us directly will be referred to a mutually agreed mediator in Lagos, Nigeria. You agree that Nigerian courts have jurisdiction over any unresolved dispute. The registered trading name is Certo Technologies.</P>
         </Section>
 
         <Section title="Updates to these terms">

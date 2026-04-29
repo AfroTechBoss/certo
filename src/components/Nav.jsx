@@ -4,13 +4,8 @@
 const CertoLogo = ({ navigate }) => (
   <button onClick={() => navigate('home')} style={{
     background: 'none', border: 'none', cursor: 'pointer', padding: 0,
-    display: 'flex', alignItems: 'center', gap: 8,
   }}>
-    <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-      <rect width="28" height="28" rx="8" fill="var(--accent)"/>
-      <path d="M8 14.5L12 18.5L20 10" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-    <span style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 20, letterSpacing: '-0.03em', color: 'var(--text)' }}>
+    <span style={{ fontFamily: 'var(--font-head)', fontWeight: 800, fontSize: 22, letterSpacing: '-0.03em', color: 'var(--text)' }}>
       Certo
     </span>
   </button>
