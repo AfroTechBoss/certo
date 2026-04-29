@@ -39,6 +39,36 @@ const statusColor = (s) => {
   return { bg: 'oklch(94% 0.03 250)', color: 'oklch(45% 0.12 250)' };
 };
 
+// Module-level style constants used by the edit modal — stable references prevent remounts
+const MODAL_FLD = {
+  padding: '9px 13px', borderRadius: 8, border: '1.5px solid var(--border)',
+  background: 'var(--bg-alt)', fontFamily: 'var(--font-body)', fontSize: 13,
+  color: 'var(--text)', outline: 'none', boxSizing: 'border-box', width: '100%',
+};
+const MODAL_LBL = { fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.04em' };
+const modalFocus = e => e.target.style.borderColor = 'var(--accent)';
+const modalBlur  = e => e.target.style.borderColor = 'var(--border)';
+
+// Defined outside DashboardPage so the component identity is stable across re-renders
+const ListEditor = ({ label, listKey, blank = '', editDraft, setListItem, addListItem, removeListItem }) => (
+  <div style={{ marginBottom: 24 }}>
+    <div style={{ ...MODAL_LBL, marginBottom: 10 }}>{label}</div>
+    {(editDraft[listKey] || []).map((item, i) => (
+      <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+        <input value={item} onChange={e => setListItem(listKey, i, e.target.value)}
+          onFocus={modalFocus} onBlur={modalBlur}
+          style={{ ...MODAL_FLD, flex: 1 }} />
+        <button onClick={() => removeListItem(listKey, i)}
+          style={{ padding: '0 10px', border: '1px solid var(--border)', borderRadius: 7, background: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 16, flexShrink: 0 }}>×</button>
+      </div>
+    ))}
+    <button onClick={() => addListItem(listKey, blank)}
+      style={{ fontSize: 12, color: 'var(--accent)', background: 'var(--accent-tint)', border: '1px dashed var(--accent-tint2)', borderRadius: 7, padding: '6px 14px', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
+      + Add item
+    </button>
+  </div>
+);
+
 // Self-contained ConditionBadge so admin.html doesn't need ShopPage.jsx loaded
 const ConditionBadge = ({ condition }) => {
   const styles = {
@@ -381,33 +411,10 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
   const renderEditModal = () => {
     if (!editingProduct || !editDraft.name) return null;
 
-    const fld = {
-      padding: '9px 13px', borderRadius: 8, border: '1.5px solid var(--border)',
-      background: 'var(--bg-alt)', fontFamily: 'var(--font-body)', fontSize: 13,
-      color: 'var(--text)', outline: 'none', boxSizing: 'border-box', width: '100%',
-    };
-    const lbl = { fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.04em' };
-    const focus = e => e.target.style.borderColor = 'var(--accent)';
-    const blur  = e => e.target.style.borderColor = 'var(--border)';
-
-    const ListEditor = ({ label, listKey, blank = '' }) => (
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ ...lbl, marginBottom: 10 }}>{label}</div>
-        {(editDraft[listKey] || []).map((item, i) => (
-          <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-            <input value={item} onChange={e => setListItem(listKey, i, e.target.value)}
-              onFocus={focus} onBlur={blur}
-              style={{ ...fld, flex: 1 }} />
-            <button onClick={() => removeListItem(listKey, i)}
-              style={{ padding: '0 10px', border: '1px solid var(--border)', borderRadius: 7, background: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 16, flexShrink: 0 }}>×</button>
-          </div>
-        ))}
-        <button onClick={() => addListItem(listKey, blank)}
-          style={{ fontSize: 12, color: 'var(--accent)', background: 'var(--accent-tint)', border: '1px dashed var(--accent-tint2)', borderRadius: 7, padding: '6px 14px', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
-          + Add item
-        </button>
-      </div>
-    );
+    const fld   = MODAL_FLD;
+    const lbl   = MODAL_LBL;
+    const focus = modalFocus;
+    const blur  = modalBlur;
 
     const isNew = !products.some(p => p.id === editingProduct.id);
 
@@ -472,7 +479,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
 
         case 'images': return (
           <div>
-            <ListEditor label="Image URLs (one per line)" listKey="images" blank="https://" />
+            <ListEditor label="Image URLs (one per line)" listKey="images" blank="https://" editDraft={editDraft} setListItem={setListItem} addListItem={addListItem} removeListItem={removeListItem} />
             {(editDraft.images || []).filter(url => url.startsWith('http') || url.startsWith('/')).slice(0, 1).map((url, i) => (
               <div key={i} style={{ marginTop: 16, borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)', background: 'var(--bg-alt)', display: 'flex', alignItems: 'center', justifyContent: 'center', height: 180 }}>
                 <img src={url} alt="Preview" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} onError={e => { e.target.style.display = 'none'; }} />
@@ -484,9 +491,9 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
           </div>
         );
 
-        case 'overview': return <ListEditor label="Overview bullets" listKey="overview" blank="New bullet point" />;
-        case 'specs':    return <ListEditor label="Quick spec highlights" listKey="specs" blank="New spec" />;
-        case 'inbox':    return <ListEditor label="What's in the box" listKey="includes" blank="New item" />;
+        case 'overview': return <ListEditor label="Overview bullets" listKey="overview" blank="New bullet point" editDraft={editDraft} setListItem={setListItem} addListItem={addListItem} removeListItem={removeListItem} />;
+        case 'specs':    return <ListEditor label="Quick spec highlights" listKey="specs" blank="New spec" editDraft={editDraft} setListItem={setListItem} addListItem={addListItem} removeListItem={removeListItem} />;
+        case 'inbox':    return <ListEditor label="What's in the box" listKey="includes" blank="New item" editDraft={editDraft} setListItem={setListItem} addListItem={addListItem} removeListItem={removeListItem} />;
 
         case 'features': return (
           <div>
@@ -836,11 +843,11 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
   );
 
   const tabContent = {
-    orders:    <OrdersTab />,
-    products:  <ProductsTab />,
-    forex:     <ForexTab />,
-    revenue:   <RevenueTab />,
-    customers: <CustomersTab />,
+    orders:    OrdersTab(),
+    products:  ProductsTab(),
+    forex:     ForexTab(),
+    revenue:   RevenueTab(),
+    customers: CustomersTab(),
   };
 
   return (

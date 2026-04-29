@@ -406,4 +406,227 @@ const ContactPage = () => {
   );
 };
 
-Object.assign(window, { HowItWorksPage, TrackOrderPage, AboutPage, FAQPage, ContactPage });
+// ─── Privacy Policy ───────────────────────────────────────────────────────────
+const PrivacyPolicyPage = ({ navigate }) => {
+  const { isMobile } = useResponsive();
+
+  const Section = ({ title, children }) => (
+    <div style={{ marginBottom: 48 }}>
+      <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 22, color: 'var(--text)', marginBottom: 16, paddingBottom: 12, borderBottom: '2px solid var(--accent)' }}>{title}</h2>
+      <div style={{ fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--text-muted)', lineHeight: 1.85 }}>{children}</div>
+    </div>
+  );
+
+  const P = ({ children }) => <p style={{ marginBottom: 16 }}>{children}</p>;
+
+  return (
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', paddingTop: 80 }}>
+      <div style={{ maxWidth: 780, margin: '0 auto', padding: isMobile ? '40px 20px 80px' : '60px 24px 100px' }}>
+        <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 16 }}>Legal</div>
+        <h1 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: isMobile ? 36 : 52, letterSpacing: '-0.03em', color: 'var(--text)', marginBottom: 12 }}>Privacy Policy</h1>
+        <p style={{ fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--text-muted)', marginBottom: 56 }}>Last updated: April 2026</p>
+
+        <Section title="What we collect">
+          <P>When you place an order, we collect your name, phone number, delivery address, and email address. This is the minimum we need to process and deliver your order.</P>
+          <P>When you make a naira payment via Paystack, your card details go directly to Paystack — we never see, store, or have access to your card number, CVV, or any banking credentials. Paystack is PCI-DSS compliant.</P>
+          <P>We also collect your order history and communication history (WhatsApp messages, emails) to support ongoing service and dispute resolution.</P>
+        </Section>
+
+        <Section title="How we use your data">
+          <P>We use your information to fulfil your order, send you delivery updates, and provide customer support. We do not use your data for advertising. We do not sell your data. We do not share it with third parties except those directly involved in delivering your order (our logistics partner and Paystack).</P>
+          <P>We may contact you after delivery to ask how your device is working. That is the full extent of our marketing — and you can opt out by asking us not to contact you again.</P>
+        </Section>
+
+        <Section title="Data storage">
+          <P>Order records are stored securely and retained for seven years for accounting and regulatory compliance. After seven years, your personal data is deleted unless there is an unresolved legal or warranty matter.</P>
+          <P>WhatsApp conversations are on the WhatsApp platform (Meta's privacy policy applies). Emails are retained for three years.</P>
+        </Section>
+
+        <Section title="Your rights">
+          <P>You can request a copy of all personal data we hold on you. You can request correction of any incorrect data. You can request deletion of your data at any time — subject to our legal obligation to retain transaction records for seven years.</P>
+          <P>To exercise any of these rights, email us at hello@certo.ng with the subject line "Data Request" and we will respond within 5 business days.</P>
+        </Section>
+
+        <Section title="Cookies">
+          <P>This website does not use advertising cookies, tracking pixels, or third-party analytics services. The exchange rate we fetch from ExchangeRate-API and the admin session token are stored in your browser's localStorage — this data never leaves your device and is not accessible to anyone but you.</P>
+        </Section>
+
+        <Section title="Contact">
+          <P>All privacy queries go to hello@certo.ng. We are registered in Nigeria under the Corporate Affairs Commission (CAC) and operate under Nigerian data protection law (NDPA 2023).</P>
+        </Section>
+
+        <div style={{ borderTop: '1px solid var(--border)', paddingTop: 32, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          <button onClick={() => navigate('terms')} style={{ background: 'none', border: '1.5px solid var(--border)', borderRadius: 10, padding: '12px 22px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text)' }}>Terms of Service →</button>
+          <button onClick={() => navigate('refund')} style={{ background: 'none', border: '1.5px solid var(--border)', borderRadius: 10, padding: '12px 22px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text)' }}>Refund Policy →</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Terms of Service ─────────────────────────────────────────────────────────
+const TermsOfServicePage = ({ navigate }) => {
+  const { isMobile } = useResponsive();
+
+  const Section = ({ title, children }) => (
+    <div style={{ marginBottom: 48 }}>
+      <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 22, color: 'var(--text)', marginBottom: 16, paddingBottom: 12, borderBottom: '2px solid var(--accent)' }}>{title}</h2>
+      <div style={{ fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--text-muted)', lineHeight: 1.85 }}>{children}</div>
+    </div>
+  );
+
+  const P = ({ children }) => <p style={{ marginBottom: 16 }}>{children}</p>;
+
+  return (
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', paddingTop: 80 }}>
+      <div style={{ maxWidth: 780, margin: '0 auto', padding: isMobile ? '40px 20px 80px' : '60px 24px 100px' }}>
+        <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 16 }}>Legal</div>
+        <h1 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: isMobile ? 36 : 52, letterSpacing: '-0.03em', color: 'var(--text)', marginBottom: 12 }}>Terms of Service</h1>
+        <p style={{ fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--text-muted)', marginBottom: 56 }}>Last updated: April 2026</p>
+
+        <Section title="Who you are buying from">
+          <P>You are purchasing from Certo Technology Ltd, a registered Nigerian business. When you place an order, you enter into a contract directly with us. We are the importer, seller, and service provider. There is no marketplace or middleman.</P>
+        </Section>
+
+        <Section title="What we promise">
+          <P>Every device sold on Certo is purchased directly from Apple.com US. Every serial number is verified on Apple's official coverage checker before dispatch. The Apple US warranty is intact at the time of sale — we will provide the Apple order confirmation as proof.</P>
+          <P>We will deliver your order within the estimated timeframe shown on the product page. If we fail to deliver within 25 business days of payment, you are entitled to a full refund under our Refund Policy.</P>
+          <P>The naira price you see at checkout is the price you pay. We will not change the price after payment has been received.</P>
+        </Section>
+
+        <Section title="The forex clause">
+          <P>Naira prices are calculated at the live USD/NGN buying rate at the time of your checkout. By completing payment, you confirm that you understand and accept the naira amount charged at the rate shown. This rate is not negotiable after payment is made.</P>
+          <P>If you pay in USD, no forex conversion applies. You are charged the exact USD amount shown at checkout.</P>
+        </Section>
+
+        <Section title="Your responsibilities">
+          <P>You must provide an accurate delivery address and a working phone number. If a delivery attempt fails because of an incorrect address or an unreachable phone number, you may incur a redelivery fee. If a second attempt also fails, the device will be held for 10 business days before being returned — and a refund will be issued minus the return logistics cost.</P>
+          <P>You must inspect your device on delivery and report any damage within 24 hours of receipt. Damage reported after 24 hours may not be eligible for a return.</P>
+        </Section>
+
+        <Section title="What we do not cover">
+          <P>We do not cover damage caused by accidents, drops, liquid exposure, or unauthorised repairs. We do not cover consumable parts (batteries after the first 12 months, charging cables, earphones). We do not cover software issues unrelated to hardware faults.</P>
+          <P>AppleCare+ and AppleCare One are separate products sold by Apple. They are activated by you on Apple's platform. We assist with activation but we are not responsible for Apple's decisions regarding coverage claims.</P>
+        </Section>
+
+        <Section title="Governing law">
+          <P>These terms are governed by Nigerian law. Any dispute that cannot be resolved between us directly will be referred to a mutually agreed mediator in Lagos, Nigeria. You agree that Nigerian courts have jurisdiction over any unresolved dispute.</P>
+        </Section>
+
+        <Section title="Updates to these terms">
+          <P>We may update these terms from time to time. The terms that apply to your order are the terms in effect at the date of your payment. We will not apply new terms retroactively to completed transactions.</P>
+        </Section>
+
+        <div style={{ borderTop: '1px solid var(--border)', paddingTop: 32, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          <button onClick={() => navigate('privacy')} style={{ background: 'none', border: '1.5px solid var(--border)', borderRadius: 10, padding: '12px 22px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text)' }}>Privacy Policy →</button>
+          <button onClick={() => navigate('refund')} style={{ background: 'none', border: '1.5px solid var(--border)', borderRadius: 10, padding: '12px 22px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text)' }}>Refund Policy →</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Refund Policy ────────────────────────────────────────────────────────────
+const RefundPolicyPage = ({ navigate }) => {
+  const { isMobile } = useResponsive();
+
+  const Section = ({ title, children }) => (
+    <div style={{ marginBottom: 48 }}>
+      <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 22, color: 'var(--text)', marginBottom: 16, paddingBottom: 12, borderBottom: '2px solid var(--accent)' }}>{title}</h2>
+      <div style={{ fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--text-muted)', lineHeight: 1.85 }}>{children}</div>
+    </div>
+  );
+
+  const P = ({ children }) => <p style={{ marginBottom: 16 }}>{children}</p>;
+
+  const scenarios = [
+    {
+      label: 'Serial fails Apple verification',
+      outcome: 'Full refund',
+      detail: 'If the serial number of your device does not pass as genuine on apple.com/coverage when you receive it, we issue a full refund within 24 hours — no questions, no negotiation.',
+      accent: true,
+    },
+    {
+      label: 'Delivery exceeds 25 business days',
+      outcome: 'Full refund',
+      detail: 'If your order has not been delivered 25 business days after your payment date, you can request a full refund at any time. We process it within 3 business days.',
+      accent: true,
+    },
+    {
+      label: 'Device arrives physically damaged',
+      outcome: 'Full refund or replacement',
+      detail: 'Damage must be reported within 24 hours of delivery with photos. We will arrange collection at our cost and either replace the device or issue a full refund — your choice.',
+      accent: true,
+    },
+    {
+      label: 'Device is dead on arrival (DOA)',
+      outcome: 'Full refund or replacement',
+      detail: 'If your device does not power on or shows a critical hardware fault on first use, report it within 48 hours. We replace or refund.',
+      accent: true,
+    },
+    {
+      label: 'You changed your mind (before procurement)',
+      outcome: 'Full refund',
+      detail: 'If you cancel before we have purchased the device from Apple (typically within the first 12 hours after payment), we issue a full refund.',
+      accent: false,
+    },
+    {
+      label: 'You changed your mind (after procurement)',
+      outcome: 'No refund',
+      detail: 'Once we have purchased your specific device from Apple, the order cannot be cancelled. The device is configured and purchased for you specifically.',
+      accent: false,
+    },
+    {
+      label: 'Hardware fault within 12 months',
+      outcome: 'Repair or replacement',
+      detail: 'Manufacturing defects within 12 months of delivery are covered under our warranty. We arrange repair with an Apple Authorised Service Provider or replace the device.',
+      accent: false,
+    },
+  ];
+
+  return (
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', paddingTop: 80 }}>
+      <div style={{ maxWidth: 780, margin: '0 auto', padding: isMobile ? '40px 20px 80px' : '60px 24px 100px' }}>
+        <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 16 }}>Legal</div>
+        <h1 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: isMobile ? 36 : 52, letterSpacing: '-0.03em', color: 'var(--text)', marginBottom: 12 }}>Refund Policy</h1>
+        <p style={{ fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--text-muted)', marginBottom: 24 }}>Last updated: April 2026</p>
+
+        <div style={{ background: 'var(--accent-tint)', border: '1px solid var(--accent-tint2)', borderRadius: 16, padding: isMobile ? 20 : 28, marginBottom: 56 }}>
+          <p style={{ fontFamily: 'var(--font-body)', fontSize: 16, color: 'var(--text)', lineHeight: 1.75, margin: 0 }}>
+            <strong>The short version:</strong> if something goes wrong on our end — the serial fails, the device is damaged, delivery takes longer than 25 days — you get a full refund, fast. We have never argued with a legitimate refund request and we do not intend to start.
+          </p>
+        </div>
+
+        <Section title="Scenario by scenario">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {scenarios.map((s, i) => (
+              <div key={i} style={{ borderRadius: 14, border: `1.5px solid ${s.accent ? 'var(--accent-tint2)' : 'var(--border)'}`, background: s.accent ? 'var(--accent-tint)' : 'var(--bg-alt)', padding: isMobile ? 16 : 20 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 10, flexWrap: 'wrap' }}>
+                  <span style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 15, color: 'var(--text)' }}>{s.label}</span>
+                  <span style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 13, padding: '3px 12px', borderRadius: 20, background: s.accent ? 'var(--accent)' : 'var(--border)', color: s.accent ? 'white' : 'var(--text-muted)', flexShrink: 0 }}>{s.outcome}</span>
+                </div>
+                <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.7, margin: 0 }}>{s.detail}</p>
+              </div>
+            ))}
+          </div>
+        </Section>
+
+        <Section title="How to request a refund">
+          <P>Message us on WhatsApp or email hello@certo.ng with your order ID and a description of the issue. If the issue involves physical damage or a serial failure, include photos. We will acknowledge your request within 4 hours on business days.</P>
+          <P>Once a refund is approved, it is processed within 3 business days. Naira refunds go back to the original payment source. USD refunds are returned to the original card or crypto address.</P>
+        </Section>
+
+        <Section title="What is not covered">
+          <P>Accidental damage, liquid damage, or damage from unauthorised repairs is not covered. Cosmetic wear that does not affect functionality is not covered. Software issues that can be resolved by a factory reset are not covered. Buyer's remorse after device procurement has begun is not covered.</P>
+        </Section>
+
+        <div style={{ borderTop: '1px solid var(--border)', paddingTop: 32, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          <button onClick={() => navigate('privacy')} style={{ background: 'none', border: '1.5px solid var(--border)', borderRadius: 10, padding: '12px 22px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text)' }}>Privacy Policy →</button>
+          <button onClick={() => navigate('terms')} style={{ background: 'none', border: '1.5px solid var(--border)', borderRadius: 10, padding: '12px 22px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text)' }}>Terms of Service →</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+Object.assign(window, { HowItWorksPage, TrackOrderPage, AboutPage, FAQPage, ContactPage, PrivacyPolicyPage, TermsOfServicePage, RefundPolicyPage });

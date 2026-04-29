@@ -1,6 +1,24 @@
 
 // Certo — Checkout Flow (5 steps)
 
+// Defined outside CheckoutFlow so the component identity stays stable across re-renders
+const CheckoutInput = ({ label, value, onChange, placeholder, type = 'text' }) => (
+  <div style={{ marginBottom: 18 }}>
+    <label style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, color: 'var(--text)', display: 'block', marginBottom: 6 }}>{label}</label>
+    <input
+      type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
+      style={{
+        width: '100%', padding: '12px 16px', borderRadius: 10, border: '1.5px solid var(--border)',
+        fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--text)',
+        background: 'var(--bg)', outline: 'none', boxSizing: 'border-box',
+        transition: 'border-color 0.15s',
+      }}
+      onFocus={e => e.target.style.borderColor = 'var(--accent)'}
+      onBlur={e => e.target.style.borderColor = 'var(--border)'}
+    />
+  </div>
+);
+
 const CheckoutFlow = ({ cart, navigate, clearCart }) => {
   const { isMobile } = useResponsive();
   const [step, setStep] = React.useState(0);
@@ -34,23 +52,6 @@ const CheckoutFlow = ({ cart, navigate, clearCart }) => {
           color: i === step ? 'var(--text)' : 'var(--text-muted)',
         }}>{STEPS[i]}</span>
       )}
-    </div>
-  );
-
-  const Input = ({ label, value, onChange, placeholder, type = 'text' }) => (
-    <div style={{ marginBottom: 18 }}>
-      <label style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, color: 'var(--text)', display: 'block', marginBottom: 6 }}>{label}</label>
-      <input
-        type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
-        style={{
-          width: '100%', padding: '12px 16px', borderRadius: 10, border: '1.5px solid var(--border)',
-          fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--text)',
-          background: 'var(--bg)', outline: 'none', boxSizing: 'border-box',
-          transition: 'border-color 0.15s',
-        }}
-        onFocus={e => e.target.style.borderColor = 'var(--accent)'}
-        onBlur={e => e.target.style.borderColor = 'var(--border)'}
-      />
     </div>
   );
 
@@ -110,9 +111,9 @@ const CheckoutFlow = ({ cart, navigate, clearCart }) => {
   const DeliveryStep = () => (
     <div>
       <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 28, letterSpacing: '-0.02em', color: 'var(--text)', marginBottom: 24 }}>Delivery Details</h2>
-      <Input label="Full Name" value={delivery.name} onChange={v => setDelivery({...delivery, name: v})} placeholder="e.g. Adaeze Okoye" />
-      <Input label="Phone Number" value={delivery.phone} onChange={v => setDelivery({...delivery, phone: v})} placeholder="+234 800 000 0000" type="tel" />
-      <Input label="Delivery Address" value={delivery.address} onChange={v => setDelivery({...delivery, address: v})} placeholder="Street address, area" />
+      <CheckoutInput label="Full Name" value={delivery.name} onChange={v => setDelivery({...delivery, name: v})} placeholder="e.g. Adaeze Okoye" />
+      <CheckoutInput label="Phone Number" value={delivery.phone} onChange={v => setDelivery({...delivery, phone: v})} placeholder="+234 800 000 0000" type="tel" />
+      <CheckoutInput label="Delivery Address" value={delivery.address} onChange={v => setDelivery({...delivery, address: v})} placeholder="Street address, area" />
       <div style={{ marginBottom: 18 }}>
         <label style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, color: 'var(--text)', display: 'block', marginBottom: 6 }}>State</label>
         <select value={delivery.state} onChange={e => setDelivery({...delivery, state: e.target.value})} style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: '1.5px solid var(--border)', fontFamily: 'var(--font-body)', fontSize: 15, color: delivery.state ? 'var(--text)' : 'var(--text-muted)', background: 'var(--bg)', outline: 'none', boxSizing: 'border-box' }}>
@@ -179,8 +180,8 @@ const CheckoutFlow = ({ cart, navigate, clearCart }) => {
       <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 28, letterSpacing: '-0.02em', color: 'var(--text)', marginBottom: 24 }}>Payment</h2>
       <div style={{ display: 'flex', gap: 12, marginBottom: 28 }}>
         {[
-          { id: 'naira', label: '₦ Pay in Naira', sub: 'via Paystack' },
-          { id: 'usd', label: '$ Pay in USD', sub: 'Card or Crypto' },
+          { id: 'naira', label: 'Pay with Naira', sub: 'via Paystack' },
+          { id: 'usd', label: 'Pay with USD or Crypto', sub: 'Card, USDC, or BTC' },
         ].map(opt => (
           <div key={opt.id} onClick={() => setPayMethod(opt.id)} style={{
             flex: 1, padding: '18px 20px', borderRadius: 14, cursor: 'pointer',
@@ -222,7 +223,7 @@ const CheckoutFlow = ({ cart, navigate, clearCart }) => {
         background: 'var(--accent)', color: 'white', cursor: 'pointer',
         fontFamily: 'var(--font-body)', fontSize: 17, fontWeight: 700,
       }}>
-        {payMethod === 'naira' ? `Pay ${fmt(totalUsd)} via Paystack →` : `Complete USD Payment ($${totalUsd.toLocaleString()}) →`}
+        {payMethod === 'naira' ? `Pay ${fmt(totalUsd)} via Paystack →` : `Complete Payment ($${totalUsd.toLocaleString()}) →`}
       </button>
     </div>
   );
@@ -263,7 +264,6 @@ const CheckoutFlow = ({ cart, navigate, clearCart }) => {
   );
 
   const steps = [CartStep, DeliveryStep, ForexStep, PaymentStep, ConfirmationStep];
-  const CurrentStep = steps[step];
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', paddingTop: 80 }}>
@@ -278,7 +278,7 @@ const CheckoutFlow = ({ cart, navigate, clearCart }) => {
             ))}
           </div>
         )}
-        <CurrentStep />
+        {steps[step]()}
       </div>
     </div>
   );

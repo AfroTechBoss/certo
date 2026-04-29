@@ -88,8 +88,12 @@ const FooterComponent = ({ navigate }) => {
         <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 24, display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', gap: 12 }}>
           <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'rgba(255,255,255,0.3)' }}>© 2026 Certo Technology Ltd. All rights reserved.</span>
           <div style={{ display: 'flex', gap: 20 }}>
-            {['Privacy Policy', 'Terms of Service', 'Refund Policy'].map(label => (
-              <button key={label} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--font-body)', fontSize: 12, color: 'rgba(255,255,255,0.3)' }}
+            {[
+              { label: 'Privacy Policy',   target: 'privacy' },
+              { label: 'Terms of Service', target: 'terms'   },
+              { label: 'Refund Policy',    target: 'refund'  },
+            ].map(({ label, target }) => (
+              <button key={label} onClick={() => navigate(target)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--font-body)', fontSize: 12, color: 'rgba(255,255,255,0.3)' }}
                 onMouseEnter={e => e.target.style.color = 'rgba(255,255,255,0.65)'}
                 onMouseLeave={e => e.target.style.color = 'rgba(255,255,255,0.3)'}
               >{label}</button>
@@ -111,7 +115,7 @@ const parseHash = () => {
   if (route === 'product')   return { page: 'product', param };
   if (route === 'shop')      return { page: 'shop',    param };
   if (route === 'dashboard') return { page: param ? `dashboard-${param}` : 'dashboard', param: null };
-  const known = ['home', 'how-it-works', 'about', 'faq', 'contact', 'track', 'cart', 'checkout'];
+  const known = ['home', 'how-it-works', 'about', 'faq', 'contact', 'track', 'cart', 'checkout', 'privacy', 'terms', 'refund'];
   if (known.includes(route)) return { page: route, param: null };
   return { page: 'home', param: null };
 };
@@ -236,6 +240,15 @@ const App = () => {
 
       case 'contact':
         return <ContactPage />;
+
+      case 'privacy':
+        return <PrivacyPolicyPage navigate={navigate} />;
+
+      case 'terms':
+        return <TermsOfServicePage navigate={navigate} />;
+
+      case 'refund':
+        return <RefundPolicyPage navigate={navigate} />;
 
       case 'cart':
       case 'checkout':
