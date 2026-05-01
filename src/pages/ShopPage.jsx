@@ -1,6 +1,11 @@
 
 // Certo — Shop Page + Product Detail Page
 
+// Strip the .v= cache-buster from Apple CDN URLs (it causes proxy encoding issues and isn't needed)
+const cleanAppleImg = (url) => url ? url.replace(/[&?]\.v=[^&]*/, '') : null;
+// Route Apple CDN image URLs through our server proxy (Apple blocks direct hotlinking)
+const proxyImg = (url) => url ? `/api/img?url=${encodeURIComponent(cleanAppleImg(url))}` : null;
+
 // Normalise API shape (snake_case, string prices) → UI shape (camelCase, numeric prices)
 const normaliseProduct = (p) => ({
   id: p.id,
@@ -10,7 +15,7 @@ const normaliseProduct = (p) => ({
   condition: p.condition,
   conditionNote: p.condition_note || '',
   usdPrice: parseFloat(p.usd_price) || 0,
-  images: p.image_urls || [],
+  images: (p.image_urls || []).map(proxyImg),
   badge: p.badge || '',
   deliveryDays: p.delivery_days || '10–18 business days',
   inStock: p.in_stock,
@@ -51,9 +56,19 @@ const ProductCard = ({ product, navigate }) => {
     >
       <div style={{
         height: 200, background: 'var(--bg-alt)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        borderBottom: '1px solid var(--border)', position: 'relative',
+        borderBottom: '1px solid var(--border)', position: 'relative', overflow: 'hidden',
       }}>
-        <ProductIcon type={product.type.toLowerCase()} size={130} color="var(--accent)" />
+        {product.images && product.images[0] ? (
+          <img
+            src={product.images[0]}
+            alt={product.name}
+            style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 16 }}
+            onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+          />
+        ) : null}
+        <div style={{ display: product.images && product.images[0] ? 'none' : 'flex', alignItems: 'center', justifyContent: 'center', position: 'absolute', inset: 0 }}>
+          <ProductIcon type={product.type.toLowerCase()} size={130} color="var(--accent)" />
+        </div>
         {!product.inStock && (
           <div style={{
             position: 'absolute', inset: 0, background: 'rgba(250,249,247,0.7)',

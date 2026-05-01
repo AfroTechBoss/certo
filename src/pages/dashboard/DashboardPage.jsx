@@ -1,11 +1,33 @@
 
 // Certo — Internal Dashboard
 
-const INITIAL_PRODUCTS = PRODUCTS.map(p => ({
-  ...p,
-  stock: p.inStock ? Math.floor(Math.random() * 8) + 1 : 0,
-  ngnPrice: p.usdPrice * CERTO_RATE,
-}));
+// Normalise a product row from /api/products into the dashboard UI shape
+function normaliseDashProduct(p) {
+  const rate = (typeof CERTO_RATE !== 'undefined' ? CERTO_RATE : 1590);
+  const usdPrice = parseFloat(p.usd_price) || 0;
+  return {
+    id:          p.id,
+    name:        p.name,
+    subtitle:    p.subtitle || '',
+    type:        p.category,
+    condition:   p.condition,
+    conditionNote: p.condition_note || '',
+    usdPrice,
+    ngnPrice:    Math.round(usdPrice * rate),
+    images:      (p.image_urls || []).map(u => u ? `/api/img?url=${encodeURIComponent(u.replace(/[&?]\.v=[^&]*/, ''))}` : null).filter(Boolean),
+    badge:       p.badge || '',
+    deliveryDays: p.delivery_days || '10–18 business days',
+    inStock:     p.in_stock,
+    featured:    p.featured,
+    stock:       p.stock_count || (p.in_stock ? 1 : 0),
+    overview:    p.overview || [],
+    specs:       p.specs || [],
+    includes:    p.includes || [],
+    features:    p.features || [],
+    techSpecs:   p.tech_specs || [],
+    apple_url:   p.apple_url,
+  };
+}
 
 // Normalise order rows from API to a consistent shape
 function normaliseOrder(o) {
@@ -155,10 +177,24 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
 
   React.useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
-  const [products,       setProducts]       = React.useState(INITIAL_PRODUCTS);
+  const [products,       setProducts]       = React.useState([]);
+  const [productsLoading, setProductsLoading] = React.useState(false);
   const [editingProduct, setEditingProduct] = React.useState(null);
   const [editDraft,      setEditDraft]      = React.useState({});
   const [editSection,    setEditSection]    = React.useState('basic');
+
+  const fetchProducts = React.useCallback(() => {
+    setProductsLoading(true);
+    fetch('/api/products')
+      .then(r => r.json())
+      .then(rows => {
+        setProducts((Array.isArray(rows) ? rows : []).map(normaliseDashProduct));
+        setProductsLoading(false);
+      })
+      .catch(() => setProductsLoading(false));
+  }, []);
+
+  React.useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
   // Orders — filter + search state
   const [orderSearch,       setOrderSearch]       = React.useState('');
@@ -534,9 +570,26 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
       ngnPrice: Number(editDraft.usdPrice) * forexRate,
       stock:    Number(editDraft.stock),
     };
+
+    // Optimistic UI update
     const exists = products.some(p => p.id === editingProduct.id);
     if (exists) {
       setProducts(prev => prev.map(p => p.id === editingProduct.id ? updated : p));
+      // Persist to API (map back to snake_case)
+      fetch(`/api/products/${encodeURIComponent(updated.id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: updated.name, subtitle: updated.subtitle,
+          usd_price: updated.usdPrice, in_stock: updated.inStock,
+          featured: updated.featured, badge: updated.badge,
+          delivery_days: updated.deliveryDays, condition: updated.condition,
+          condition_note: updated.conditionNote, stock_count: updated.stock,
+          overview: updated.overview, specs: updated.specs,
+          includes: updated.includes, features: updated.features,
+          tech_specs: updated.techSpecs,
+        }),
+      }).catch(err => console.error('Failed to save product:', err));
     } else {
       setProducts(prev => [...prev, updated]);
     }
@@ -767,7 +820,9 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
   const ProductsTab = () => (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, gap: 12 }}>
-        <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: isMobile ? 18 : 22, color: 'var(--text)' }}>Product Listings</h2>
+        <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: isMobile ? 18 : 22, color: 'var(--text)' }}>
+          Product Listings {productsLoading ? <span style={{ fontSize: 13, fontWeight: 400, color: 'var(--text-muted)' }}>Loading…</span> : <span style={{ fontSize: 13, fontWeight: 400, color: 'var(--text-muted)' }}>({products.length})</span>}
+        </h2>
         <button onClick={openAdd} style={{ background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, flexShrink: 0 }}>+ Add Product</button>
       </div>
       <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 20, overflow: 'hidden' }}>

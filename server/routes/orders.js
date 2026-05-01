@@ -1,7 +1,7 @@
 const express = require('express');
 const router  = express.Router();
 const pool    = require('../db');
-const { sendOrderConfirmation } = require('../email');
+const { sendOrderConfirmation, sendStatusUpdate } = require('../email');
 
 function generateOrderId() {
   const now  = new Date();
@@ -160,16 +160,30 @@ router.patch('/:id', async (req, res) => {
     const fields  = Object.keys(req.body).filter(k => allowed.includes(k));
     if (!fields.length) return res.status(400).json({ error: 'Nothing to update' });
 
-    const params = fields.map((f, i) => `${f} = $${i + 1}`).join(', ');
+    // Fetch previous status before update (to detect status changes)
+    const prevResult = await pool.query('SELECT status FROM orders WHERE id = $1', [req.params.id]);
+    const prevStatus = prevResult.rows[0]?.status;
+
+    const setClauses = fields.map((f, i) => `${f} = $${i + 1}`).join(', ');
     const values = fields.map(f => req.body[f]);
     values.push(req.params.id);
 
     const { rows } = await pool.query(
-      `UPDATE orders SET ${params}, updated_at = NOW() WHERE id = $${values.length} RETURNING *`,
+      `UPDATE orders SET ${setClauses}, updated_at = NOW() WHERE id = $${values.length} RETURNING *`,
       values,
     );
     if (!rows.length) return res.status(404).json({ error: 'Order not found' });
-    res.json(rows[0]);
+
+    const updated = rows[0];
+
+    // Send status-change email for key milestones (non-blocking)
+    const emailStatuses = ['Arrived in Nigeria', 'Out for Delivery', 'Delivered'];
+    if (req.body.status && req.body.status !== prevStatus && emailStatuses.includes(req.body.status)) {
+      sendStatusUpdate(updated)
+        .catch(err => console.error('Status email failed for', updated.id, ':', err.message));
+    }
+
+    res.json(updated);
   } catch (err) {
     console.error('PATCH /orders/:id:', err);
     res.status(500).json({ error: 'Failed to update order' });

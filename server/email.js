@@ -185,4 +185,135 @@ async function sendOrderConfirmation(order) {
   return info;
 }
 
-module.exports = { sendOrderConfirmation };
+// ─── Status update email ───────────────────────────────────────────────────
+
+const STATUS_MESSAGES = {
+  'Arrived in Nigeria': {
+    emoji: '🇳🇬',
+    headline: 'Your order has arrived in Nigeria!',
+    body: 'Great news — your device has cleared customs and landed in Nigeria. Our delivery team is preparing it for dispatch. You\'ll hear from us shortly with a delivery window.',
+    next: 'Expect delivery soon. Our team will call or WhatsApp you to confirm your delivery slot.',
+  },
+  'Out for Delivery': {
+    emoji: '🚚',
+    headline: 'Your order is out for delivery today!',
+    body: 'Your device is on its way to you right now. Please make sure someone is available at your delivery address to receive it.',
+    next: 'Keep your phone nearby — our delivery agent will call before arrival. At delivery, inspect the sealed box before signing.',
+  },
+  'Delivered': {
+    emoji: '📦',
+    headline: 'Your order has been delivered!',
+    body: 'Your Certo order has been delivered. We hope everything arrived in perfect condition. Remember to verify your serial number on Apple\'s website.',
+    next: 'Visit checkcoverage.apple.com and enter your serial number to confirm your device is genuine and your warranty is active.',
+  },
+};
+
+function statusUpdateHtml(order) {
+  const { id, customer_name, product_name, product_image_url, status } = order;
+  const msg      = STATUS_MESSAGES[status];
+  const trackUrl = `${SITE}/track/${id}`;
+  const fmtNgn   = (n) => `₦${Number(n).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>${msg.emoji} ${msg.headline}</title>
+<style>body{margin:0;padding:0;background:#f2f0ec;font-family:Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased;}a{color:#d97757;text-decoration:none;}</style>
+</head>
+<body>
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f2f0ec;padding:32px 0;">
+<tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#faf9f7;border-radius:20px;overflow:hidden;border:1px solid #e5e2db;">
+
+  <!-- Header -->
+  <tr>
+    <td style="background:#d97757;padding:28px 40px;text-align:center;">
+      <div style="font-family:Georgia,serif;font-weight:700;font-size:26px;color:#fff;letter-spacing:-0.02em;">Certo</div>
+    </td>
+  </tr>
+
+  <!-- Status Hero -->
+  <tr>
+    <td style="padding:40px 40px 28px;text-align:center;border-bottom:1px solid #e5e2db;">
+      <div style="font-size:48px;margin-bottom:16px;">${msg.emoji}</div>
+      <h1 style="font-size:22px;font-weight:700;color:#1a1714;margin:0 0 12px;letter-spacing:-0.02em;">${msg.headline}</h1>
+      <p style="font-size:15px;color:#706b60;margin:0;line-height:1.7;max-width:440px;display:inline-block;">
+        Hi ${customer_name} — ${msg.body}
+      </p>
+    </td>
+  </tr>
+
+  <!-- Order info -->
+  <tr>
+    <td style="padding:24px 40px;border-bottom:1px solid #e5e2db;background:#f2f0ec;">
+      <div style="font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#706b60;margin-bottom:8px;">Your order</div>
+      <div style="font-size:16px;font-weight:700;color:#1a1714;margin-bottom:4px;">${product_name}</div>
+      <div style="font-size:13px;color:#706b60;">Order ID: <strong>${id}</strong></div>
+    </td>
+  </tr>
+
+  <!-- What's next -->
+  <tr>
+    <td style="padding:28px 40px;border-bottom:1px solid #e5e2db;">
+      <div style="font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#706b60;margin-bottom:10px;">What to do now</div>
+      <p style="font-size:14px;color:#1a1714;line-height:1.7;margin:0;">${msg.next}</p>
+    </td>
+  </tr>
+
+  <!-- Track CTA -->
+  <tr>
+    <td style="padding:32px 40px;text-align:center;border-bottom:1px solid #e5e2db;">
+      <a href="${trackUrl}" style="display:inline-block;background:#d97757;color:#fff;font-size:15px;font-weight:700;padding:14px 36px;border-radius:12px;text-decoration:none;">Track My Order →</a>
+    </td>
+  </tr>
+
+  <!-- Contact -->
+  <tr>
+    <td style="padding:24px 40px;border-bottom:1px solid #e5e2db;">
+      <p style="font-size:14px;color:#706b60;line-height:1.7;margin:0 0 10px;">Questions? We're here:</p>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;">
+        <a href="mailto:hello@certo.ng" style="font-size:14px;font-weight:600;color:#d97757;">✉ hello@certo.ng</a>
+        <span style="color:#e5e2db;">|</span>
+        <a href="https://wa.me/${WA_NUM}" style="font-size:14px;font-weight:600;color:#d97757;">💬 WhatsApp</a>
+      </div>
+    </td>
+  </tr>
+
+  <!-- Footer -->
+  <tr>
+    <td style="padding:24px 40px;text-align:center;">
+      <div style="font-size:12px;color:#706b60;line-height:1.6;">
+        © ${new Date().getFullYear()} Certo. All rights reserved. · <a href="${SITE}">certo.ng</a>
+      </div>
+    </td>
+  </tr>
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>`;
+}
+
+const STATUS_EMAIL_SUBJECTS = {
+  'Arrived in Nigeria': '🇳🇬 Your order has arrived in Nigeria! – ',
+  'Out for Delivery':   '🚚 Your order is out for delivery today! – ',
+  'Delivered':          '📦 Your order has been delivered! – ',
+};
+
+async function sendStatusUpdate(order) {
+  const subject = STATUS_EMAIL_SUBJECTS[order.status];
+  if (!subject) return; // only send for these three statuses
+  const html = statusUpdateHtml(order);
+  return transporter.sendMail({
+    from:    '"Certo" <noreply@certo.ng>',
+    to:      `${order.customer_name} <${order.customer_email}>`,
+    subject: subject + order.id,
+    html,
+    text: `Hi ${order.customer_name},\n\n${STATUS_MESSAGES[order.status].headline}\n\n${STATUS_MESSAGES[order.status].body}\n\n${STATUS_MESSAGES[order.status].next}\n\nTrack your order: ${SITE}/track/${order.id}\n\nFor help: hello@certo.ng or WhatsApp: https://wa.me/${WA_NUM}\n\nCerto`,
+  });
+}
+
+module.exports = { sendOrderConfirmation, sendStatusUpdate };
