@@ -17,6 +17,14 @@ app.use(express.static(path.join(__dirname, '..')));
 app.use('/api/products', require('./routes/products'));
 app.use('/api/orders',   require('./routes/orders'));
 
+// Public config — exposes non-secret keys needed by the frontend
+app.get('/api/config', (req, res) => {
+  res.json({
+    paystackKey:  process.env.PAYSTACK_PUBLIC_KEY || '',
+    helioPayLink: process.env.HELIO_PAY_LINK      || '',
+  });
+});
+
 // Image proxy — Apple CDN requires apple.com Referer; we proxy to avoid hotlink blocks
 app.get('/api/img', async (req, res) => {
   const { url } = req.query;

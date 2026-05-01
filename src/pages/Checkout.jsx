@@ -28,6 +28,11 @@ const CheckoutFlow = ({ cart, navigate, clearCart }) => {
   const [orderId, setOrderId] = React.useState('');
   const [submitting, setSubmitting] = React.useState(false);
   const [submitError, setSubmitError] = React.useState('');
+  const [payConfig, setPayConfig] = React.useState({ paystackKey: '', helioPayLink: '' });
+
+  React.useEffect(() => {
+    fetch('/api/config').then(r => r.json()).then(d => setPayConfig(d)).catch(() => {});
+  }, []);
 
   const cartItems = cart || [];
   const totalUsd = cartItems.reduce((sum, item) => {
@@ -178,101 +183,168 @@ const CheckoutFlow = ({ cart, navigate, clearCart }) => {
     </div>
   );
 
+  const handlePay = async () => {
+    setSubmitting(true);
+    setSubmitError('');
+    try {
+      // Step 1 — create the order record in the DB
+      const firstItem = cartItems[0];
+      const res = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customer_name:     delivery.name,
+          customer_email:    delivery.email,
+          customer_phone:    delivery.phone,
+          address:           delivery.address,
+          state:             delivery.state,
+          product_id:        firstItem?.product?.id || null,
+          product_name:      firstItem?.product?.name || '',
+          product_subtitle:  firstItem?.product?.subtitle || '',
+          product_image_url: (firstItem?.product?.image_urls || firstItem?.product?.images || [])[0] || '',
+          apple_url:         firstItem?.product?.apple_url || '',
+          applecare:         firstItem?.applecare?.name || 'none',
+          qty:               cartItems.length,
+          usd_price:         totalUsd,
+          ngn_price:         totalNgn,
+          forex_rate:        CERTO_RATE,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Order submission failed');
+      const newOrderId = data.id;
+      setOrderId(newOrderId);
+
+      if (payMethod === 'naira') {
+        // Step 2a — open Paystack inline popup
+        if (!window.PaystackPop) throw new Error('Paystack failed to load — check your connection and try again');
+        if (!payConfig.paystackKey) throw new Error('Payment is not configured yet — please contact us directly');
+        const handler = window.PaystackPop.setup({
+          key:      payConfig.paystackKey,
+          email:    delivery.email,
+          amount:   Math.round(totalNgn * 100), // kobo
+          currency: 'NGN',
+          ref:      newOrderId,
+          metadata: {
+            custom_fields: [
+              { display_name: 'Order ID',   variable_name: 'order_id',  value: newOrderId     },
+              { display_name: 'Customer',   variable_name: 'customer',  value: delivery.name  },
+              { display_name: 'Phone',      variable_name: 'phone',     value: delivery.phone },
+            ],
+          },
+          callback: () => {
+            // Payment completed successfully
+            clearCart && clearCart();
+            setSubmitting(false);
+            setStep(4);
+          },
+          onClose: () => {
+            // User closed the Paystack popup without paying
+            setSubmitError(`Payment cancelled. Your order ${newOrderId} is saved — you can complete payment anytime by contacting us.`);
+            setSubmitting(false);
+          },
+        });
+        handler.openIframe();
+        // Do NOT setSubmitting(false) here — Paystack is open; wait for callback/onClose
+      } else {
+        // Step 2b — open hel.io for USD / crypto in a new tab
+        if (!payConfig.helioPayLink) throw new Error('USD payment is not configured yet — please contact us directly');
+        const helioUrl = payConfig.helioPayLink
+          + '?amount='   + totalUsd
+          + '&orderId='  + encodeURIComponent(newOrderId)
+          + '&email='    + encodeURIComponent(delivery.email);
+        window.open(helioUrl, '_blank');
+        clearCart && clearCart();
+        setSubmitting(false);
+        setStep(4);
+      }
+    } catch (err) {
+      setSubmitError(err.message || 'Something went wrong. Please try again.');
+      setSubmitting(false);
+    }
+  };
+
   const PaymentStep = () => (
     <div>
       <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 28, letterSpacing: '-0.02em', color: 'var(--text)', marginBottom: 24 }}>Payment</h2>
+
+      {/* Method selector */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 28 }}>
         {[
-          { id: 'naira', label: 'Pay with Naira', sub: 'via Paystack' },
-          { id: 'usd', label: 'Pay with USD or Crypto', sub: 'Card, USDC, or BTC' },
+          { id: 'naira', label: '🇳🇬  Pay in Naira',        sub: 'via Paystack · bank transfer, card, USSD' },
+          { id: 'usd',   label: '🌍  Pay in USD / Crypto',  sub: 'via Hel.io · card, USDC, BTC, ETH'       },
         ].map(opt => (
           <div key={opt.id} onClick={() => setPayMethod(opt.id)} style={{
-            flex: 1, padding: '18px 20px', borderRadius: 14, cursor: 'pointer',
+            flex: 1, padding: '18px 16px', borderRadius: 14, cursor: 'pointer',
             border: `2px solid ${payMethod === opt.id ? 'var(--accent)' : 'var(--border)'}`,
             background: payMethod === opt.id ? 'var(--accent-tint)' : 'var(--bg)',
             transition: 'all 0.15s',
           }}>
-            <div style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 16, color: payMethod === opt.id ? 'var(--accent)' : 'var(--text)', marginBottom: 4 }}>{opt.label}</div>
-            <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)' }}>{opt.sub}</div>
+            <div style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 15, color: payMethod === opt.id ? 'var(--accent)' : 'var(--text)', marginBottom: 4 }}>{opt.label}</div>
+            <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>{opt.sub}</div>
           </div>
         ))}
       </div>
 
+      {/* Naira summary */}
       {payMethod === 'naira' && (
-        <div style={{ background: 'var(--bg-alt)', borderRadius: 16, padding: 24, border: '1px solid var(--border)', marginBottom: 24, textAlign: 'center' }}>
-          <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)', marginBottom: 8 }}>You will be redirected to Paystack to complete payment of</div>
-          <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 32, color: 'var(--text)' }}>{fmt(totalUsd)}</div>
-          <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>via Paystack · SSL Secured</div>
+        <div style={{ background: 'var(--bg-alt)', borderRadius: 16, padding: 24, border: '1px solid var(--border)', marginBottom: 24 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
+            <span style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)' }}>Order total (USD)</span>
+            <span style={{ fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>${totalUsd.toLocaleString()}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
+            <span style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)' }}>Rate applied</span>
+            <span style={{ fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>₦{CERTO_RATE.toLocaleString()}/$</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 0 0' }}>
+            <span style={{ fontFamily: 'var(--font-head)', fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>You pay (NGN)</span>
+            <span style={{ fontFamily: 'var(--font-head)', fontSize: 24, fontWeight: 700, color: 'var(--accent)' }}>₦{Math.round(totalNgn).toLocaleString()}</span>
+          </div>
+          <div style={{ marginTop: 16, padding: '12px 14px', background: 'oklch(96% 0.03 145)', borderRadius: 10, border: '1px solid oklch(88% 0.05 145)' }}>
+            <span style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'oklch(35% 0.12 145)' }}>
+              🔒 Secured by Paystack — bank transfer, debit card, or USSD accepted
+            </span>
+          </div>
         </div>
       )}
 
+      {/* USD / Crypto summary */}
       {payMethod === 'usd' && (
         <div style={{ background: 'var(--bg-alt)', borderRadius: 16, padding: 24, border: '1px solid var(--border)', marginBottom: 24 }}>
-          <div style={{ fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 14, color: 'var(--text)', marginBottom: 16 }}>USD Payment Options</div>
-          {['Visa / Mastercard (USD card)', 'USDC (ERC-20 or BEP-20)', 'BTC (Bitcoin)'].map(opt => (
-            <div key={opt} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent)' }} />
-              <span style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text)' }}>{opt}</span>
-            </div>
-          ))}
-          <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginTop: 12, lineHeight: 1.6 }}>
-            USD payments are charged at exact USD amount (${totalUsd.toLocaleString()}). No forex conversion applies.
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
+            <span style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)' }}>You pay (USD)</span>
+            <span style={{ fontFamily: 'var(--font-head)', fontSize: 22, fontWeight: 700, color: 'var(--accent)' }}>${totalUsd.toLocaleString()}</span>
+          </div>
+          <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)', padding: '12px 0 4px', lineHeight: 1.6 }}>
+            No forex conversion — you pay the exact USD price. Accepted: Visa/Mastercard (USD), USDC, BTC, ETH, and more via Hel.io.
+          </div>
+          <div style={{ marginTop: 10, padding: '12px 14px', background: 'oklch(96% 0.02 260)', borderRadius: 10, border: '1px solid oklch(88% 0.04 260)' }}>
+            <span style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'oklch(40% 0.1 260)' }}>
+              🔒 Powered by Hel.io · A new tab will open to complete payment
+            </span>
           </div>
         </div>
       )}
 
       {submitError && (
-        <div style={{ padding: '12px 16px', borderRadius: 10, background: 'oklch(97% 0.02 20)', border: '1px solid oklch(85% 0.05 20)', fontFamily: 'var(--font-body)', fontSize: 14, color: 'oklch(40% 0.15 20)', marginBottom: 16 }}>
+        <div style={{ padding: '12px 16px', borderRadius: 10, background: 'oklch(97% 0.02 20)', border: '1px solid oklch(85% 0.05 20)', fontFamily: 'var(--font-body)', fontSize: 14, color: 'oklch(40% 0.15 20)', marginBottom: 16, lineHeight: 1.6 }}>
           {submitError}
         </div>
       )}
-      <button
-        disabled={submitting}
-        onClick={async () => {
-          setSubmitting(true);
-          setSubmitError('');
-          try {
-            const firstItem = cartItems[0];
-            const res = await fetch('/api/orders', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                customer_name:     delivery.name,
-                customer_email:    delivery.email,
-                customer_phone:    delivery.phone,
-                address:           delivery.address,
-                state:             delivery.state,
-                product_id:        firstItem?.product?.id || null,
-                product_name:      firstItem?.product?.name || '',
-                product_subtitle:  firstItem?.product?.subtitle || '',
-                product_image_url: (firstItem?.product?.image_urls || firstItem?.product?.images || [])[0] || '',
-                apple_url:         firstItem?.product?.apple_url || '',
-                applecare:         firstItem?.applecare?.name || 'none',
-                qty:               cartItems.length,
-                usd_price:         totalUsd,
-                ngn_price:         totalNgn,
-                forex_rate:        CERTO_RATE,
-              }),
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || 'Order submission failed');
-            setOrderId(data.id);
-            clearCart && clearCart();
-            setStep(4);
-          } catch (err) {
-            setSubmitError(err.message || 'Something went wrong. Please try again.');
-          } finally {
-            setSubmitting(false);
-          }
-        }}
-        style={{
-          width: '100%', padding: '18px', borderRadius: 12, border: 'none',
-          background: submitting ? 'var(--border)' : 'var(--accent)',
-          color: submitting ? 'var(--text-muted)' : 'white',
-          cursor: submitting ? 'not-allowed' : 'pointer',
-          fontFamily: 'var(--font-body)', fontSize: 17, fontWeight: 700,
-        }}>
-        {submitting ? 'Placing Order…' : payMethod === 'naira' ? `Pay ${fmt(totalUsd)} via Paystack →` : `Complete Payment ($${totalUsd.toLocaleString()}) →`}
+
+      <button disabled={submitting} onClick={handlePay} style={{
+        width: '100%', padding: '18px', borderRadius: 12, border: 'none',
+        background: submitting ? 'var(--border)' : 'var(--accent)',
+        color: submitting ? 'var(--text-muted)' : 'white',
+        cursor: submitting ? 'not-allowed' : 'pointer',
+        fontFamily: 'var(--font-body)', fontSize: 17, fontWeight: 700,
+      }}>
+        {submitting
+          ? 'Processing…'
+          : payMethod === 'naira'
+            ? `Pay ₦${Math.round(totalNgn).toLocaleString()} via Paystack →`
+            : `Pay $${totalUsd.toLocaleString()} via Hel.io →`}
       </button>
     </div>
   );
@@ -284,9 +356,13 @@ const CheckoutFlow = ({ cart, navigate, clearCart }) => {
           <path d="M8 16l6 6 10-12" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
       </div>
-      <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 32, letterSpacing: '-0.02em', color: 'var(--text)', marginBottom: 8 }}>Order Confirmed</h2>
+      <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 32, letterSpacing: '-0.02em', color: 'var(--text)', marginBottom: 8 }}>
+        {payMethod === 'usd' ? 'Order Created' : 'Order Confirmed'}
+      </h2>
       <p style={{ fontFamily: 'var(--font-body)', fontSize: 16, color: 'var(--text-muted)', lineHeight: 1.7, marginBottom: 32, maxWidth: 420, margin: '0 auto 32px' }}>
-        Your payment has been received. We're starting procurement within 24 hours.
+        {payMethod === 'usd'
+          ? 'Complete your payment on the Hel.io tab that just opened. Once confirmed, we start procurement within 24 hours.'
+          : 'Your payment has been received. We\'re starting procurement within 24 hours.'}
       </p>
 
       <div style={{ background: 'var(--bg-alt)', borderRadius: 16, padding: 24, border: '1px solid var(--border)', marginBottom: 28, maxWidth: 420, margin: '0 auto 28px' }}>
