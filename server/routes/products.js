@@ -26,7 +26,7 @@ router.get('/', async (req, res) => {
     }
 
     // Total count for pagination header
-    const { rows: countRows } = await pool.query(`SELECT COUNT(*) FROM products ${where}`, params);
+    const { rows: countRows } = await pool.queryR(`SELECT COUNT(*) FROM products ${where}`, params);
     const total = parseInt(countRows[0].count, 10);
     res.setHeader('X-Total-Count', total);
     res.setHeader('Access-Control-Expose-Headers', 'X-Total-Count');
@@ -40,7 +40,7 @@ router.get('/', async (req, res) => {
     params.push(perPage); const limitIdx  = params.length;
     params.push(offset);  const offsetIdx = params.length;
 
-    const { rows } = await pool.query(
+    const { rows } = await pool.queryR(
       `SELECT ${CARD_COLS} FROM products ${where} ORDER BY ${orderBy} LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
       params,
     );
@@ -54,7 +54,7 @@ router.get('/', async (req, res) => {
 // GET /api/products/:id
 router.get('/:id', async (req, res) => {
   try {
-    const { rows } = await pool.query('SELECT * FROM products WHERE id = $1', [req.params.id]);
+    const { rows } = await pool.queryR('SELECT * FROM products WHERE id = $1', [req.params.id]);
     if (!rows.length) return res.status(404).json({ error: 'Product not found' });
     res.json(rows[0]);
   } catch (err) {
@@ -78,7 +78,7 @@ router.patch('/:id', async (req, res) => {
     const values = fields.map(f => req.body[f]);
     values.push(req.params.id);
 
-    const { rows } = await pool.query(
+    const { rows } = await pool.queryR(
       `UPDATE products SET ${params}, updated_at = NOW() WHERE id = $${values.length} RETURNING *`,
       values,
     );

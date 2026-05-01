@@ -85,7 +85,7 @@ app.get('/api/forex', async (req, res) => {
 // Health check
 app.get('/api/health', async (req, res) => {
   try {
-    await pool.query('SELECT 1');
+    await pool.queryR('SELECT 1');
     res.json({ ok: true, ts: new Date().toISOString() });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
@@ -96,7 +96,7 @@ app.get('/api/health', async (req, res) => {
 // Social crawlers see the correct image/title; browsers get a JS redirect to /#/product/:id
 app.get('/product/:id', async (req, res) => {
   try {
-    const { rows } = await pool.query(
+    const { rows } = await pool.queryR(
       'SELECT id, name, subtitle, image_urls, category, usd_price FROM products WHERE id = $1',
       [req.params.id],
     );
@@ -151,6 +151,6 @@ app.listen(PORT, () => {
 
   // Ping the DB every 4 minutes to prevent Neon auto-suspend cold starts
   setInterval(() => {
-    pool.query('SELECT 1').catch(() => {});
+    pool.queryR('SELECT 1').catch(() => {});
   }, 4 * 60 * 1000);
 });

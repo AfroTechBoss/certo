@@ -28,7 +28,7 @@ router.post('/', async (req, res) => {
   const id = generateOrderId();
 
   try {
-    const { rows } = await pool.query(`
+    const { rows } = await pool.queryR(`
       INSERT INTO orders (
         id, customer_name, customer_email, customer_phone,
         address, state,
@@ -51,7 +51,7 @@ router.post('/', async (req, res) => {
 
     // Send confirmation email (non-blocking)
     sendOrderConfirmation(order)
-      .then(() => pool.query('UPDATE orders SET email_sent = true WHERE id = $1', [id]))
+      .then(() => pool.queryR('UPDATE orders SET email_sent = true WHERE id = $1', [id]))
       .catch(err => console.error('Email send failed for', id, ':', err.message));
 
     res.status(201).json({ id: order.id, order });
@@ -99,7 +99,7 @@ router.get('/', async (req, res) => {
     q += ` ORDER BY created_at DESC LIMIT $${params.length + 1}`;
     params.push(limit);
 
-    const { rows } = await pool.query(q, params);
+    const { rows } = await pool.queryR(q, params);
     res.json(rows);
   } catch (err) {
     console.error('GET /orders:', err);
@@ -117,7 +117,7 @@ router.get('/stats', async (req, res) => {
       if (intervals[timeframe]) where = `created_at >= NOW() - INTERVAL '${intervals[timeframe]}'`;
     }
 
-    const { rows } = await pool.query(`
+    const { rows } = await pool.queryR(`
       SELECT
         COUNT(*)::int                                    AS total_orders,
         COUNT(*) FILTER (WHERE status != 'Delivered' AND status != 'Cancelled')::int AS active_orders,
@@ -139,7 +139,7 @@ router.get('/stats', async (req, res) => {
 // GET /api/orders/:id  (public — order tracking)
 router.get('/:id', async (req, res) => {
   try {
-    const { rows } = await pool.query(
+    const { rows } = await pool.queryR(
       `SELECT id, customer_name, product_name, product_subtitle, product_image_url,
               status, created_at, updated_at, applecare, qty
        FROM orders WHERE id = $1`,
@@ -156,11 +156,11 @@ router.get('/:id', async (req, res) => {
 // POST /api/orders/:id/resend-email  (admin — resend confirmation email)
 router.post('/:id/resend-email', async (req, res) => {
   try {
-    const { rows } = await pool.query('SELECT * FROM orders WHERE id = $1', [req.params.id]);
+    const { rows } = await pool.queryR('SELECT * FROM orders WHERE id = $1', [req.params.id]);
     if (!rows.length) return res.status(404).json({ error: 'Order not found' });
     const order = rows[0];
     await sendOrderConfirmation(order);
-    await pool.query('UPDATE orders SET email_sent = true, updated_at = NOW() WHERE id = $1', [req.params.id]);
+    await pool.queryR('UPDATE orders SET email_sent = true, updated_at = NOW() WHERE id = $1', [req.params.id]);
     res.json({ ok: true, message: `Confirmation email sent to ${order.customer_email}` });
   } catch (err) {
     console.error('Resend email failed for', req.params.id, ':', err.message);
@@ -176,14 +176,14 @@ router.patch('/:id', async (req, res) => {
     if (!fields.length) return res.status(400).json({ error: 'Nothing to update' });
 
     // Fetch previous status before update (to detect status changes)
-    const prevResult = await pool.query('SELECT status FROM orders WHERE id = $1', [req.params.id]);
+    const prevResult = await pool.queryR('SELECT status FROM orders WHERE id = $1', [req.params.id]);
     const prevStatus = prevResult.rows[0]?.status;
 
     const setClauses = fields.map((f, i) => `${f} = $${i + 1}`).join(', ');
     const values = fields.map(f => req.body[f]);
     values.push(req.params.id);
 
-    const { rows } = await pool.query(
+    const { rows } = await pool.queryR(
       `UPDATE orders SET ${setClauses}, updated_at = NOW() WHERE id = $${values.length} RETURNING *`,
       values,
     );
