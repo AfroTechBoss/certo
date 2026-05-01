@@ -63,6 +63,7 @@ const ProductCard = ({ product, navigate, compact }) => {
           <img
             src={product.images[0]}
             alt={product.name}
+            loading="lazy"
             style={{ width: '100%', height: '100%', objectFit: 'contain', padding: compact ? 8 : 16 }}
             onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
           />
@@ -499,6 +500,7 @@ const ProductDetailPage = ({ productId, navigate, addToCart }) => {
               <img
                 src={realImages[selectedImg] || realImages[0]}
                 alt={product.name}
+                loading="eager"
                 style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 20 }}
                 onError={e => { e.target.style.display = 'none'; }}
               />
@@ -516,7 +518,7 @@ const ProductDetailPage = ({ productId, navigate, addToCart }) => {
                   border: `2px solid ${selectedImg === i ? 'var(--accent)' : 'var(--border)'}`,
                   background: 'var(--bg-alt)', overflow: 'hidden', cursor: 'pointer', padding: 4,
                 }}>
-                  <img src={url} alt={`View ${i + 1}`} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                  <img src={url} alt={`View ${i + 1}`} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                 </button>
               ))}
             </div>

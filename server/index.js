@@ -27,13 +27,30 @@ app.get('/api/config', (req, res) => {
 });
 
 // Image proxy — Apple CDN requires apple.com Referer; we proxy to avoid hotlink blocks
+// In-memory cache: avoids re-fetching from Apple on every request / server restart
+const imgCache = new Map(); // normalizedUrl → { buf, ct, ts }
+const IMG_CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
+
 app.get('/api/img', async (req, res) => {
   const { url } = req.query;
   if (!url || !url.startsWith('https://store.storeimages.cdn-apple.com')) {
     return res.status(400).end();
   }
+
+  // Downscale to 400×400 — cards only need ~300px; product page uses 600px but still fine
+  const fetchUrl = url
+    .replace(/wid=\d+/, 'wid=400')
+    .replace(/hei=\d+/, 'hei=400');
+
+  const cached = imgCache.get(fetchUrl);
+  if (cached && Date.now() - cached.ts < IMG_CACHE_TTL) {
+    res.setHeader('Content-Type', cached.ct);
+    res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+    return res.end(cached.buf);
+  }
+
   try {
-    const upstream = await fetch(url, {
+    const upstream = await fetch(fetchUrl, {
       headers: {
         'Referer':    'https://www.apple.com/',
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
@@ -42,10 +59,11 @@ app.get('/api/img', async (req, res) => {
     });
     if (!upstream.ok) return res.status(upstream.status).end();
     const ct  = upstream.headers.get('content-type') || 'image/jpeg';
-    const buf = await upstream.arrayBuffer();
+    const buf = Buffer.from(await upstream.arrayBuffer());
+    imgCache.set(fetchUrl, { buf, ct, ts: Date.now() });
     res.setHeader('Content-Type', ct);
-    res.setHeader('Cache-Control', 'public, max-age=86400'); // cache 24 h in browser
-    res.end(Buffer.from(buf));
+    res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+    res.end(buf);
   } catch (err) {
     res.status(502).end();
   }
