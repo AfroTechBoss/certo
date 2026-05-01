@@ -98,27 +98,48 @@ const HowItWorksPage = ({ navigate }) => {
 };
 
 // ─── Track My Order ───────────────────────────────────────────────────────────
-const TrackOrderPage = () => {
+
+const ORDER_STATUS_SEQUENCE = [
+  { key: 'Order Confirmed',          label: 'Order Confirmed',          note: 'Your order has been received and payment confirmed. We\'re preparing to procure your device.' },
+  { key: 'Purchased from Apple',     label: 'Purchased from Apple',     note: 'Your device has been purchased directly from Apple.com US.' },
+  { key: 'In Transit to US Partner', label: 'In Transit to US Partner', note: 'Your device is on its way to our US logistics partner for inspection and packaging.' },
+  { key: 'Customs Clearance',        label: 'Customs Clearance',        note: 'Your package is being processed through Nigerian customs. This typically takes 1–2 business days.' },
+  { key: 'Arrived in Nigeria',       label: 'Arrived in Nigeria',       note: 'Your device has cleared customs and arrived in Nigeria.' },
+  { key: 'Out for Delivery',         label: 'Out for Delivery',         note: 'Your device is with our delivery partner and on its way to you.' },
+  { key: 'Delivered',                label: 'Delivered',                note: 'Your device has been delivered. Enjoy your new Apple product!' },
+];
+
+const TrackOrderPage = ({ initialOrderId }) => {
   const { isMobile } = useResponsive();
-  const [orderId, setOrderId] = React.useState('');
+  const [orderId, setOrderId] = React.useState(initialOrderId || '');
   const [order, setOrder] = React.useState(null);
   const [error, setError] = React.useState('');
   const [loading, setLoading] = React.useState(false);
 
-  const handleTrack = () => {
+  React.useEffect(() => {
+    if (initialOrderId) handleTrack(initialOrderId);
+  }, [initialOrderId]);
+
+  const handleTrack = async (id) => {
+    const target = (id || orderId).trim().toUpperCase();
+    if (!target) return;
     setError('');
     setLoading(true);
-    setTimeout(() => {
+    try {
+      const res  = await fetch(`/api/orders/${target}`);
+      const data = await res.json();
+      if (!res.ok) { setError(data.error || 'Order not found. Please check your order ID.'); setOrder(null); }
+      else          { setOrder(data); }
+    } catch (e) {
+      setError('Unable to reach server. Please try again.');
+    } finally {
       setLoading(false);
-      if (orderId.trim().toUpperCase() === MOCK_ORDER.id) {
-        setOrder(MOCK_ORDER);
-      } else {
-        setError('Order not found. Please check your order ID and try again.');
-      }
-    }, 800);
+    }
   };
 
-  const currentIdx = order ? order.statuses.findLastIndex(s => s.done) : -1;
+  const currentIdx = order
+    ? ORDER_STATUS_SEQUENCE.findIndex(s => s.key === order.status)
+    : -1;
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', paddingTop: 80 }}>
@@ -132,7 +153,7 @@ const TrackOrderPage = () => {
           <input
             value={orderId} onChange={e => setOrderId(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleTrack()}
-            placeholder="e.g. CRT-2204-8841"
+            placeholder="e.g. CRT-220426-8841"
             style={{
               flex: 1, padding: '14px 18px', borderRadius: 12,
               border: '1.5px solid var(--border)', background: 'var(--bg)',
@@ -142,7 +163,7 @@ const TrackOrderPage = () => {
             onFocus={e => e.target.style.borderColor = 'var(--accent)'}
             onBlur={e => e.target.style.borderColor = 'var(--border)'}
           />
-          <button onClick={handleTrack} disabled={!orderId.trim() || loading} style={{
+          <button onClick={() => handleTrack()} disabled={!orderId.trim() || loading} style={{
             padding: '14px 28px', borderRadius: 12, border: 'none',
             background: 'var(--accent)', color: 'white', cursor: 'pointer',
             fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 700,
@@ -152,7 +173,7 @@ const TrackOrderPage = () => {
           </button>
         </div>
         <p style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginBottom: 36 }}>
-          Try demo: <button onClick={() => setOrderId('CRT-2204-8841')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', fontSize: 12, padding: 0, fontFamily: 'var(--font-body)', fontWeight: 600 }}>CRT-2204-8841</button>
+          Enter the order ID from your confirmation email to track your device.
         </p>
 
         {error && (
@@ -169,17 +190,21 @@ const TrackOrderPage = () => {
                   <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>ORDER ID</div>
                   <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 20, color: 'var(--text)' }}>{order.id}</div>
                 </div>
-                <span style={{ background: 'oklch(90% 0.08 160)', color: 'oklch(35% 0.15 160)', padding: '4px 12px', borderRadius: 8, fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700 }}>In Progress</span>
+                <span style={{
+                  background: order.status === 'Delivered' ? 'oklch(93% 0.06 155)' : 'oklch(90% 0.08 160)',
+                  color: order.status === 'Delivered' ? 'oklch(35% 0.15 155)' : 'oklch(35% 0.15 160)',
+                  padding: '4px 12px', borderRadius: 8, fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700,
+                }}>{order.status}</span>
               </div>
               <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)' }}>
-                {order.product.name} · {order.product.subtitle} · {order.customer}
+                {order.product_name}{order.product_subtitle ? ` · ${order.product_subtitle}` : ''} · {order.customer_name}
               </div>
             </div>
 
             <div>
-              {order.statuses.map((s, i) => {
-                const isActive = i === currentIdx + 1 && !s.done;
-                const isDone = s.done;
+              {ORDER_STATUS_SEQUENCE.map((s, i) => {
+                const isDone   = i < currentIdx;
+                const isActive = i === currentIdx;
                 return (
                   <div key={s.key} style={{ display: 'flex', gap: 20, marginBottom: 0 }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 28, flexShrink: 0 }}>
@@ -189,21 +214,26 @@ const TrackOrderPage = () => {
                         border: `2px solid ${isDone ? 'oklch(50% 0.18 145)' : isActive ? 'var(--accent)' : 'var(--border)'}`,
                         display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                       }}>
-                        {isDone && <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-6" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                        {isDone   && <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-6" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                         {isActive && <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'white' }} />}
                       </div>
-                      {i < order.statuses.length - 1 && (
+                      {i < ORDER_STATUS_SEQUENCE.length - 1 && (
                         <div style={{ width: 2, flex: 1, minHeight: 32, background: isDone ? 'oklch(50% 0.18 145)' : 'var(--border)', marginTop: 4 }} />
                       )}
                     </div>
                     <div style={{ paddingBottom: 28 }}>
                       <div style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 15, color: isDone || isActive ? 'var(--text)' : 'var(--text-muted)', marginBottom: 2 }}>{s.label}</div>
-                      <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginBottom: s.note ? 8 : 0 }}>{s.ts}</div>
-                      {s.note && <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6 }}>{s.note}</p>}
+                      {isActive && s.note && <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6, marginTop: 4 }}>{s.note}</p>}
                     </div>
                   </div>
                 );
               })}
+            </div>
+
+            <div style={{ marginTop: 16, padding: '16px 20px', background: 'var(--accent-tint)', borderRadius: 12, border: '1px solid var(--accent-tint2)' }}>
+              <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text)', lineHeight: 1.7, margin: 0 }}>
+                Questions about your order? Contact us at <strong>hello@certo.ng</strong> or via <a href={`https://wa.me/${typeof CERTO_WA_NUMBER !== 'undefined' ? CERTO_WA_NUMBER : '2348000000000'}`} target="_blank" style={{ color: 'var(--accent)', fontWeight: 600 }}>WhatsApp</a>.
+              </p>
             </div>
           </div>
         )}
@@ -222,11 +252,11 @@ const AboutPage = ({ navigate }) => (
       </h1>
 
       {[
-        { p: `I got arrested at an Apple Store in the UK. Not for stealing. For trying to buy too many iPhones at once to bring back to Nigeria. The store manager called security, I had to explain myself to three people, and I walked out empty-handed and humiliated. That was three years ago.` },
-        { p: `Before that trip, I had spent three months researching how to get genuine Apple products into Nigeria without the middlemen who add 40% to the price and swap in refurbished units when they feel like it. I watched my cousin pay ₦980,000 for an "iPhone 13 Pro" that turned out to be a Grade C refurb with a cracked chassis under the skin. She cried. I remembered that.` },
-        { p: `After the Apple Store incident I came home and used a battered refurbished PC with a failing RAM stick to build the first version of what you're looking at right now. It took me three months and I launched with zero products listed because I was terrified of getting it wrong.` },
-        { p: `Certo means "certainly" in Italian. I chose it because certainty is exactly what the Nigerian gadget market doesn't give you. We buy directly from Apple. We verify every serial number. We show you our margin. We track every order in real time. And if anything goes wrong — the full 25-day guarantee, no arguments.` },
-        { p: `This is my business and my name is behind every order that leaves this site. If you have a question, my WhatsApp number is on the contact page and I pick up.` },
+        { p: `In 2025, I wanted to get a new iPhone 15 Pro Max. I went online to find brands I could buy from — Jumia's prices were too absurd, so I started scrolling. Then I came across a post, not from a brand but from someone sharing how she'd relocated to the US and gone to swap her iPhone 14 Pro for a new 16. At the store, they checked her phone, called the police, and told her she was holding a stolen device. A phone she had bought brand new from a well-known store in Lagos. She had receipts. Photos. Videos of the unboxing. It was the only reason they let her go.` },
+        { p: `After that, I kept seeing more of these stories — wrong devices, fake serials, refurbished units sold as new. Scary enough to make me put off buying for another three months. Eventually, an old friend who sold gadgets explained exactly how these things happen and offered to sell me a used iPhone 15 Pro Max — 95% battery — for ₦1.3M. He promised a full refund or free swap if anything went wrong. Because he was someone I knew, I trusted him. That's how I got my first Apple device.` },
+        { p: `Then there was my laptop. Ordered online, described as brand new, arrived in perfect condition. Two months later the RAM started failing. An engineer told me it was refurbished and had already been repaired — no warranty, no coverage. I had no idea.` },
+        { p: `These two experiences made it clear: the only way to trust a purchase in this market is to know exactly where it comes from and have someone who stands behind it. That's why I built Certo. We buy directly from Apple US. We verify every serial number. We track every order in real time. And if anything goes wrong — full refund, no arguments.` },
+        { p: `Certo means "certainly" in Italian. That's what this is about. You should be certain of what you're buying. This is my business, and my name is behind every order that leaves this site. If you have a question, reach us on WhatsApp — we pick up.` },
       ].map((block, i) => (
         <p key={i} style={{ fontFamily: 'var(--font-body)', fontSize: 18, lineHeight: 1.85, color: i === 4 ? 'var(--text)' : 'var(--text-muted)', marginBottom: 28 }}>
           {block.p}

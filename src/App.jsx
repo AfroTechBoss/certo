@@ -114,6 +114,7 @@ const parseHash = () => {
   const param = rest.length ? decodeURIComponent(rest.join('/')) : null;
   if (route === 'product')   return { page: 'product', param };
   if (route === 'shop')      return { page: 'shop',    param };
+  if (route === 'track')     return { page: 'track',   param }; // param = order ID from email link
   if (route === 'dashboard') return { page: param ? `dashboard-${param}` : 'dashboard', param: null };
   const known = ['home', 'how-it-works', 'about', 'faq', 'contact', 'track', 'cart', 'checkout', 'privacy', 'terms', 'refund'];
   if (known.includes(route)) return { page: route, param: null };
@@ -124,6 +125,7 @@ const toHash = (page, param) => {
   if (page === 'home')    return '#/';
   if (page === 'product') return `#/product/${param || ''}`;
   if (page === 'shop')    return param ? `#/shop/${encodeURIComponent(param)}` : '#/shop';
+  if (page === 'track')   return param ? `#/track/${encodeURIComponent(param)}` : '#/track';
   if (page.startsWith('dashboard')) {
     const sub = page.replace('dashboard-', '');
     return sub === 'dashboard' ? '#/dashboard' : `#/dashboard/${sub}`;
@@ -157,11 +159,11 @@ const App = () => {
   // Fetch fresh rate on mount and every 10 minutes — cache result
   React.useEffect(() => {
     const fetchRate = () => {
-      fetch('https://api.exchangerate-api.com/v4/latest/USD')
+      fetch('/api/forex')
         .then(r => r.json())
         .then(data => {
-          if (data.rates && data.rates.NGN) {
-            const rate = Math.round(data.rates.NGN) + 100;
+          if (data.rate) {
+            const rate = data.rate;
             CERTO_RATE = rate;
             setLiveRate(rate);
             const now = new Date();
@@ -230,7 +232,7 @@ const App = () => {
         return <HowItWorksPage navigate={navigate} />;
 
       case 'track':
-        return <TrackOrderPage />;
+        return <TrackOrderPage initialOrderId={pageParam} />;
 
       case 'about':
         return <AboutPage navigate={navigate} />;

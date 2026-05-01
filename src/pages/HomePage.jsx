@@ -102,8 +102,27 @@ const TrustBadge = ({ icon, title, desc }) => (
 
 const HomePage = ({ navigate }) => {
   const { isMobile, isTablet } = useResponsive();
-  const featured = PRODUCTS.filter(p => p.featured).slice(0, 3);
+  const [featured, setFeatured] = React.useState([]);
   const sp = isMobile ? '64px 20px' : '100px 24px';
+
+  React.useEffect(() => {
+    fetch('/api/products?featured=true&in_stock=true&limit=3')
+      .then(r => r.json())
+      .then(rows => {
+        const prods = (Array.isArray(rows) ? rows : [])
+          .slice(0, 3)
+          .map(p => ({
+            id: p.id,
+            name: p.name,
+            subtitle: p.subtitle || '',
+            type: p.category,
+            badge: p.badge || '',
+            usdPrice: parseFloat(p.usd_price) || 0,
+          }));
+        setFeatured(prods);
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <div>

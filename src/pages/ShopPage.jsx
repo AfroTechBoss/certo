@@ -1,6 +1,28 @@
 
 // Certo — Shop Page + Product Detail Page
 
+// Normalise API shape (snake_case, string prices) → UI shape (camelCase, numeric prices)
+const normaliseProduct = (p) => ({
+  id: p.id,
+  name: p.name,
+  subtitle: p.subtitle || '',
+  type: p.category,
+  condition: p.condition,
+  conditionNote: p.condition_note || '',
+  usdPrice: parseFloat(p.usd_price) || 0,
+  images: p.image_urls || [],
+  badge: p.badge || '',
+  deliveryDays: p.delivery_days || '10–18 business days',
+  inStock: p.in_stock,
+  featured: p.featured,
+  overview: p.overview || [],
+  specs: p.specs || [],
+  includes: p.includes || [],
+  features: p.features || [],
+  techSpecs: p.tech_specs || [],
+  apple_url: p.apple_url,
+});
+
 const ConditionBadge = ({ condition }) => (
   <span style={{
     padding: '3px 10px', borderRadius: 6,
@@ -79,6 +101,9 @@ const ProductCard = ({ product, navigate }) => {
 
 const ShopPage = ({ navigate, addToCart, initialType }) => {
   const { isMobile } = useResponsive();
+  const [products, setProducts] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [stockCount, setStockCount] = React.useState(0);
   const [typeFilter, setTypeFilter] = React.useState(initialType || 'All');
   const [condFilter, setCondFilter] = React.useState('All');
   const [sort, setSort] = React.useState('featured');
@@ -87,13 +112,26 @@ const ShopPage = ({ navigate, addToCart, initialType }) => {
     setTypeFilter(initialType || 'All');
   }, [initialType]);
 
+  React.useEffect(() => {
+    setLoading(true);
+    const params = new URLSearchParams({ limit: 1000 });
+    if (typeFilter !== 'All') params.set('category', typeFilter);
+    if (condFilter !== 'All') params.set('condition', condFilter.toLowerCase());
+    fetch(`/api/products?${params}`)
+      .then(r => r.json())
+      .then(data => {
+        const prods = (Array.isArray(data) ? data : []).map(normaliseProduct);
+        setProducts(prods);
+        setStockCount(prods.filter(p => p.inStock).length);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [typeFilter, condFilter]);
+
   const types = ['All', 'iPhone', 'MacBook', 'iPad', 'AirPods', 'Watch', 'Apple TV', 'HomePod', 'Accessories'];
   const conds = ['All', 'New', 'Refurbished'];
 
-  let filtered = PRODUCTS
-    .filter(p => typeFilter === 'All' || p.type === typeFilter)
-    .filter(p => condFilter === 'All' || p.condition === condFilter);
-
+  let filtered = products;
   if (sort === 'price-asc') filtered = [...filtered].sort((a, b) => a.usdPrice - b.usdPrice);
   if (sort === 'price-desc') filtered = [...filtered].sort((a, b) => b.usdPrice - a.usdPrice);
   if (sort === 'featured') filtered = [...filtered].sort((a, b) => (b.featured ? 1 : 0) - (a.featured ? 1 : 0));
@@ -117,7 +155,7 @@ const ShopPage = ({ navigate, addToCart, initialType }) => {
             Shop Apple
           </h1>
           <p style={{ fontFamily: 'var(--font-body)', fontSize: isMobile ? 14 : 16, color: 'var(--text-muted)', marginBottom: 20 }}>
-            Every product sourced directly from Apple US. {PRODUCTS.filter(p => p.inStock).length} in stock today.
+            Every product sourced directly from Apple US. {stockCount > 0 ? `${stockCount} in stock today.` : 'Loading...'}
           </p>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -141,7 +179,11 @@ const ShopPage = ({ navigate, addToCart, initialType }) => {
       </div>
 
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? '24px 20px' : '48px 24px' }}>
-        {filtered.length === 0 ? (
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '80px 0', color: 'var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: 16 }}>
+            Loading products…
+          </div>
+        ) : filtered.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '80px 0', color: 'var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: 16 }}>
             No products match your filters.
           </div>
@@ -176,12 +218,48 @@ const ShopPage = ({ navigate, addToCart, initialType }) => {
 
 const ProductDetailPage = ({ productId, navigate, addToCart }) => {
   const { isMobile } = useResponsive();
-  const product = PRODUCTS.find(p => p.id === productId) || PRODUCTS[0];
+  const [product, setProduct] = React.useState(null);
+  const [related, setRelated] = React.useState([]);
+  const [loadErr, setLoadErr] = React.useState(false);
   const [selectedCare, setSelectedCare] = React.useState('plus');
   const [careBilling, setCareBilling] = React.useState('annual');
   const [added, setAdded] = React.useState(false);
   const [openSections, setOpenSections] = React.useState(new Set());
   const [selectedImg, setSelectedImg] = React.useState(0);
+
+  React.useEffect(() => {
+    setProduct(null); setLoadErr(false); setSelectedImg(0);
+    fetch(`/api/products/${encodeURIComponent(productId)}`)
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+      .then(data => {
+        const p = normaliseProduct(data);
+        setProduct(p);
+        // Fetch a few related products from the same category
+        fetch(`/api/products?category=${encodeURIComponent(p.type)}&limit=6`)
+          .then(r => r.json())
+          .then(rows => {
+            const rel = (Array.isArray(rows) ? rows : [])
+              .map(normaliseProduct)
+              .filter(r => r.id !== p.id && r.inStock)
+              .slice(0, isMobile ? 2 : 3);
+            setRelated(rel);
+          })
+          .catch(() => {});
+      })
+      .catch(() => setLoadErr(true));
+  }, [productId]);
+
+  if (loadErr) return (
+    <div style={{ minHeight: '100vh', paddingTop: 120, textAlign: 'center', color: 'var(--text-muted)', fontFamily: 'var(--font-body)' }}>
+      Product not found. <button onClick={() => navigate('shop')} style={{ color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 15 }}>← Back to Shop</button>
+    </div>
+  );
+
+  if (!product) return (
+    <div style={{ minHeight: '100vh', paddingTop: 120, textAlign: 'center', color: 'var(--text-muted)', fontFamily: 'var(--font-body)' }}>
+      Loading…
+    </div>
+  );
 
   const realImages = (product.images || []).filter(img => img && (img.startsWith('http') || img.startsWith('/')));
 
@@ -190,8 +268,6 @@ const ProductDetailPage = ({ productId, navigate, addToCart }) => {
     next.has(key) ? next.delete(key) : next.add(key);
     return next;
   });
-
-  const related = PRODUCTS.filter(p => p.id !== product.id && p.inStock).slice(0, isMobile ? 2 : 3);
 
   const care = APPLECARE_OPTIONS.find(o => o.id === selectedCare);
   const careUsd = selectedCare === 'none' ? 0

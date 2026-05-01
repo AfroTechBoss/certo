@@ -1,0 +1,20 @@
+{
+  "name": "certo",
+  "version": "1.0.0",
+  "description": "Certo — Genuine Apple Products, Delivered to Nigeria",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "seed": "node server/seed.js"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^1.1.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "node-html-parser": "^7.0.1",
+    "nodemailer": "^6.10.1",
+    "pg": "^8.14.1"
+  }
+}

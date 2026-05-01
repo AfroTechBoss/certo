@@ -22,10 +22,12 @@ const CheckoutInput = ({ label, value, onChange, placeholder, type = 'text' }) =
 const CheckoutFlow = ({ cart, navigate, clearCart }) => {
   const { isMobile } = useResponsive();
   const [step, setStep] = React.useState(0);
-  const [delivery, setDelivery] = React.useState({ name: '', phone: '', address: '', state: '' });
+  const [delivery, setDelivery] = React.useState({ name: '', email: '', phone: '', address: '', state: '' });
   const [forexConfirmed, setForexConfirmed] = React.useState(false);
   const [payMethod, setPayMethod] = React.useState('naira');
-  const [orderId] = React.useState('CRT-' + String(Math.floor(Math.random()*9000)+1000) + '-' + String(Math.floor(Math.random()*9000)+1000));
+  const [orderId, setOrderId] = React.useState('');
+  const [submitting, setSubmitting] = React.useState(false);
+  const [submitError, setSubmitError] = React.useState('');
 
   const cartItems = cart || [];
   const totalUsd = cartItems.reduce((sum, item) => {
@@ -107,11 +109,12 @@ const CheckoutFlow = ({ cart, navigate, clearCart }) => {
     </div>
   );
 
-  const deliveryValid = delivery.name && delivery.phone && delivery.address && delivery.state;
+  const deliveryValid = delivery.name && delivery.email && delivery.phone && delivery.address && delivery.state;
   const DeliveryStep = () => (
     <div>
       <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 28, letterSpacing: '-0.02em', color: 'var(--text)', marginBottom: 24 }}>Delivery Details</h2>
       <CheckoutInput label="Full Name" value={delivery.name} onChange={v => setDelivery({...delivery, name: v})} placeholder="e.g. Adaeze Okoye" />
+      <CheckoutInput label="Email Address" value={delivery.email} onChange={v => setDelivery({...delivery, email: v})} placeholder="you@email.com" type="email" />
       <CheckoutInput label="Phone Number" value={delivery.phone} onChange={v => setDelivery({...delivery, phone: v})} placeholder="+234 800 000 0000" type="tel" />
       <CheckoutInput label="Delivery Address" value={delivery.address} onChange={v => setDelivery({...delivery, address: v})} placeholder="Street address, area" />
       <div style={{ marginBottom: 18 }}>
@@ -218,12 +221,58 @@ const CheckoutFlow = ({ cart, navigate, clearCart }) => {
         </div>
       )}
 
-      <button onClick={() => { setStep(4); clearCart && clearCart(); }} style={{
-        width: '100%', padding: '18px', borderRadius: 12, border: 'none',
-        background: 'var(--accent)', color: 'white', cursor: 'pointer',
-        fontFamily: 'var(--font-body)', fontSize: 17, fontWeight: 700,
-      }}>
-        {payMethod === 'naira' ? `Pay ${fmt(totalUsd)} via Paystack →` : `Complete Payment ($${totalUsd.toLocaleString()}) →`}
+      {submitError && (
+        <div style={{ padding: '12px 16px', borderRadius: 10, background: 'oklch(97% 0.02 20)', border: '1px solid oklch(85% 0.05 20)', fontFamily: 'var(--font-body)', fontSize: 14, color: 'oklch(40% 0.15 20)', marginBottom: 16 }}>
+          {submitError}
+        </div>
+      )}
+      <button
+        disabled={submitting}
+        onClick={async () => {
+          setSubmitting(true);
+          setSubmitError('');
+          try {
+            const firstItem = cartItems[0];
+            const res = await fetch('/api/orders', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                customer_name:     delivery.name,
+                customer_email:    delivery.email,
+                customer_phone:    delivery.phone,
+                address:           delivery.address,
+                state:             delivery.state,
+                product_id:        firstItem?.product?.id || null,
+                product_name:      firstItem?.product?.name || '',
+                product_subtitle:  firstItem?.product?.subtitle || '',
+                product_image_url: (firstItem?.product?.image_urls || firstItem?.product?.images || [])[0] || '',
+                apple_url:         firstItem?.product?.apple_url || '',
+                applecare:         firstItem?.applecare?.name || 'none',
+                qty:               cartItems.length,
+                usd_price:         totalUsd,
+                ngn_price:         totalNgn,
+                forex_rate:        CERTO_RATE,
+              }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Order submission failed');
+            setOrderId(data.id);
+            clearCart && clearCart();
+            setStep(4);
+          } catch (err) {
+            setSubmitError(err.message || 'Something went wrong. Please try again.');
+          } finally {
+            setSubmitting(false);
+          }
+        }}
+        style={{
+          width: '100%', padding: '18px', borderRadius: 12, border: 'none',
+          background: submitting ? 'var(--border)' : 'var(--accent)',
+          color: submitting ? 'var(--text-muted)' : 'white',
+          cursor: submitting ? 'not-allowed' : 'pointer',
+          fontFamily: 'var(--font-body)', fontSize: 17, fontWeight: 700,
+        }}>
+        {submitting ? 'Placing Order…' : payMethod === 'naira' ? `Pay ${fmt(totalUsd)} via Paystack →` : `Complete Payment ($${totalUsd.toLocaleString()}) →`}
       </button>
     </div>
   );
@@ -247,7 +296,7 @@ const CheckoutFlow = ({ cart, navigate, clearCart }) => {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 420, margin: '0 auto' }}>
-        <button onClick={() => navigate('track')} style={{ padding: '14px', borderRadius: 12, border: 'none', background: 'var(--accent)', color: 'white', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 700 }}>
+        <button onClick={() => navigate('track', orderId)} style={{ padding: '14px', borderRadius: 12, border: 'none', background: 'var(--accent)', color: 'white', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 700 }}>
           Track My Order →
         </button>
         <button onClick={() => navigate('shop')} style={{ padding: '14px', borderRadius: 12, border: '1.5px solid var(--border)', background: 'transparent', color: 'var(--text)', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 15 }}>
@@ -257,7 +306,7 @@ const CheckoutFlow = ({ cart, navigate, clearCart }) => {
 
       <div style={{ marginTop: 32, maxWidth: 420, margin: '32px auto 0' }}>
         <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.7 }}>
-          <strong style={{ color: 'var(--text)' }}>What happens next:</strong> We'll send you a WhatsApp message within 2 hours confirming receipt. Once your device ships from Apple, you'll get another message with your live tracking link.
+          <strong style={{ color: 'var(--text)' }}>What happens next:</strong> A confirmation email is on its way to {delivery.email}. We'll also send you a WhatsApp message within 2 hours confirming receipt.
         </p>
       </div>
     </div>

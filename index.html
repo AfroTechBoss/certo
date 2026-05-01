@@ -70,6 +70,17 @@
 <body>
   <div id="root"></div>
 
+  <!-- Path → hash redirect: handles /track/:id links from order emails -->
+  <script>
+    (function() {
+      var path = window.location.pathname;
+      var m = path.match(/^\/track\/([A-Z0-9\-]+)$/i);
+      if (m) {
+        window.location.replace('/#/track/' + encodeURIComponent(m[1].toUpperCase()));
+      }
+    })();
+  </script>
+
   <!-- React + ReactDOM -->
   <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>

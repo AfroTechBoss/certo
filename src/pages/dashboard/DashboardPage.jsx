@@ -1,22 +1,34 @@
 
 // Certo — Internal Dashboard
 
-const MOCK_ORDERS = [
-  { id: 'CRT-2204-8841', customer: 'Adaeze Okoye',  phone: '08031234567', address: '14 Adeola Odeku St, Victoria Island, Lagos',       product: 'iPhone 15 Pro 256GB',    status: 'Customs Clearance',       usd: 1098, ngn: 1745820, date: 'Apr 22, 2026', flag: false },
-  { id: 'CRT-2203-4412', customer: 'Emeka Obi',      phone: '07056789012', address: '3 Aminu Kano Crescent, Wuse 2, Abuja',              product: 'MacBook Air M3 13"',      status: 'Delivered',                usd: 1198, ngn: 1904820, date: 'Apr 18, 2026', flag: false },
-  { id: 'CRT-2203-3301', customer: 'Ngozi Eze',      phone: '09012345678', address: '7 Rumuola Rd, Port Harcourt, Rivers',               product: 'AirPods Pro 2nd Gen',     status: 'Delivered',                usd: 348,  ngn: 553320,  date: 'Apr 15, 2026', flag: false },
-  { id: 'CRT-2204-9210', customer: 'Tunde Balogun',  phone: '08167890123', address: '22 Bodija Estate, Ibadan, Oyo',                     product: 'iPhone 15 Pro 512GB',    status: 'Order Confirmed',          usd: 1298, ngn: 2063820, date: 'Apr 24, 2026', flag: false },
-  { id: 'CRT-2204-7752', customer: 'Chisom Nwosu',   phone: '07034561234', address: '5 Independence Layout, Enugu',                      product: 'iPad Pro 11"',            status: 'Purchased from Apple',     usd: 999,  ngn: 1588410, date: 'Apr 23, 2026', flag: true  },
-  { id: 'CRT-2202-1190', customer: 'Kemi Adeleke',   phone: '08098765432', address: '9 GRA Phase 2, Benin City, Edo',                    product: 'Apple Watch S9 41mm',    status: 'Delivered',                usd: 399,  ngn: 634410,  date: 'Apr 10, 2026', flag: false },
-  { id: 'CRT-2204-6631', customer: 'Femi Oladele',   phone: '08123456789', address: '31 Allen Avenue, Ikeja, Lagos',                     product: 'MacBook Air M3 15"',     status: 'In Transit to US Partner', usd: 1498, ngn: 2381820, date: 'Apr 25, 2026', flag: false },
-  { id: 'CRT-2204-5502', customer: 'Amaka Chukwu',   phone: '07089012345', address: '18 Trans-Amadi Industrial Layout, Port Harcourt',   product: 'AirPods Pro 2 (Refurb)', status: 'Arrived in Nigeria',       usd: 249,  ngn: 395910,  date: 'Apr 27, 2026', flag: false },
-];
-
 const INITIAL_PRODUCTS = PRODUCTS.map(p => ({
   ...p,
   stock: p.inStock ? Math.floor(Math.random() * 8) + 1 : 0,
   ngnPrice: p.usdPrice * CERTO_RATE,
 }));
+
+// Normalise order rows from API to a consistent shape
+function normaliseOrder(o) {
+  return {
+    id:       o.id,
+    customer: o.customer_name,
+    email:    o.customer_email,
+    phone:    o.customer_phone,
+    address:  o.address + (o.state ? `, ${o.state}` : ''),
+    product:  o.product_name + (o.product_subtitle ? ` · ${o.product_subtitle}` : ''),
+    product_id:    o.product_id,
+    product_image: o.product_image_url,
+    apple_url:     o.apple_url,
+    status:   o.status,
+    usd:      Number(o.usd_price),
+    ngn:      Number(o.ngn_price),
+    date:     o.created_at ? new Date(o.created_at).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric' }) : '',
+    flag:     o.flagged,
+    flag_reason: o.flag_reason || '',
+    notes:    o.notes || '',
+    raw:      o,
+  };
+}
 
 const ALL_STATUSES = [
   'Order Confirmed',
@@ -84,6 +96,8 @@ const ConditionBadge = ({ condition }) => {
   );
 };
 
+const WHATSAPP_NUMBER = '2348000000000'; // update in .env WHATSAPP_NUMBER
+
 const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
   const { isMobile } = useResponsive();
   const [activeTab,    setActiveTab]    = React.useState(subPage);
@@ -99,84 +113,110 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
   });
   const [autoRate, setAutoRate] = React.useState(null);
 
-  // Own fetch — dashboard is self-sufficient, doesn't wait on App.jsx timing
   React.useEffect(() => {
-    fetch('https://api.exchangerate-api.com/v4/latest/USD')
+    fetch('/api/forex')
       .then(r => r.json())
       .then(data => {
-        if (data.rates && data.rates.NGN) {
-          const rate = Math.round(data.rates.NGN) + 100;
+        if (data.rate) {
+          const rate = data.rate;
           const now = new Date();
           CERTO_RATE = rate;
           setFetchedAt(now);
           setAutoRate(rate);
-          if (!manualOverride) {
-            setForexRate(rate);
-            setForexInput(String(rate));
-          }
-          try {
-            localStorage.setItem('certo_rate', String(rate));
-            localStorage.setItem('certo_rate_ts', String(now.getTime()));
-          } catch(e) {}
+          if (!manualOverride) { setForexRate(rate); setForexInput(String(rate)); }
+          try { localStorage.setItem('certo_rate', String(rate)); localStorage.setItem('certo_rate_ts', String(now.getTime())); } catch(e) {}
         }
       })
       .catch(() => {});
   }, []);
-  const [selectedOrder,setSelectedOrder]= React.useState(null);
-  const [orders,       setOrders]       = React.useState(MOCK_ORDERS);
+
+  // Orders — API-driven
+  const [orders,          setOrders]          = React.useState([]);
+  const [ordersLoading,   setOrdersLoading]   = React.useState(true);
+  const [selectedOrder,   setSelectedOrder]   = React.useState(null);
+  const [flagReason,      setFlagReason]       = React.useState('');
+  const [orderTimeFilter, setOrderTimeFilter]  = React.useState('all');
+  const [customFrom,      setCustomFrom]       = React.useState('');
+  const [customTo,        setCustomTo]         = React.useState('');
+
+  // Revenue
+  const [revCurrency,    setRevCurrency]    = React.useState('ngn'); // 'ngn' | 'usd'
+  const [revTimeFilter,  setRevTimeFilter]  = React.useState('all');
+  const [revCustomFrom,  setRevCustomFrom]  = React.useState('');
+  const [revCustomTo,    setRevCustomTo]    = React.useState('');
+
+  const fetchOrders = React.useCallback(() => {
+    setOrdersLoading(true);
+    fetch('/api/orders?limit=500')
+      .then(r => r.json())
+      .then(data => { setOrders(Array.isArray(data) ? data.map(normaliseOrder) : []); setOrdersLoading(false); })
+      .catch(() => setOrdersLoading(false));
+  }, []);
+
+  React.useEffect(() => { fetchOrders(); }, [fetchOrders]);
+
   const [products,       setProducts]       = React.useState(INITIAL_PRODUCTS);
   const [editingProduct, setEditingProduct] = React.useState(null);
   const [editDraft,      setEditDraft]      = React.useState({});
   const [editSection,    setEditSection]    = React.useState('basic');
 
   // Orders — filter + search state
-  const [orderSearch,      setOrderSearch]      = React.useState('');
-  const [orderStatusFilter,setOrderStatusFilter] = React.useState('all');
-  const [orderTimeFilter,  setOrderTimeFilter]   = React.useState('all');
-  const [orderFlaggedOnly, setOrderFlaggedOnly]  = React.useState(false);
+  const [orderSearch,       setOrderSearch]       = React.useState('');
+  const [orderStatusFilter, setOrderStatusFilter]  = React.useState('all');
+  const [orderFlaggedOnly,  setOrderFlaggedOnly]   = React.useState(false);
 
   const tabs = [
-    { key: 'orders',    label: 'Orders',    count: orders.filter(o => o.status !== 'Delivered').length },
+    { key: 'orders',    label: 'Orders',    count: orders.filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled').length },
     { key: 'products',  label: 'Products'  },
     { key: 'forex',     label: 'Forex'     },
     { key: 'revenue',   label: 'Revenue'   },
     { key: 'customers', label: 'Customers' },
   ];
 
-  const totalRevNgn = orders.reduce((s, o) => s + o.ngn, 0);
-  const totalRevUsd = orders.reduce((s, o) => s + o.usd, 0);
-  const delivered   = orders.filter(o => o.status === 'Delivered').length;
-  const active      = orders.filter(o => o.status !== 'Delivered').length;
-
-  // Filtering logic
-  const filteredOrders = React.useMemo(() => {
-    return orders.filter(o => {
-      if (orderSearch.trim()) {
-        const q = orderSearch.trim().toLowerCase();
-        const hit =
-          o.id.toLowerCase().includes(q) ||
-          o.customer.toLowerCase().includes(q) ||
-          o.phone.includes(q) ||
-          o.address.toLowerCase().includes(q) ||
-          o.product.toLowerCase().includes(q);
-        if (!hit) return false;
-      }
-      if (orderStatusFilter !== 'all' && o.status !== orderStatusFilter) return false;
-      if (orderFlaggedOnly && !o.flag) return false;
-      if (orderTimeFilter !== 'all') {
-        const d   = new Date(o.date);
-        const now = new Date();
-        if (orderTimeFilter === 'today') {
-          if (d.toDateString() !== now.toDateString()) return false;
-        } else if (orderTimeFilter === 'week') {
-          if (d < new Date(now - 7 * 86400000)) return false;
-        } else if (orderTimeFilter === 'month') {
-          if (d < new Date(now - 30 * 86400000)) return false;
-        }
+  // Apply time filter to any list of orders
+  function applyTimeFilter(list, tf, cFrom, cTo) {
+    if (tf === 'all') return list;
+    const now = new Date();
+    return list.filter(o => {
+      const d = new Date(o.raw?.created_at || o.date);
+      if (tf === 'today')  return d.toDateString() === now.toDateString();
+      if (tf === 'week')   return d >= new Date(now - 7 * 86400000);
+      if (tf === 'month')  return d >= new Date(now - 30 * 86400000);
+      if (tf === 'year')   return d >= new Date(now - 365 * 86400000);
+      if (tf === 'custom') {
+        const from = cFrom ? new Date(cFrom) : null;
+        const to   = cTo   ? new Date(cTo + 'T23:59:59') : null;
+        if (from && d < from) return false;
+        if (to   && d > to)   return false;
+        return true;
       }
       return true;
     });
-  }, [orders, orderSearch, orderStatusFilter, orderTimeFilter, orderFlaggedOnly]);
+  }
+
+  const totalRevNgn = orders.reduce((s, o) => s + o.ngn, 0);
+  const totalRevUsd = orders.reduce((s, o) => s + o.usd, 0);
+  const delivered   = orders.filter(o => o.status === 'Delivered').length;
+  const active      = orders.filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled').length;
+
+  const filteredOrders = React.useMemo(() => {
+    let list = orders.filter(o => {
+      if (orderSearch.trim()) {
+        const q = orderSearch.trim().toLowerCase();
+        const hit = o.id.toLowerCase().includes(q) || o.customer.toLowerCase().includes(q) ||
+          (o.phone || '').includes(q) || o.address.toLowerCase().includes(q) || o.product.toLowerCase().includes(q);
+        if (!hit) return false;
+      }
+      if (orderStatusFilter === 'open') {
+        if (o.status === 'Delivered' || o.status === 'Cancelled') return false;
+      } else if (orderStatusFilter !== 'all') {
+        if (o.status !== orderStatusFilter) return false;
+      }
+      if (orderFlaggedOnly && !o.flag) return false;
+      return true;
+    });
+    return applyTimeFilter(list, orderTimeFilter, customFrom, customTo);
+  }, [orders, orderSearch, orderStatusFilter, orderTimeFilter, orderFlaggedOnly, customFrom, customTo]);
 
   const activeFilters =
     (orderSearch.trim() ? 1 : 0) +
@@ -185,10 +225,43 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
     (orderFlaggedOnly ? 1 : 0);
 
   const clearFilters = () => {
-    setOrderSearch('');
-    setOrderStatusFilter('all');
-    setOrderTimeFilter('all');
+    setOrderSearch(''); setOrderStatusFilter('all');
+    setOrderTimeFilter('all'); setCustomFrom(''); setCustomTo('');
     setOrderFlaggedOnly(false);
+  };
+
+  // Toggle flag on an order
+  const toggleFlag = async (orderId, currently) => {
+    const reason = currently ? '' : (flagReason.trim() || 'Flagged by admin');
+    try {
+      const res = await fetch(`/api/orders/${orderId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ flagged: !currently, flag_reason: reason }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setOrders(prev => prev.map(o => o.id === orderId ? normaliseOrder(updated) : o));
+        if (selectedOrder?.id === orderId) setSelectedOrder(normaliseOrder(updated));
+        setFlagReason('');
+      }
+    } catch(e) {}
+  };
+
+  // Update order status
+  const updateStatus = async (orderId, newStatus) => {
+    try {
+      const res = await fetch(`/api/orders/${orderId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setOrders(prev => prev.map(o => o.id === orderId ? normaliseOrder(updated) : o));
+        if (selectedOrder?.id === orderId) setSelectedOrder(normaliseOrder(updated));
+      }
+    } catch(e) {}
   };
 
   const inputStyle = {
@@ -216,39 +289,95 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
 
       {selectedOrder ? (
         <div>
-          <button onClick={() => setSelectedOrder(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--accent)', marginBottom: 20, padding: 0 }}>
+          <button onClick={() => { setSelectedOrder(null); setFlagReason(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--accent)', marginBottom: 20, padding: 0 }}>
             ← Back to orders
           </button>
-          <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 20, padding: 32 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 }}>
+          <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 20, padding: isMobile ? 20 : 32 }}>
+            {/* Header row */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28, flexWrap: 'wrap', gap: 12 }}>
               <div>
                 <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>ORDER</div>
-                <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 24, color: 'var(--text)' }}>{selectedOrder.id}</div>
+                <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 24, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {selectedOrder.flag && <span style={{ fontSize: 18 }} title={selectedOrder.flag_reason}>🚩</span>}
+                  {selectedOrder.id}
+                </div>
               </div>
-              <select defaultValue={selectedOrder.status} onChange={e => {
-                setOrders(orders.map(o => o.id === selectedOrder.id ? {...o, status: e.target.value} : o));
-                setSelectedOrder({...selectedOrder, status: e.target.value});
-              }} style={{ padding: '10px 16px', borderRadius: 10, border: '1.5px solid var(--accent)', background: 'var(--accent-tint)', color: 'var(--accent)', fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600, cursor: 'pointer', outline: 'none' }}>
+              <select value={selectedOrder.status} onChange={e => updateStatus(selectedOrder.id, e.target.value)}
+                style={{ padding: '10px 16px', borderRadius: 10, border: '1.5px solid var(--accent)', background: 'var(--accent-tint)', color: 'var(--accent)', fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600, cursor: 'pointer', outline: 'none' }}>
                 {ALL_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '1fr 1fr 1fr', gap: 16 }}>
+
+            {/* Core fields */}
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap: 16, marginBottom: 24 }}>
               {[
                 { label: 'Customer',   value: selectedOrder.customer },
+                { label: 'Email',      value: selectedOrder.email    },
                 { label: 'Phone',      value: selectedOrder.phone    },
-                { label: 'Product',    value: selectedOrder.product  },
                 { label: 'Order Date', value: selectedOrder.date     },
-                { label: 'USD Total',  value: `$${selectedOrder.usd.toLocaleString()}`  },
-                { label: 'NGN Total',  value: `₦${selectedOrder.ngn.toLocaleString()}`  },
+                { label: 'USD Total',  value: `$${Number(selectedOrder.usd).toLocaleString()}` },
+                { label: 'NGN Total',  value: `₦${Number(selectedOrder.ngn).toLocaleString()}` },
                 { label: 'Status',     value: selectedOrder.status   },
                 { label: 'Address',    value: selectedOrder.address  },
               ].map(f => (
                 <div key={f.label}>
                   <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>{f.label}</div>
-                  <div style={{ fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 600, color: 'var(--text)' }}>{f.value}</div>
+                  <div style={{ fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 600, color: 'var(--text)', wordBreak: 'break-all' }}>{f.value || '—'}</div>
                 </div>
               ))}
             </div>
+
+            {/* Product field — clickable name */}
+            <div style={{ marginBottom: 20, padding: '16px', background: 'var(--bg-alt)', borderRadius: 12, border: '1px solid var(--border)' }}>
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>Product</div>
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: selectedOrder.apple_url ? 8 : 0 }}>
+                {selectedOrder.product_id ? (
+                  <button onClick={() => navigate('product', selectedOrder.product_id)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 700, color: 'var(--accent)', padding: 0, textDecoration: 'underline', textAlign: 'left' }}>
+                    {selectedOrder.product}
+                  </button>
+                ) : <span>{selectedOrder.product}</span>}
+              </div>
+              {selectedOrder.apple_url && (
+                <div>
+                  <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4, letterSpacing: '0.04em', textTransform: 'uppercase' }}>Apple Product Page</div>
+                  <a href={selectedOrder.apple_url} target="_blank" rel="noreferrer"
+                    style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--accent)', wordBreak: 'break-all' }}>
+                    {selectedOrder.apple_url}
+                  </a>
+                </div>
+              )}
+            </div>
+
+            {/* Action buttons */}
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 20 }}>
+              {selectedOrder.phone && (
+                <a href={`https://wa.me/${selectedOrder.phone.replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 18px', borderRadius: 10, background: 'oklch(93% 0.08 145)', border: '1px solid oklch(80% 0.12 145)', color: 'oklch(35% 0.15 145)', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 700, textDecoration: 'none', cursor: 'pointer' }}>
+                  💬 WhatsApp Customer
+                </a>
+              )}
+              <button onClick={() => toggleFlag(selectedOrder.id, selectedOrder.flag)}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 18px', borderRadius: 10, border: '1px solid var(--border)', background: selectedOrder.flag ? 'oklch(96% 0.07 25)' : 'var(--bg)', color: selectedOrder.flag ? 'oklch(45% 0.18 25)' : 'var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                🚩 {selectedOrder.flag ? 'Unflag Order' : 'Flag Order'}
+              </button>
+            </div>
+
+            {/* Flag reason input (shown when flagging) */}
+            {!selectedOrder.flag && (
+              <div style={{ marginBottom: 16 }}>
+                <input value={flagReason} onChange={e => setFlagReason(e.target.value)} placeholder="Flag reason (optional)"
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1.5px solid var(--border)', background: 'var(--bg)', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text)', outline: 'none', boxSizing: 'border-box' }}
+                  onFocus={e => e.target.style.borderColor = 'var(--accent)'}
+                  onBlur={e => e.target.style.borderColor = 'var(--border)'}
+                />
+              </div>
+            )}
+            {selectedOrder.flag && selectedOrder.flag_reason && (
+              <div style={{ padding: '10px 14px', borderRadius: 9, background: 'oklch(96% 0.07 25)', border: '1px solid oklch(85% 0.1 25)', fontFamily: 'var(--font-body)', fontSize: 13, color: 'oklch(40% 0.18 25)', marginBottom: 16 }}>
+                🚩 Flag reason: {selectedOrder.flag_reason}
+              </div>
+            )}
           </div>
         </div>
       ) : (
@@ -271,6 +400,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
             {/* Status filter */}
             <select value={orderStatusFilter} onChange={e => setOrderStatusFilter(e.target.value)} style={inputStyle}>
               <option value="all">All statuses</option>
+              <option value="open">Open (not delivered)</option>
               {ALL_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
 
@@ -280,7 +410,15 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
               <option value="today">Today</option>
               <option value="week">Last 7 days</option>
               <option value="month">Last 30 days</option>
+              <option value="year">Last 12 months</option>
+              <option value="custom">Custom range</option>
             </select>
+            {orderTimeFilter === 'custom' && (
+              <>
+                <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)} style={{ ...inputStyle, cursor: 'auto' }} />
+                <input type="date" value={customTo}   onChange={e => setCustomTo(e.target.value)}   style={{ ...inputStyle, cursor: 'auto' }} />
+              </>
+            )}
 
             {/* Flagged toggle */}
             <button
@@ -320,7 +458,9 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
               </tr>
             </thead>
             <tbody>
-              {filteredOrders.length === 0 ? (
+              {ordersLoading ? (
+                <tr><td colSpan={7} style={{ padding: '40px 20px', textAlign: 'center', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)' }}>Loading orders…</td></tr>
+              ) : filteredOrders.length === 0 ? (
                 <tr>
                   <td colSpan={7} style={{ padding: '40px 20px', textAlign: 'center', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)' }}>
                     No orders match your filters.
@@ -337,7 +477,13 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
                       {o.flag && <span style={{ marginRight: 6 }}>🚩</span>}{o.id}
                     </td>
                     <td style={{ padding: '14px 20px' }}>
-                      <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text)', fontWeight: 500 }}>{o.customer}</div>
+                      <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text)', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {o.customer}
+                        {o.phone && (
+                          <a href={`https://wa.me/${o.phone.replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
+                            style={{ fontSize: 14, textDecoration: 'none', lineHeight: 1 }} title="WhatsApp">💬</a>
+                        )}
+                      </div>
                       <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)' }}>{o.phone}</div>
                     </td>
                     <td style={{ padding: '14px 20px', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)', maxWidth: 160 }}>{o.product}</td>
@@ -746,23 +892,62 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
   };
 
   const RevenueTab = () => {
-    const margin     = 0.12;
-    const totalCost  = orders.reduce((s, o) => s + o.usd * 0.88, 0);
-    const totalProfit= orders.reduce((s, o) => s + o.usd * margin, 0);
+    const revOrders  = applyTimeFilter(orders, revTimeFilter, revCustomFrom, revCustomTo);
+    const revNgn     = revOrders.reduce((s, o) => s + o.ngn, 0);
+    const revUsd     = revOrders.reduce((s, o) => s + o.usd, 0);
+    const totalProfit= revOrders.reduce((s, o) => s + o.usd * 0.12, 0);
+    const avgNgn     = revOrders.length ? revNgn / revOrders.length : 0;
+    const avgUsd     = revOrders.length ? revUsd / revOrders.length : 0;
+    const isNgn      = revCurrency === 'ngn';
+
+    const fmtRev = (ngn, usd) => isNgn ? `₦${(ngn/1000000).toFixed(2)}M` : `$${usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const fmtAvg = (ngn, usd) => isNgn ? `₦${Math.round(ngn).toLocaleString()}` : `$${usd.toFixed(2)}`;
+
+    const tfInputStyle = { padding: '8px 12px', borderRadius: 9, border: '1.5px solid var(--border)', background: 'var(--bg)', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text)', outline: 'none', cursor: 'pointer' };
 
     return (
       <div>
-        <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 22, color: 'var(--text)', marginBottom: 24 }}>Revenue Overview</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
-          <StatCard label="Total Revenue (NGN)" value={`₦${(totalRevNgn/1000000).toFixed(1)}M`} sub="All orders" />
-          <StatCard label="Total Revenue (USD)" value={`$${totalRevUsd.toLocaleString()}`} sub="All orders" />
-          <StatCard label="Est. Net Margin"      value={`$${totalProfit.toFixed(0)}`} sub="~12% avg margin" accent="oklch(45% 0.15 155)" />
-          <StatCard label="Avg Order Value"      value={`₦${(totalRevNgn/orders.length/1000).toFixed(0)}k`} sub="Per order" />
+        {/* Toolbar */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', marginBottom: 24 }}>
+          <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: isMobile ? 18 : 22, color: 'var(--text)', margin: 0, flex: 1 }}>Revenue Overview</h2>
+
+          {/* Currency toggle */}
+          <div style={{ display: 'flex', gap: 2, background: 'var(--bg-alt)', borderRadius: 10, padding: 4, border: '1px solid var(--border)' }}>
+            {[['ngn', '₦ NGN'], ['usd', '$ USD']].map(([val, label]) => (
+              <button key={val} onClick={() => setRevCurrency(val)} style={{ padding: '7px 16px', borderRadius: 8, border: 'none', cursor: 'pointer', background: revCurrency === val ? 'var(--accent)' : 'transparent', color: revCurrency === val ? 'white' : 'var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: revCurrency === val ? 700 : 400 }}>{label}</button>
+            ))}
+          </div>
+
+          {/* Timeframe filter */}
+          <select value={revTimeFilter} onChange={e => setRevTimeFilter(e.target.value)} style={tfInputStyle}>
+            <option value="all">All time</option>
+            <option value="today">Today</option>
+            <option value="week">Last 7 days</option>
+            <option value="month">Last 30 days</option>
+            <option value="year">Last 12 months</option>
+            <option value="custom">Custom</option>
+          </select>
+          {revTimeFilter === 'custom' && (
+            <>
+              <input type="date" value={revCustomFrom} onChange={e => setRevCustomFrom(e.target.value)} style={{ ...tfInputStyle, cursor: 'auto' }} />
+              <input type="date" value={revCustomTo}   onChange={e => setRevCustomTo(e.target.value)}   style={{ ...tfInputStyle, cursor: 'auto' }} />
+            </>
+          )}
         </div>
 
+        {/* Stats cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
+          <StatCard label={`Total Revenue (${revCurrency.toUpperCase()})`} value={fmtRev(revNgn, revUsd)} sub={`${revOrders.length} orders`} />
+          <StatCard label="Total Orders"   value={revOrders.length} />
+          <StatCard label="Est. Net Profit" value={`$${totalProfit.toFixed(0)}`} sub="~12% avg margin" accent="oklch(45% 0.15 155)" />
+          <StatCard label="Avg Order Value" value={fmtAvg(avgNgn, avgUsd)} sub="Per order" />
+        </div>
+
+        {/* Per-order table */}
         <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 20, overflow: 'hidden' }}>
-          <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 16, color: 'var(--text)' }}>Per-Order Breakdown</span>
+            <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)' }}>{revOrders.length} orders</span>
           </div>
           <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 560 }}>
@@ -774,14 +959,18 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
               </tr>
             </thead>
             <tbody>
-              {orders.map(o => {
+              {revOrders.length === 0 ? (
+                <tr><td colSpan={6} style={{ padding: '40px 20px', textAlign: 'center', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)' }}>No orders in this period.</td></tr>
+              ) : revOrders.map(o => {
                 const cost = o.usd * 0.88;
                 const net  = o.usd * 0.12;
                 return (
                   <tr key={o.id} style={{ borderTop: '1px solid var(--border)' }}>
                     <td style={{ padding: '14px 20px', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 700, color: 'var(--accent)' }}>{o.id}</td>
                     <td style={{ padding: '14px 20px', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text)' }}>{o.customer}</td>
-                    <td style={{ padding: '14px 20px', fontFamily: 'var(--font-head)', fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>${o.usd.toLocaleString()}</td>
+                    <td style={{ padding: '14px 20px', fontFamily: 'var(--font-head)', fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>
+                      {isNgn ? `₦${o.ngn.toLocaleString()}` : `$${o.usd.toLocaleString()}`}
+                    </td>
                     <td style={{ padding: '14px 20px', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)' }}>${cost.toFixed(0)}</td>
                     <td style={{ padding: '14px 20px', fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 700, color: 'oklch(45% 0.15 155)' }}>${net.toFixed(0)}</td>
                     <td style={{ padding: '14px 20px' }}>
@@ -798,7 +987,23 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
     );
   };
 
-  const CustomersTab = () => (
+  const CustomersTab = () => {
+    // Group orders by customer email/name to aggregate stats
+    const customerMap = new Map();
+    orders.forEach(o => {
+      const key = o.email || o.customer;
+      if (!customerMap.has(key)) {
+        customerMap.set(key, { customer: o.customer, email: o.email, phone: o.phone, orders: [], totalNgn: 0, totalUsd: 0, lastDate: '' });
+      }
+      const c = customerMap.get(key);
+      c.orders.push(o);
+      c.totalNgn += o.ngn;
+      c.totalUsd += o.usd;
+      if (!c.lastDate || o.date > c.lastDate) c.lastDate = o.date;
+    });
+    const customers = [...customerMap.values()].sort((a, b) => b.orders.length - a.orders.length);
+
+    return (
     <div>
       <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 22, color: 'var(--text)', marginBottom: 24 }}>Customer Database</h2>
       <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 20, overflow: 'hidden' }}>
@@ -812,26 +1017,33 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
             </tr>
           </thead>
           <tbody>
-            {[...new Map(orders.map(o => [o.customer, o])).values()].map(o => (
-              <tr key={o.customer} style={{ borderTop: '1px solid var(--border)' }}
+            {customers.length === 0 ? (
+              <tr><td colSpan={5} style={{ padding: '40px 20px', textAlign: 'center', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)' }}>No customers yet.</td></tr>
+            ) : customers.map(c => (
+              <tr key={c.email || c.customer} style={{ borderTop: '1px solid var(--border)' }}
                 onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-alt)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                 <td style={{ padding: '14px 20px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--accent-tint)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 13, color: 'var(--accent)' }}>
-                      {o.customer.split(' ').map(n => n[0]).join('')}
+                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--accent-tint)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 13, color: 'var(--accent)', flexShrink: 0 }}>
+                      {c.customer.split(' ').map(n => n[0]).join('').substring(0, 2)}
                     </div>
                     <div>
-                      <div style={{ fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>{o.customer}</div>
-                      <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)' }}>{o.phone}</div>
+                      <div style={{ fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>{c.customer}</div>
+                      <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)' }}>{c.email || c.phone}</div>
                     </div>
                   </div>
                 </td>
-                <td style={{ padding: '14px 20px', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text)' }}>1</td>
-                <td style={{ padding: '14px 20px', fontFamily: 'var(--font-head)', fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>₦{o.ngn.toLocaleString()}</td>
-                <td style={{ padding: '14px 20px', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)' }}>{o.date}</td>
+                <td style={{ padding: '14px 20px', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text)', fontWeight: 600 }}>{c.orders.length}</td>
+                <td style={{ padding: '14px 20px', fontFamily: 'var(--font-head)', fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>₦{Math.round(c.totalNgn).toLocaleString()}</td>
+                <td style={{ padding: '14px 20px', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)' }}>{c.lastDate}</td>
                 <td style={{ padding: '14px 20px' }}>
-                  <button style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 6, padding: '5px 12px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--accent)' }}>WhatsApp</button>
+                  {c.phone ? (
+                    <a href={`https://wa.me/${c.phone.replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer"
+                      style={{ display: 'inline-block', background: 'oklch(93% 0.08 145)', border: '1px solid oklch(80% 0.12 145)', borderRadius: 6, padding: '5px 12px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 12, color: 'oklch(35% 0.15 145)', fontWeight: 600, textDecoration: 'none' }}>
+                      💬 WhatsApp
+                    </a>
+                  ) : <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>}
                 </td>
               </tr>
             ))}
@@ -840,7 +1052,8 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
         </div>
       </div>
     </div>
-  );
+    );
+  };
 
   const tabContent = {
     orders:    OrdersTab(),
