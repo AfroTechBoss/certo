@@ -5,35 +5,45 @@ const pool    = require('../db');
 // GET /api/products
 router.get('/', async (req, res) => {
   try {
-    const { category, condition, in_stock, featured, limit, page } = req.query;
-    // Exclude heavy columns — only needed on the product detail page
+    const { category, condition, in_stock, featured, limit, page, search, sort } = req.query;
     const CARD_COLS = 'id,name,subtitle,category,listing_type,apple_url,image_urls,usd_price,in_stock,featured,badge,delivery_days,condition,condition_note,stock_count,created_at,updated_at';
-    let q = `SELECT ${CARD_COLS} FROM products WHERE 1=1`;
+    let where = 'WHERE 1=1';
     const params = [];
 
     if (category) {
       params.push(category);
-      q += ` AND category = $${params.length}`;
+      where += ` AND category = $${params.length}`;
     }
     if (condition) {
       params.push(condition);
-      q += ` AND condition = $${params.length}`;
+      where += ` AND condition = $${params.length}`;
     }
-    if (in_stock === 'true') {
-      q += ' AND in_stock = true';
-    }
-    if (featured === 'true') {
-      q += ' AND featured = true';
+    if (in_stock === 'true') where += ' AND in_stock = true';
+    if (featured === 'true')  where += ' AND featured = true';
+    if (search && search.trim()) {
+      params.push(`%${search.trim()}%`);
+      where += ` AND name ILIKE $${params.length}`;
     }
 
-    q += ' ORDER BY featured DESC, created_at ASC';
+    // Total count for pagination header
+    const { rows: countRows } = await pool.query(`SELECT COUNT(*) FROM products ${where}`, params);
+    const total = parseInt(countRows[0].count, 10);
+    res.setHeader('X-Total-Count', total);
+    res.setHeader('Access-Control-Expose-Headers', 'X-Total-Count');
 
-    const perPage = Math.min(parseInt(limit, 10) || 48, 200);
+    const orderBy = sort === 'price_asc'  ? 'usd_price ASC'
+                  : sort === 'price_desc' ? 'usd_price DESC'
+                  : 'featured DESC, created_at ASC';
+
+    const perPage = Math.min(parseInt(limit, 10) || 18, 1000);
     const offset  = (Math.max(parseInt(page, 10) || 1, 1) - 1) * perPage;
-    params.push(perPage); q += ` LIMIT $${params.length}`;
-    params.push(offset);  q += ` OFFSET $${params.length}`;
+    params.push(perPage); const limitIdx  = params.length;
+    params.push(offset);  const offsetIdx = params.length;
 
-    const { rows } = await pool.query(q, params);
+    const { rows } = await pool.query(
+      `SELECT ${CARD_COLS} FROM products ${where} ORDER BY ${orderBy} LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
+      params,
+    );
     res.json(rows);
   } catch (err) {
     console.error('GET /products:', err);

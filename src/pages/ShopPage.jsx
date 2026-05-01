@@ -91,7 +91,8 @@ const ProductCard = ({ product, navigate }) => {
         </div>
 
         <h3 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 18, color: 'var(--text)', marginBottom: 4, marginTop: 12 }}>{product.name}</h3>
-        <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)', marginBottom: 16 }}>{product.subtitle}</p>
+        <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)', marginBottom: 8 }}>{product.subtitle}</p>
+        <p style={{ fontFamily: 'monospace', fontSize: 10, color: 'var(--border)', marginBottom: 12, letterSpacing: '0.02em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={product.id}>#{product.id}</p>
 
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, justifyContent: 'space-between' }}>
           <div>
@@ -114,140 +115,247 @@ const ProductCard = ({ product, navigate }) => {
   );
 };
 
-const PER_PAGE = 48;
+const PER_PAGE = 18;
 
 const ShopPage = ({ navigate, addToCart, initialType }) => {
   const { isMobile } = useResponsive();
-  const [products, setProducts] = React.useState([]);
-  const [loading, setLoading] = React.useState(true);
-  const [loadingMore, setLoadingMore] = React.useState(false);
-  const [hasMore, setHasMore] = React.useState(true);
-  const [page, setPage] = React.useState(1);
-  const [stockCount, setStockCount] = React.useState(0);
+  const [products, setProducts]     = React.useState([]);
+  const [loading, setLoading]       = React.useState(true);
+  const [page, setPage]             = React.useState(1);
+  const [totalCount, setTotalCount] = React.useState(0);
   const [typeFilter, setTypeFilter] = React.useState(initialType || 'All');
   const [condFilter, setCondFilter] = React.useState('All');
-  const [sort, setSort] = React.useState('featured');
+  const [sort, setSort]             = React.useState('featured');
+  const [searchInput, setSearchInput] = React.useState('');
+  const [search, setSearch]         = React.useState('');
+  const [filterOpen, setFilterOpen] = React.useState(false);
 
-  React.useEffect(() => {
-    setTypeFilter(initialType || 'All');
-  }, [initialType]);
+  const totalPages = Math.max(1, Math.ceil(totalCount / PER_PAGE));
+  const activeFilters = (typeFilter !== 'All' ? 1 : 0) + (condFilter !== 'All' ? 1 : 0);
 
-  // Reset and reload when filters change
+  // Sync initialType prop
+  React.useEffect(() => { setTypeFilter(initialType || 'All'); setPage(1); }, [initialType]);
+
+  // Debounce search input → search state
   React.useEffect(() => {
-    setProducts([]);
-    setPage(1);
-    setHasMore(true);
+    const t = setTimeout(() => { setSearch(searchInput); setPage(1); }, 350);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  // Close filter panel on outside click
+  React.useEffect(() => {
+    if (!filterOpen) return;
+    const close = () => setFilterOpen(false);
+    document.addEventListener('click', close);
+    return () => document.removeEventListener('click', close);
+  }, [filterOpen]);
+
+  // Fetch whenever page, filters, search, or sort changes
+  React.useEffect(() => {
     setLoading(true);
-    const params = new URLSearchParams({ limit: PER_PAGE, page: 1 });
+    const params = new URLSearchParams({ limit: PER_PAGE, page });
     if (typeFilter !== 'All') params.set('category', typeFilter === 'MacBook' ? 'Mac' : typeFilter);
     if (condFilter !== 'All') params.set('condition', condFilter.toLowerCase());
+    if (search)               params.set('search', search);
+    if (sort !== 'featured')  params.set('sort', sort === 'price-asc' ? 'price_asc' : 'price_desc');
     fetch(`/api/products?${params}`)
-      .then(r => r.json())
-      .then(data => {
-        const prods = (Array.isArray(data) ? data : []).map(normaliseProduct);
-        setProducts(prods);
-        setStockCount(prods.filter(p => p.inStock).length);
-        setHasMore(prods.length === PER_PAGE);
-        setLoading(false);
-      })
+      .then(r => { setTotalCount(parseInt(r.headers.get('X-Total-Count') || '0', 10)); return r.json(); })
+      .then(data => { setProducts((Array.isArray(data) ? data : []).map(normaliseProduct)); setLoading(false); })
       .catch(() => setLoading(false));
-  }, [typeFilter, condFilter]);
-
-  const loadMore = () => {
-    const nextPage = page + 1;
-    setLoadingMore(true);
-    const params = new URLSearchParams({ limit: PER_PAGE, page: nextPage });
-    if (typeFilter !== 'All') params.set('category', typeFilter === 'MacBook' ? 'Mac' : typeFilter);
-    if (condFilter !== 'All') params.set('condition', condFilter.toLowerCase());
-    fetch(`/api/products?${params}`)
-      .then(r => r.json())
-      .then(data => {
-        const prods = (Array.isArray(data) ? data : []).map(normaliseProduct);
-        setProducts(prev => [...prev, ...prods]);
-        setPage(nextPage);
-        setHasMore(prods.length === PER_PAGE);
-        setLoadingMore(false);
-      })
-      .catch(() => setLoadingMore(false));
-  };
+  }, [typeFilter, condFilter, search, sort, page]);
 
   const types = ['All', 'iPhone', 'MacBook', 'iPad', 'AirPods', 'Watch', 'Apple TV', 'HomePod', 'Accessories'];
   const conds = ['All', 'New', 'Refurbished'];
 
-  let filtered = products;
-  if (sort === 'price-asc') filtered = [...filtered].sort((a, b) => a.usdPrice - b.usdPrice);
-  if (sort === 'price-desc') filtered = [...filtered].sort((a, b) => b.usdPrice - a.usdPrice);
-  if (sort === 'featured') filtered = [...filtered].sort((a, b) => (b.featured ? 1 : 0) - (a.featured ? 1 : 0));
-
-  const FilterBtn = ({ label, active, onClick }) => (
+  const OptionPill = ({ label, active, onClick }) => (
     <button onClick={onClick} style={{
-      padding: '8px 18px', borderRadius: 10, border: '1.5px solid',
+      padding: '6px 14px', borderRadius: 8, border: '1.5px solid',
       borderColor: active ? 'var(--accent)' : 'var(--border)',
       background: active ? 'var(--accent-tint)' : 'var(--bg)',
       color: active ? 'var(--accent)' : 'var(--text-muted)',
-      fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: active ? 600 : 400,
-      cursor: 'pointer', transition: 'all 0.15s',
+      fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: active ? 600 : 400,
+      cursor: 'pointer', transition: 'all 0.15s', whiteSpace: 'nowrap',
     }}>{label}</button>
   );
 
+  const goTo = (p) => { setPage(Math.max(1, Math.min(p, totalPages))); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', paddingTop: 80 }}>
-      <div style={{ borderBottom: '1px solid var(--border)', padding: isMobile ? '24px 20px 20px' : '40px 24px 32px', background: 'var(--bg)' }}>
+
+      {/* ── Header ── */}
+      <div style={{ borderBottom: '1px solid var(--border)', padding: isMobile ? '24px 20px 20px' : '40px 24px 28px', background: 'var(--bg)' }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-          <h1 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: isMobile ? 28 : 42, letterSpacing: '-0.03em', color: 'var(--text)', marginBottom: 8 }}>
-            Shop Apple
-          </h1>
+          <h1 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: isMobile ? 28 : 42, letterSpacing: '-0.03em', color: 'var(--text)', marginBottom: 6 }}>Shop Apple</h1>
           <p style={{ fontFamily: 'var(--font-body)', fontSize: isMobile ? 14 : 16, color: 'var(--text-muted)', marginBottom: 20 }}>
-            Every product sourced directly from Apple US. {stockCount > 0 ? `${stockCount} in stock today.` : 'Loading...'}
+            Every product sourced directly from Apple US.{totalCount > 0 ? ` ${totalCount} products available.` : ''}
           </p>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {types.map(t => <FilterBtn key={t} label={t} active={typeFilter === t} onClick={() => setTypeFilter(t)} />)}
+          {/* Search + Filter + Sort row */}
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+
+            {/* Search bar */}
+            <div style={{ position: 'relative', flex: isMobile ? '1 1 100%' : '1 1 280px', maxWidth: 420 }}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+                <circle cx="6.5" cy="6.5" r="5" stroke="var(--text-muted)" strokeWidth="1.5"/>
+                <path d="M10.5 10.5L14 14" stroke="var(--text-muted)" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+              <input
+                type="text" value={searchInput} onChange={e => setSearchInput(e.target.value)}
+                placeholder="Search products…"
+                style={{
+                  width: '100%', paddingLeft: 38, paddingRight: searchInput ? 36 : 14, paddingTop: 10, paddingBottom: 10,
+                  borderRadius: 10, border: '1.5px solid var(--border)', background: 'var(--bg)',
+                  fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text)', outline: 'none', boxSizing: 'border-box',
+                }}
+                onFocus={e => e.target.style.borderColor = 'var(--accent)'}
+                onBlur={e => e.target.style.borderColor = 'var(--border)'}
+              />
+              {searchInput && (
+                <button onClick={() => setSearchInput('')} style={{
+                  position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
+                  background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 16, lineHeight: 1, padding: 2,
+                }}>×</button>
+              )}
             </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-              {conds.map(c => <FilterBtn key={c} label={c} active={condFilter === c} onClick={() => setCondFilter(c)} />)}
-              <select value={sort} onChange={e => setSort(e.target.value)} style={{
-                marginLeft: isMobile ? 0 : 'auto', padding: '8px 14px', borderRadius: 10, border: '1.5px solid var(--border)',
-                background: 'var(--bg)', fontFamily: 'var(--font-body)', fontSize: 14,
-                color: 'var(--text)', cursor: 'pointer', outline: 'none',
+
+            {/* Filter dropdown */}
+            <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+              <button onClick={() => setFilterOpen(o => !o)} style={{
+                display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderRadius: 10,
+                border: `1.5px solid ${activeFilters > 0 ? 'var(--accent)' : 'var(--border)'}`,
+                background: activeFilters > 0 ? 'var(--accent-tint)' : 'var(--bg)',
+                color: activeFilters > 0 ? 'var(--accent)' : 'var(--text)',
+                fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 500, cursor: 'pointer',
               }}>
-                <option value="featured">Sort: Featured</option>
-                <option value="price-asc">Price: Low to High</option>
-                <option value="price-desc">Price: High to Low</option>
-              </select>
+                <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                  <path d="M1 3h13M3 7.5h9M5.5 12h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+                </svg>
+                Filters
+                {activeFilters > 0 && (
+                  <span style={{ background: 'var(--accent)', color: 'white', borderRadius: '50%', width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700 }}>{activeFilters}</span>
+                )}
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ transform: filterOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>
+                  <path d="M1 3l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+
+              {filterOpen && (
+                <div style={{
+                  position: 'absolute', top: 'calc(100% + 8px)', left: 0, zIndex: 200,
+                  background: 'var(--bg)', border: '1.5px solid var(--border)', borderRadius: 14,
+                  padding: 20, boxShadow: '0 8px 32px rgba(0,0,0,0.10)', minWidth: 320,
+                }}>
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 10 }}>Category</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {types.map(t => <OptionPill key={t} label={t} active={typeFilter === t} onClick={() => { setTypeFilter(t); setPage(1); }} />)}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 10 }}>Condition</div>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      {conds.map(c => <OptionPill key={c} label={c} active={condFilter === c} onClick={() => { setCondFilter(c); setPage(1); }} />)}
+                    </div>
+                  </div>
+                  {activeFilters > 0 && (
+                    <button onClick={() => { setTypeFilter('All'); setCondFilter('All'); setPage(1); }} style={{
+                      marginTop: 14, width: '100%', padding: '8px', borderRadius: 8, border: '1px solid var(--border)',
+                      background: 'transparent', color: 'var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: 13, cursor: 'pointer',
+                    }}>Clear filters</button>
+                  )}
+                </div>
+              )}
             </div>
+
+            {/* Sort */}
+            <select value={sort} onChange={e => { setSort(e.target.value); setPage(1); }} style={{
+              padding: '10px 14px', borderRadius: 10, border: '1.5px solid var(--border)',
+              background: 'var(--bg)', fontFamily: 'var(--font-body)', fontSize: 14,
+              color: 'var(--text)', cursor: 'pointer', outline: 'none',
+            }}>
+              <option value="featured">Sort: Featured</option>
+              <option value="price-asc">Price: Low → High</option>
+              <option value="price-desc">Price: High → Low</option>
+            </select>
           </div>
         </div>
       </div>
 
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? '24px 20px' : '48px 24px' }}>
+      {/* ── Product grid ── */}
+      <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? '24px 20px' : '40px 24px' }}>
+
+        {/* Results summary */}
+        {!loading && totalCount > 0 && (
+          <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)', marginBottom: 24 }}>
+            Showing {(page - 1) * PER_PAGE + 1}–{Math.min(page * PER_PAGE, totalCount)} of {totalCount} products
+            {search ? ` for "${search}"` : ''}
+          </p>
+        )}
+
         {loading ? (
           <div style={{ textAlign: 'center', padding: '80px 0', color: 'var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: 16 }}>
             Loading products…
           </div>
-        ) : filtered.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '80px 0', color: 'var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: 16 }}>
-            No products match your filters.
+        ) : products.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '80px 0' }}>
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: 16, color: 'var(--text-muted)', marginBottom: 12 }}>No products found.</p>
+            {(search || activeFilters > 0) && (
+              <button onClick={() => { setSearchInput(''); setSearch(''); setTypeFilter('All'); setCondFilter('All'); setPage(1); }} style={{
+                padding: '10px 24px', borderRadius: 10, border: '1.5px solid var(--border)', background: 'transparent',
+                fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text)', cursor: 'pointer',
+              }}>Clear search & filters</button>
+            )}
           </div>
         ) : (
-          <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 24 }}>
-              {filtered.map(p => <ProductCard key={p.id} product={p} navigate={navigate} />)}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 24 }}>
+            {products.map(p => <ProductCard key={p.id} product={p} navigate={navigate} />)}
+          </div>
+        )}
+
+        {/* Pagination */}
+        {!loading && totalPages > 1 && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 48 }}>
+            <button onClick={() => goTo(page - 1)} disabled={page <= 1} style={{
+              padding: '10px 20px', borderRadius: 10, border: '1.5px solid var(--border)',
+              background: 'var(--bg)', color: page <= 1 ? 'var(--border)' : 'var(--text)',
+              fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600,
+              cursor: page <= 1 ? 'not-allowed' : 'pointer',
+            }}>← Prev</button>
+
+            <div style={{ display: 'flex', gap: 4 }}>
+              {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+                let p;
+                if (totalPages <= 7) {
+                  p = i + 1;
+                } else if (page <= 4) {
+                  p = i < 6 ? i + 1 : totalPages;
+                } else if (page >= totalPages - 3) {
+                  p = i === 0 ? 1 : totalPages - 5 + i;
+                } else {
+                  p = [1, page - 2, page - 1, page, page + 1, page + 2, totalPages][i];
+                }
+                const isEllipsis = i > 0 && p - ([1, page <= 4 ? i : 1][0] || 1) > 2 && false;
+                return (
+                  <button key={i} onClick={() => goTo(p)} style={{
+                    width: 38, height: 38, borderRadius: 9, border: '1.5px solid',
+                    borderColor: p === page ? 'var(--accent)' : 'var(--border)',
+                    background: p === page ? 'var(--accent)' : 'var(--bg)',
+                    color: p === page ? 'white' : 'var(--text)',
+                    fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: p === page ? 700 : 400,
+                    cursor: 'pointer',
+                  }}>{p}</button>
+                );
+              })}
             </div>
-            {hasMore && (
-              <div style={{ textAlign: 'center', marginTop: 40 }}>
-                <button onClick={loadMore} disabled={loadingMore} style={{
-                  padding: '14px 40px', borderRadius: 12, border: '1.5px solid var(--border)',
-                  background: 'var(--bg)', color: 'var(--text)', cursor: loadingMore ? 'not-allowed' : 'pointer',
-                  fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 600,
-                  opacity: loadingMore ? 0.6 : 1, transition: 'all 0.15s',
-                }}>
-                  {loadingMore ? 'Loading…' : 'Load more products'}
-                </button>
-              </div>
-            )}
-          </>
+
+            <button onClick={() => goTo(page + 1)} disabled={page >= totalPages} style={{
+              padding: '10px 20px', borderRadius: 10, border: '1.5px solid var(--border)',
+              background: 'var(--bg)', color: page >= totalPages ? 'var(--border)' : 'var(--text)',
+              fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600,
+              cursor: page >= totalPages ? 'not-allowed' : 'pointer',
+            }}>Next →</button>
+          </div>
         )}
 
         <div style={{
