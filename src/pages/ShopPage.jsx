@@ -38,7 +38,7 @@ const ConditionBadge = ({ condition }) => (
   }}>{condition}</span>
 );
 
-const ProductCard = ({ product, navigate }) => {
+const ProductCard = ({ product, navigate, compact }) => {
   const [hovered, setHovered] = React.useState(false);
   return (
     <div
@@ -47,65 +47,76 @@ const ProductCard = ({ product, navigate }) => {
       onMouseLeave={() => setHovered(false)}
       style={{
         background: 'var(--bg)', border: '1px solid var(--border)',
-        borderRadius: 20, overflow: 'hidden', cursor: 'pointer',
+        borderRadius: compact ? 14 : 20, overflow: 'hidden', cursor: 'pointer',
         transition: 'all 0.25s',
-        transform: hovered ? 'translateY(-4px)' : 'none',
-        boxShadow: hovered ? '0 16px 40px rgba(0,0,0,0.08)' : '0 2px 8px rgba(0,0,0,0.03)',
+        transform: hovered ? 'translateY(-3px)' : 'none',
+        boxShadow: hovered ? '0 12px 32px rgba(0,0,0,0.08)' : '0 2px 8px rgba(0,0,0,0.03)',
         opacity: product.inStock ? 1 : 0.55,
       }}
     >
       <div style={{
-        height: 200, background: 'var(--bg-alt)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        height: compact ? 120 : 200, background: 'var(--bg-alt)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
         borderBottom: '1px solid var(--border)', position: 'relative', overflow: 'hidden',
       }}>
         {product.images && product.images[0] ? (
           <img
             src={product.images[0]}
             alt={product.name}
-            style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 16 }}
+            style={{ width: '100%', height: '100%', objectFit: 'contain', padding: compact ? 8 : 16 }}
             onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
           />
         ) : null}
         <div style={{ display: product.images && product.images[0] ? 'none' : 'flex', alignItems: 'center', justifyContent: 'center', position: 'absolute', inset: 0 }}>
-          <ProductIcon type={product.type.toLowerCase()} size={130} color="var(--accent)" />
+          <ProductIcon type={product.type.toLowerCase()} size={compact ? 70 : 130} color="var(--accent)" />
         </div>
         {!product.inStock && (
           <div style={{
             position: 'absolute', inset: 0, background: 'rgba(250,249,247,0.7)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <span style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 14, color: 'var(--text-muted)', letterSpacing: '0.05em' }}>OUT OF STOCK</span>
+            <span style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: compact ? 10 : 14, color: 'var(--text-muted)', letterSpacing: '0.05em' }}>OUT OF STOCK</span>
           </div>
         )}
         {product.featured && product.inStock && (
-          <div style={{ position: 'absolute', top: 12, left: 12 }}>
-            <span style={{ background: 'var(--accent)', color: 'white', padding: '3px 10px', borderRadius: 6, fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-body)' }}>Popular</span>
+          <div style={{ position: 'absolute', top: compact ? 6 : 12, left: compact ? 6 : 12 }}>
+            <span style={{ background: 'var(--accent)', color: 'white', padding: compact ? '2px 6px' : '3px 10px', borderRadius: 5, fontSize: 10, fontWeight: 700, fontFamily: 'var(--font-body)' }}>Popular</span>
           </div>
         )}
       </div>
 
-      <div style={{ padding: 20 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-          <ConditionBadge condition={product.condition} />
-          <span style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.04em', background: 'var(--bg-alt)', padding: '3px 8px', borderRadius: 5 }}>{product.badge}</span>
-        </div>
+      <div style={{ padding: compact ? 12 : 20 }}>
+        {!compact && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+            <ConditionBadge condition={product.condition} />
+            <span style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.04em', background: 'var(--bg-alt)', padding: '3px 8px', borderRadius: 5 }}>{product.badge}</span>
+          </div>
+        )}
+        {compact && (
+          <div style={{ marginBottom: 4 }}>
+            <ConditionBadge condition={product.condition} />
+          </div>
+        )}
 
-        <h3 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 18, color: 'var(--text)', marginBottom: 4, marginTop: 12 }}>{product.name}</h3>
-        <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)', marginBottom: 8 }}>{product.subtitle}</p>
-        <p style={{ fontFamily: 'monospace', fontSize: 10, color: 'var(--border)', marginBottom: 12, letterSpacing: '0.02em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={product.id}>#{product.id}</p>
+        <h3 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: compact ? 13 : 18, color: 'var(--text)', marginBottom: 4, marginTop: compact ? 6 : 12,
+          display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+        }}>{product.name}</h3>
 
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, justifyContent: 'space-between' }}>
+        {!compact && <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)', marginBottom: 8 }}>{product.subtitle}</p>}
+        <p style={{ fontFamily: 'monospace', fontSize: 9, color: 'var(--border)', marginBottom: compact ? 8 : 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={product.id}>#{product.id}</p>
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4 }}>
           <div>
-            <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 22, color: 'var(--text)' }}>
+            <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: compact ? 15 : 22, color: 'var(--text)' }}>
               {fmt(product.usdPrice)}
             </div>
-            <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)' }}>US: ${product.usdPrice.toLocaleString()}</div>
+            {!compact && <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)' }}>US: ${product.usdPrice.toLocaleString()}</div>}
           </div>
           <div style={{
-            width: 36, height: 36, borderRadius: 10, background: 'var(--accent)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            width: compact ? 28 : 36, height: compact ? 28 : 36, borderRadius: compact ? 8 : 10,
+            background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
           }}>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
               <path d="M3 8h10M8 3l5 5-5 5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </div>
@@ -308,8 +319,8 @@ const ShopPage = ({ navigate, addToCart, initialType }) => {
             )}
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 24 }}>
-            {products.map(p => <ProductCard key={p.id} product={p} navigate={navigate} />)}
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(280px, 1fr))', gap: isMobile ? 12 : 24 }}>
+            {products.map(p => <ProductCard key={p.id} product={p} navigate={navigate} compact={isMobile} />)}
           </div>
         )}
 
