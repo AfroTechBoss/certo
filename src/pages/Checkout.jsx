@@ -281,20 +281,27 @@ const CheckoutFlow = ({ cart, navigate, clearCart }) => {
 
       {/* Method selector */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 28 }}>
-        {[
-          { id: 'naira', label: '🇳🇬  Pay in Naira',        sub: 'via Paystack · bank transfer, card, USSD' },
-          { id: 'usd',   label: '🌍  Pay in USD / Crypto',  sub: 'via Hel.io · card, USDC, BTC, ETH'       },
-        ].map(opt => (
-          <div key={opt.id} onClick={() => setPayMethod(opt.id)} style={{
-            flex: 1, padding: '18px 16px', borderRadius: 14, cursor: 'pointer',
-            border: `2px solid ${payMethod === opt.id ? 'var(--accent)' : 'var(--border)'}`,
-            background: payMethod === opt.id ? 'var(--accent-tint)' : 'var(--bg)',
-            transition: 'all 0.15s',
-          }}>
-            <div style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 15, color: payMethod === opt.id ? 'var(--accent)' : 'var(--text)', marginBottom: 4 }}>{opt.label}</div>
-            <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>{opt.sub}</div>
-          </div>
-        ))}
+        {/* Active: Naira via Paystack */}
+        <div onClick={() => setPayMethod('naira')} style={{
+          flex: 1, padding: '18px 16px', borderRadius: 14, cursor: 'pointer',
+          border: `2px solid ${payMethod === 'naira' ? 'var(--accent)' : 'var(--border)'}`,
+          background: payMethod === 'naira' ? 'var(--accent-tint)' : 'var(--bg)',
+          transition: 'all 0.15s',
+        }}>
+          <div style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 15, color: payMethod === 'naira' ? 'var(--accent)' : 'var(--text)', marginBottom: 4 }}>🇳🇬  Pay in Naira</div>
+          <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>via Paystack · bank transfer, card, USSD</div>
+        </div>
+
+        {/* Coming soon: USD / Crypto */}
+        <div style={{
+          flex: 1, padding: '18px 16px', borderRadius: 14, cursor: 'not-allowed',
+          border: '2px solid var(--border)', background: 'var(--bg-alt)', opacity: 0.55,
+          position: 'relative',
+        }}>
+          <div style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 15, color: 'var(--text-muted)', marginBottom: 4 }}>🌍  Pay in USD / Crypto</div>
+          <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>via Hel.io · card, USDC, BTC, ETH</div>
+          <span style={{ position: 'absolute', top: 10, right: 12, fontFamily: 'var(--font-body)', fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', background: 'var(--border)', color: 'var(--text-muted)', padding: '2px 7px', borderRadius: 4 }}>Coming soon</span>
+        </div>
       </div>
 
       {/* Naira summary */}
