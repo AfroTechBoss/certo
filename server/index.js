@@ -146,11 +146,15 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'index.html'));
 });
 
-app.listen(PORT, () => {
-  console.log(`Certo server running on http://localhost:${PORT}`);
-
-  // Ping the DB every 4 minutes to prevent Neon auto-suspend cold starts
-  setInterval(() => {
-    pool.queryR('SELECT 1').catch(() => {});
-  }, 4 * 60 * 1000);
-});
+// On Vercel: export the app for serverless invocation (no persistent process)
+// Locally: start the HTTP server and keep the DB warm with periodic pings
+if (process.env.VERCEL) {
+  module.exports = app;
+} else {
+  app.listen(PORT, () => {
+    console.log(`Certo server running on http://localhost:${PORT}`);
+    setInterval(() => {
+      pool.queryR('SELECT 1').catch(() => {});
+    }, 4 * 60 * 1000);
+  });
+}
