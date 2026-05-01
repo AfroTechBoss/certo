@@ -121,6 +121,7 @@ const CheckoutFlow = ({ cart, navigate, clearCart }) => {
       <CheckoutInput label="Full Name" value={delivery.name} onChange={v => setDelivery({...delivery, name: v})} placeholder="e.g. Adaeze Okoye" />
       <CheckoutInput label="Email Address" value={delivery.email} onChange={v => setDelivery({...delivery, email: v})} placeholder="you@email.com" type="email" />
       <CheckoutInput label="Phone Number" value={delivery.phone} onChange={v => setDelivery({...delivery, phone: v})} placeholder="+234 800 000 0000" type="tel" />
+      <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--accent)', marginTop: -10, marginBottom: 18, lineHeight: 1.5 }}>WhatsApp number preferred — we'll send your order updates here.</p>
       <CheckoutInput label="Delivery Address" value={delivery.address} onChange={v => setDelivery({...delivery, address: v})} placeholder="Street address, area" />
       <div style={{ marginBottom: 18 }}>
         <label style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, color: 'var(--text)', display: 'block', marginBottom: 6 }}>State</label>
