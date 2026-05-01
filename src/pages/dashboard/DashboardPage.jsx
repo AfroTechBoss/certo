@@ -157,6 +157,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
   const [ordersLoading,   setOrdersLoading]   = React.useState(true);
   const [selectedOrder,   setSelectedOrder]   = React.useState(null);
   const [flagReason,      setFlagReason]       = React.useState('');
+  const [resendState,     setResendState]      = React.useState({}); // { [orderId]: 'loading'|'ok'|'error:msg' }
   const [orderTimeFilter, setOrderTimeFilter]  = React.useState('all');
   const [customFrom,      setCustomFrom]       = React.useState('');
   const [customTo,        setCustomTo]         = React.useState('');
@@ -264,6 +265,25 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
     setOrderSearch(''); setOrderStatusFilter('all');
     setOrderTimeFilter('all'); setCustomFrom(''); setCustomTo('');
     setOrderFlaggedOnly(false);
+  };
+
+  // Resend confirmation email for an order
+  const resendEmail = async (orderId) => {
+    setResendState(s => ({ ...s, [orderId]: 'loading' }));
+    try {
+      const res = await fetch(`/api/orders/${orderId}/resend-email`, { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) {
+        setResendState(s => ({ ...s, [orderId]: 'ok' }));
+        setTimeout(() => setResendState(s => { const n = {...s}; delete n[orderId]; return n; }), 4000);
+      } else {
+        setResendState(s => ({ ...s, [orderId]: 'error:' + (data.error || 'Failed') }));
+        setTimeout(() => setResendState(s => { const n = {...s}; delete n[orderId]; return n; }), 6000);
+      }
+    } catch(e) {
+      setResendState(s => ({ ...s, [orderId]: 'error:Network error' }));
+      setTimeout(() => setResendState(s => { const n = {...s}; delete n[orderId]; return n; }), 6000);
+    }
   };
 
   // Toggle flag on an order
@@ -393,6 +413,24 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
                   💬 WhatsApp Customer
                 </a>
               )}
+              {(() => {
+                const rs = resendState[selectedOrder.id];
+                const isLoading = rs === 'loading';
+                const isOk      = rs === 'ok';
+                const isError   = rs && rs.startsWith('error:');
+                return (
+                  <button
+                    onClick={() => resendEmail(selectedOrder.id)}
+                    disabled={isLoading}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 18px', borderRadius: 10,
+                      border: `1px solid ${isOk ? 'oklch(70% 0.15 145)' : isError ? 'oklch(70% 0.15 25)' : 'var(--border)'}`,
+                      background: isOk ? 'oklch(93% 0.06 145)' : isError ? 'oklch(96% 0.07 25)' : 'var(--bg)',
+                      color: isOk ? 'oklch(35% 0.15 145)' : isError ? 'oklch(45% 0.18 25)' : 'var(--text-muted)',
+                      fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, cursor: isLoading ? 'default' : 'pointer' }}>
+                    {isLoading ? '⏳ Sending…' : isOk ? '✓ Email sent!' : isError ? `✗ ${rs.slice(6)}` : '✉ Resend Confirmation Email'}
+                  </button>
+                );
+              })()}
               <button onClick={() => toggleFlag(selectedOrder.id, selectedOrder.flag)}
                 style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 18px', borderRadius: 10, border: '1px solid var(--border)', background: selectedOrder.flag ? 'oklch(96% 0.07 25)' : 'var(--bg)', color: selectedOrder.flag ? 'oklch(45% 0.18 25)' : 'var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                 🚩 {selectedOrder.flag ? 'Unflag Order' : 'Flag Order'}

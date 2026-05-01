@@ -523,15 +523,17 @@ const ProductDetailPage = ({ productId, navigate, addToCart }) => {
           )}
 
 
-          <div style={{ background: 'var(--bg-alt)', borderRadius: 16, padding: 24, border: '1px solid var(--border)' }}>
-            <div style={{ fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 13, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 16 }}>Specs</div>
-            {product.specs.map(s => (
-              <div key={s} style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
-                <span style={{ color: 'var(--accent)', fontSize: 14 }}>·</span>
-                <span style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text)' }}>{s}</span>
-              </div>
-            ))}
-          </div>
+          {!isMobile && (
+            <div style={{ background: 'var(--bg-alt)', borderRadius: 16, padding: 24, border: '1px solid var(--border)' }}>
+              <div style={{ fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 13, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 16 }}>Specs</div>
+              {product.specs.map(s => (
+                <div key={s} style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
+                  <span style={{ color: 'var(--accent)', fontSize: 14 }}>·</span>
+                  <span style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text)' }}>{s}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Right: purchase panel */}

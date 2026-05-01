@@ -153,6 +153,21 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// POST /api/orders/:id/resend-email  (admin — resend confirmation email)
+router.post('/:id/resend-email', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM orders WHERE id = $1', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Order not found' });
+    const order = rows[0];
+    await sendOrderConfirmation(order);
+    await pool.query('UPDATE orders SET email_sent = true, updated_at = NOW() WHERE id = $1', [req.params.id]);
+    res.json({ ok: true, message: `Confirmation email sent to ${order.customer_email}` });
+  } catch (err) {
+    console.error('Resend email failed for', req.params.id, ':', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // PATCH /api/orders/:id  (admin — update status, flag, notes)
 router.patch('/:id', async (req, res) => {
   try {

@@ -381,15 +381,19 @@ const ContactPage = () => {
           </p>
 
           {[
-            { icon: '💬', label: 'WhatsApp', val: '+234 800 000 0000', sub: 'Fastest response' },
-            { icon: '✉️', label: 'Email', val: 'hello@certo.ng', sub: 'Within 24hrs on business days' },
+            { icon: '💬', label: 'WhatsApp', val: '+234 805 757 5906', href: 'https://wa.me/2348057575906', sub: 'Fastest response' },
+            { icon: '✉️', label: 'Email', val: 'hello@certo.ng', href: 'mailto:hello@certo.ng', sub: 'Within 24hrs on business days' },
             { icon: '𝕏', label: 'Twitter / X', val: '@certong', sub: 'DMs open' },
             { icon: '📷', label: 'Instagram', val: '@certo.ng', sub: 'DMs open' },
           ].map(c => (
             <div key={c.label} style={{ display: 'flex', gap: 16, marginBottom: 24, alignItems: 'flex-start' }}>
               <div style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--bg-alt)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>{c.icon}</div>
               <div>
-                <div style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 15, color: 'var(--text)', marginBottom: 2 }}>{c.val}</div>
+                {c.href ? (
+                  <a href={c.href} target="_blank" rel="noreferrer" style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 15, color: 'var(--accent)', marginBottom: 2, display: 'block', textDecoration: 'none' }}>{c.val}</a>
+                ) : (
+                  <div style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 15, color: 'var(--text)', marginBottom: 2 }}>{c.val}</div>
+                )}
                 <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)' }}>{c.label} · {c.sub}</div>
               </div>
             </div>
