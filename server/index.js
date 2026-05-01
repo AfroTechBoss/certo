@@ -22,6 +22,7 @@ app.get('/api/config', (req, res) => {
   res.json({
     paystackKey:  process.env.PAYSTACK_PUBLIC_KEY || '',
     helioPayLink: process.env.HELIO_PAY_LINK      || '',
+    testMode:     process.env.TEST_MODE === 'true',
   });
 });
 

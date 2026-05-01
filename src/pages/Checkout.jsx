@@ -215,7 +215,12 @@ const CheckoutFlow = ({ cart, navigate, clearCart }) => {
       const newOrderId = data.id;
       setOrderId(newOrderId);
 
-      if (payMethod === 'naira') {
+      if (payConfig.testMode) {
+        // TEST MODE — skip payment gateway, go straight to confirmation
+        clearCart && clearCart();
+        setSubmitting(false);
+        setStep(4);
+      } else if (payMethod === 'naira') {
         // Step 2a — open Paystack inline popup
         if (!window.PaystackPop) throw new Error('Paystack failed to load — check your connection and try again');
         if (!payConfig.paystackKey) throw new Error('Payment is not configured yet — please contact us directly');
@@ -233,13 +238,11 @@ const CheckoutFlow = ({ cart, navigate, clearCart }) => {
             ],
           },
           callback: () => {
-            // Payment completed successfully
             clearCart && clearCart();
             setSubmitting(false);
             setStep(4);
           },
           onClose: () => {
-            // User closed the Paystack popup without paying
             setSubmitError(`Payment cancelled. Your order ${newOrderId} is saved — you can complete payment anytime by contacting us.`);
             setSubmitting(false);
           },
@@ -267,6 +270,13 @@ const CheckoutFlow = ({ cart, navigate, clearCart }) => {
   const PaymentStep = () => (
     <div>
       <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 28, letterSpacing: '-0.02em', color: 'var(--text)', marginBottom: 24 }}>Payment</h2>
+
+      {payConfig.testMode && (
+        <div style={{ background: '#fffbe6', border: '1.5px solid #f5c400', borderRadius: 10, padding: '10px 16px', marginBottom: 20, fontFamily: 'var(--font-body)', fontSize: 13, color: '#7a5c00', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span>⚠️</span>
+          <span><strong>Test Mode is ON</strong> — payment gateway is bypassed. Set <code>TEST_MODE=false</code> in <code>.env</code> before launch.</span>
+        </div>
+      )}
 
       {/* Method selector */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 28 }}>
