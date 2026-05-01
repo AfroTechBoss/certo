@@ -2,10 +2,13 @@ require('dotenv').config();
 const fs   = require('fs');
 const path = require('path');
 const { parse } = require('node-html-parser');
-const pool = require('./db');
+const { Pool } = require('pg');
 
-// From server/ → nifty-knuth-b3bee1 → worktrees → .claude → Certo → spreadsheets
-const SHEETS_DIR = path.join(__dirname, '..', '..', '..', '..', 'spreadsheets');
+// Use standard pg wire protocol — works from CLI (Neon HTTP driver times out outside Express)
+const pgUrl = (process.env.DATABASE_URL || '').replace('channel_binding=require', 'channel_binding=disable');
+const pool = new Pool({ connectionString: pgUrl, ssl: { rejectUnauthorized: false } });
+
+const SHEETS_DIR = path.join(__dirname, '..', 'spreadsheets');
 
 // Navigation boilerplate to strip from full text
 const NAV_MARKER = 'Apple Store Shop Shop the Latest';

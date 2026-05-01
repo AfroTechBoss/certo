@@ -114,10 +114,15 @@ const ProductCard = ({ product, navigate }) => {
   );
 };
 
+const PER_PAGE = 48;
+
 const ShopPage = ({ navigate, addToCart, initialType }) => {
   const { isMobile } = useResponsive();
   const [products, setProducts] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
+  const [loadingMore, setLoadingMore] = React.useState(false);
+  const [hasMore, setHasMore] = React.useState(true);
+  const [page, setPage] = React.useState(1);
   const [stockCount, setStockCount] = React.useState(0);
   const [typeFilter, setTypeFilter] = React.useState(initialType || 'All');
   const [condFilter, setCondFilter] = React.useState('All');
@@ -127,10 +132,14 @@ const ShopPage = ({ navigate, addToCart, initialType }) => {
     setTypeFilter(initialType || 'All');
   }, [initialType]);
 
+  // Reset and reload when filters change
   React.useEffect(() => {
+    setProducts([]);
+    setPage(1);
+    setHasMore(true);
     setLoading(true);
-    const params = new URLSearchParams({ limit: 1000 });
-    if (typeFilter !== 'All') params.set('category', typeFilter);
+    const params = new URLSearchParams({ limit: PER_PAGE, page: 1 });
+    if (typeFilter !== 'All') params.set('category', typeFilter === 'MacBook' ? 'Mac' : typeFilter);
     if (condFilter !== 'All') params.set('condition', condFilter.toLowerCase());
     fetch(`/api/products?${params}`)
       .then(r => r.json())
@@ -138,10 +147,29 @@ const ShopPage = ({ navigate, addToCart, initialType }) => {
         const prods = (Array.isArray(data) ? data : []).map(normaliseProduct);
         setProducts(prods);
         setStockCount(prods.filter(p => p.inStock).length);
+        setHasMore(prods.length === PER_PAGE);
         setLoading(false);
       })
       .catch(() => setLoading(false));
   }, [typeFilter, condFilter]);
+
+  const loadMore = () => {
+    const nextPage = page + 1;
+    setLoadingMore(true);
+    const params = new URLSearchParams({ limit: PER_PAGE, page: nextPage });
+    if (typeFilter !== 'All') params.set('category', typeFilter === 'MacBook' ? 'Mac' : typeFilter);
+    if (condFilter !== 'All') params.set('condition', condFilter.toLowerCase());
+    fetch(`/api/products?${params}`)
+      .then(r => r.json())
+      .then(data => {
+        const prods = (Array.isArray(data) ? data : []).map(normaliseProduct);
+        setProducts(prev => [...prev, ...prods]);
+        setPage(nextPage);
+        setHasMore(prods.length === PER_PAGE);
+        setLoadingMore(false);
+      })
+      .catch(() => setLoadingMore(false));
+  };
 
   const types = ['All', 'iPhone', 'MacBook', 'iPad', 'AirPods', 'Watch', 'Apple TV', 'HomePod', 'Accessories'];
   const conds = ['All', 'New', 'Refurbished'];
@@ -203,9 +231,23 @@ const ShopPage = ({ navigate, addToCart, initialType }) => {
             No products match your filters.
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 24 }}>
-            {filtered.map(p => <ProductCard key={p.id} product={p} navigate={navigate} />)}
-          </div>
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 24 }}>
+              {filtered.map(p => <ProductCard key={p.id} product={p} navigate={navigate} />)}
+            </div>
+            {hasMore && (
+              <div style={{ textAlign: 'center', marginTop: 40 }}>
+                <button onClick={loadMore} disabled={loadingMore} style={{
+                  padding: '14px 40px', borderRadius: 12, border: '1.5px solid var(--border)',
+                  background: 'var(--bg)', color: 'var(--text)', cursor: loadingMore ? 'not-allowed' : 'pointer',
+                  fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 600,
+                  opacity: loadingMore ? 0.6 : 1, transition: 'all 0.15s',
+                }}>
+                  {loadingMore ? 'Loading…' : 'Load more products'}
+                </button>
+              </div>
+            )}
+          </>
         )}
 
         <div style={{

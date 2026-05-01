@@ -10,7 +10,10 @@
 require('dotenv').config();
 const fs   = require('fs');
 const path = require('path');
-const pool = require('./db');
+const { Pool } = require('pg');
+
+const pgUrl = (process.env.DATABASE_URL || '').replace('channel_binding=require', 'channel_binding=disable');
+const pool = new Pool({ connectionString: pgUrl, ssl: { rejectUnauthorized: false } });
 
 const SHEETS_DIR = path.join(__dirname, '..', 'spreadsheets');
 

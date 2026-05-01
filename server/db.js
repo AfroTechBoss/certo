@@ -1,21 +1,8 @@
 require('dotenv').config();
-const { neon } = require('@neondatabase/serverless');
+const { Pool } = require('pg');
 
-const sql = neon(process.env.DATABASE_URL);
-
-// Pool-compatible wrapper using sql.query for parameterised calls
-const pool = {
-  async query(text, params) {
-    const rows = await sql.query(text, params || []);
-    return { rows };
-  },
-  async connect() {
-    return {
-      query:   async (text, params) => { const rows = await sql.query(text, params || []); return { rows }; },
-      release: () => {},
-    };
-  },
-  async end() {},
-};
+// Standard wire-protocol pool — much lower latency than the Neon HTTP driver
+const pgUrl = (process.env.DATABASE_URL || '').replace('channel_binding=require', 'channel_binding=disable');
+const pool = new Pool({ connectionString: pgUrl, ssl: { rejectUnauthorized: false }, max: 5 });
 
 module.exports = pool;

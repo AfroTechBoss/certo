@@ -130,4 +130,9 @@ app.get('*', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Certo server running on http://localhost:${PORT}`);
+
+  // Ping the DB every 4 minutes to prevent Neon auto-suspend cold starts
+  setInterval(() => {
+    pool.query('SELECT 1').catch(() => {});
+  }, 4 * 60 * 1000);
 });

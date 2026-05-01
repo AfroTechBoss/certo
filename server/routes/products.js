@@ -5,8 +5,10 @@ const pool    = require('../db');
 // GET /api/products
 router.get('/', async (req, res) => {
   try {
-    const { category, condition, in_stock, featured, limit } = req.query;
-    let q = 'SELECT * FROM products WHERE 1=1';
+    const { category, condition, in_stock, featured, limit, page } = req.query;
+    // Exclude heavy columns — only needed on the product detail page
+    const CARD_COLS = 'id,name,subtitle,category,listing_type,apple_url,image_urls,usd_price,in_stock,featured,badge,delivery_days,condition,condition_note,stock_count,created_at,updated_at';
+    let q = `SELECT ${CARD_COLS} FROM products WHERE 1=1`;
     const params = [];
 
     if (category) {
@@ -26,10 +28,10 @@ router.get('/', async (req, res) => {
 
     q += ' ORDER BY featured DESC, created_at ASC';
 
-    if (limit) {
-      const n = parseInt(limit, 10);
-      if (n > 0) { params.push(n); q += ` LIMIT $${params.length}`; }
-    }
+    const perPage = Math.min(parseInt(limit, 10) || 48, 200);
+    const offset  = (Math.max(parseInt(page, 10) || 1, 1) - 1) * perPage;
+    params.push(perPage); q += ` LIMIT $${params.length}`;
+    params.push(offset);  q += ` OFFSET $${params.length}`;
 
     const { rows } = await pool.query(q, params);
     res.json(rows);
