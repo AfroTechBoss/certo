@@ -2,6 +2,7 @@ require('dotenv').config();
 const express  = require('express');
 const cors     = require('cors');
 const path     = require('path');
+const fs       = require('fs');
 const pool     = require('./db');
 
 const app  = express();
@@ -92,51 +93,44 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
-// /product/:id — server-rendered shell with OG meta tags for link previews
-// Social crawlers see the correct image/title; browsers get a JS redirect to /#/product/:id
+// /product/:id — inject OG meta tags into index.html for social link previews
+// Crawlers see image/title; browsers load the SPA and React navigates to the product
 app.get('/product/:id', async (req, res) => {
+  const indexPath = path.join(__dirname, '..', 'index.html');
   try {
     const { rows } = await pool.queryR(
       'SELECT id, name, subtitle, image_urls, category, usd_price FROM products WHERE id = $1',
       [req.params.id],
     );
     const p = rows[0];
-    if (!p) return res.redirect('/#/shop');
+    if (!p) return res.sendFile(indexPath);
 
     const rawImg = (p.image_urls && p.image_urls[0]) || '';
     const image  = rawImg ? rawImg.replace(/[&?]\.v=[^&]*/, '') : 'https://certo.ng/logo.png';
     const title  = p.name + (p.subtitle ? ` – ${p.subtitle}` : '');
     const desc   = `Buy genuine ${p.name} from Apple US, delivered to Nigeria. $${Number(p.usd_price).toLocaleString()} USD. Serial verified. Full Apple warranty.`;
     const url    = `https://certo.ng/product/${p.id}`;
-    const hashUrl = `https://certo.ng/#/product/${encodeURIComponent(p.id)}`;
 
-    res.send(`<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>${title} | Certo</title>
-  <meta name="description" content="${desc}"/>
-  <meta property="og:type"        content="product"/>
-  <meta property="og:url"         content="${url}"/>
-  <meta property="og:title"       content="${title} | Certo"/>
-  <meta property="og:description" content="${desc}"/>
-  <meta property="og:image"       content="${image}"/>
-  <meta property="og:image:width"  content="800"/>
-  <meta property="og:image:height" content="800"/>
-  <meta name="twitter:card"        content="summary_large_image"/>
-  <meta name="twitter:title"       content="${title} | Certo"/>
-  <meta name="twitter:description" content="${desc}"/>
-  <meta name="twitter:image"       content="${image}"/>
-  <meta http-equiv="refresh" content="0;url=${hashUrl}"/>
-  <script>window.location.replace('${hashUrl}');</script>
-</head>
-<body style="background:#faf9f7;font-family:Inter,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
-  <div style="text-align:center;color:#706b60">Redirecting…</div>
-</body>
-</html>`);
+    const ogTags = [
+      `<title>${title} | Certo</title>`,
+      `<meta name="description" content="${desc}"/>`,
+      `<meta property="og:type"         content="product"/>`,
+      `<meta property="og:url"          content="${url}"/>`,
+      `<meta property="og:title"        content="${title} | Certo"/>`,
+      `<meta property="og:description"  content="${desc}"/>`,
+      `<meta property="og:image"        content="${image}"/>`,
+      `<meta property="og:image:width"  content="800"/>`,
+      `<meta property="og:image:height" content="800"/>`,
+      `<meta name="twitter:card"        content="summary_large_image"/>`,
+      `<meta name="twitter:title"       content="${title} | Certo"/>`,
+      `<meta name="twitter:description" content="${desc}"/>`,
+      `<meta name="twitter:image"       content="${image}"/>`,
+    ].join('\n  ');
+
+    const html = fs.readFileSync(indexPath, 'utf8').replace('</head>', `  ${ogTags}\n</head>`);
+    res.send(html);
   } catch (err) {
-    res.redirect('/#/shop');
+    res.sendFile(indexPath);
   }
 });
 

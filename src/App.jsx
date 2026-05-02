@@ -105,38 +105,40 @@ const FooterComponent = ({ navigate }) => {
   );
 };
 
-// ─── Hash-based routing helpers ────────────────────────────────────────────
+// ─── History API routing helpers ────────────────────────────────────────────
 
-const parseHash = () => {
-  const raw = window.location.hash.replace(/^#\/?/, '');
-  if (!raw) return { page: 'home', param: null };
-  const [route, ...rest] = raw.split('/');
+const parsePath = () => {
+  const p = window.location.pathname;
+  if (p === '/' || p === '') return { page: 'home', param: null };
+  const parts = p.replace(/^\//, '').split('/');
+  const route = parts[0];
+  const rest  = parts.slice(1);
   const param = rest.length ? decodeURIComponent(rest.join('/')) : null;
   if (route === 'product')   return { page: 'product', param };
   if (route === 'shop')      return { page: 'shop',    param };
-  if (route === 'track')     return { page: 'track',   param }; // param = order ID from email link
+  if (route === 'track')     return { page: 'track',   param };
   if (route === 'dashboard') return { page: param ? `dashboard-${param}` : 'dashboard', param: null };
-  const known = ['home', 'how-it-works', 'about', 'faq', 'contact', 'track', 'cart', 'checkout', 'privacy', 'terms', 'refund'];
+  const known = ['home', 'how-it-works', 'about', 'faq', 'contact', 'cart', 'checkout', 'privacy', 'terms', 'refund'];
   if (known.includes(route)) return { page: route, param: null };
   return { page: 'home', param: null };
 };
 
-const toHash = (page, param) => {
-  if (page === 'home')    return '#/';
-  if (page === 'product') return `#/product/${param || ''}`;
-  if (page === 'shop')    return param ? `#/shop/${encodeURIComponent(param)}` : '#/shop';
-  if (page === 'track')   return param ? `#/track/${encodeURIComponent(param)}` : '#/track';
+const toPath = (page, param) => {
+  if (page === 'home')    return '/';
+  if (page === 'product') return `/product/${param || ''}`;
+  if (page === 'shop')    return param ? `/shop/${encodeURIComponent(param)}` : '/shop';
+  if (page === 'track')   return param ? `/track/${encodeURIComponent(param)}` : '/track';
   if (page.startsWith('dashboard')) {
     const sub = page.replace('dashboard-', '');
-    return sub === 'dashboard' ? '#/dashboard' : `#/dashboard/${sub}`;
+    return sub === 'dashboard' ? '/dashboard' : `/dashboard/${sub}`;
   }
-  return `#/${page}`;
+  return `/${page}`;
 };
 
 // ──────────────────────────────────────────────────────────────────────────
 
 const App = () => {
-  const initial = parseHash();
+  const initial = parsePath();
   const [page, setPage] = React.useState(initial.page);
   const [pageParam, setPageParam] = React.useState(initial.param);
   const [cart, setCart] = React.useState([]);
@@ -183,13 +185,13 @@ const App = () => {
 
   // Sync state when browser back/forward buttons are used
   React.useEffect(() => {
-    const onHashChange = () => {
-      const { page: p, param } = parseHash();
+    const onPopState = () => {
+      const { page: p, param } = parsePath();
       setPage(p);
       setPageParam(param);
     };
-    window.addEventListener('hashchange', onHashChange);
-    return () => window.removeEventListener('hashchange', onHashChange);
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
   // Scroll to top on every page change
@@ -198,14 +200,12 @@ const App = () => {
   }, [page]);
 
   const navigate = (target, param = null) => {
-    const hash = toHash(target, param);
-    // Only push a new history entry if the URL is actually changing
-    if (window.location.hash !== hash) {
-      window.location.hash = hash;
-    } else {
-      setPage(target);
-      setPageParam(param);
+    const path = toPath(target, param);
+    if (window.location.pathname !== path) {
+      window.history.pushState(null, '', path);
     }
+    setPage(target);
+    setPageParam(param);
   };
 
   const addToCart = (item) => {
