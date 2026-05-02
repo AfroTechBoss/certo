@@ -70,19 +70,6 @@
 <body>
   <div id="root"></div>
 
-  <!-- Path → hash redirect: handles clean URLs from emails and social shares -->
-  <script>
-    (function() {
-      var path = window.location.pathname;
-      // /track/CRT-XXXX  (order email links)
-      var tm = path.match(/^\/track\/([A-Z0-9\-]+)$/i);
-      if (tm) { window.location.replace('/#/track/' + encodeURIComponent(tm[1].toUpperCase())); return; }
-      // /product/:id  (social share links — server already served OG tags, now load the SPA)
-      var pm = path.match(/^\/product\/(.+)$/);
-      if (pm) { window.location.replace('/#/product/' + encodeURIComponent(pm[1])); }
-    })();
-  </script>
-
   <!-- Paystack inline payment -->
   <script src="https://js.paystack.co/v1/inline.js"></script>
 

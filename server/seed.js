@@ -1,6 +1,7 @@
 require('dotenv').config();
-const fs   = require('fs');
-const path = require('path');
+const fs     = require('fs');
+const path   = require('path');
+const crypto = require('crypto');
 const { parse } = require('node-html-parser');
 const { Pool } = require('pg');
 
@@ -151,7 +152,8 @@ async function parseSheet(filename) {
 
     if (!name) { skipped++; continue; }
 
-    const id = slugify(`${category}-${name}-${listingType}`);
+    const urlHash = crypto.createHash('sha1').update(appleUrl).digest('hex').slice(0, 6);
+    const id = slugify(`${category}-${name}-${listingType}`) + `-${urlHash}`;
 
     products.push({
       id,
