@@ -241,6 +241,15 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
 
   React.useEffect(() => { fetchCoupons(); }, [fetchCoupons]);
 
+  // Auto-refresh orders and messages every 2 minutes so the admin sees new data without a page reload
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      fetchOrders();
+      fetchMessages();
+    }, 2 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [fetchOrders, fetchMessages]);
+
   const unreadMessages = messages.filter(m => !m.read).length;
 
   const tabs = [
@@ -380,8 +389,22 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
     </div>
   );
 
+  const RefreshBtn = ({ onClick, loading }) => (
+    <button onClick={onClick} disabled={loading} title="Refresh" style={{
+      display: 'inline-flex', alignItems: 'center', gap: 5,
+      padding: '6px 12px', borderRadius: 8,
+      border: '1.5px solid var(--border)', background: 'var(--bg)',
+      fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600,
+      color: 'var(--text-muted)', cursor: loading ? 'default' : 'pointer',
+      opacity: loading ? 0.55 : 1, flexShrink: 0, whiteSpace: 'nowrap',
+    }}>{loading ? '↻ …' : '↻ Refresh'}</button>
+  );
+
   const OrdersTab = () => (
     <div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
+        <RefreshBtn onClick={fetchOrders} loading={ordersLoading} />
+      </div>
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(5, 1fr)', gap: 12, marginBottom: 24 }}>
         <StatCard label="Total Orders"    value={orders.length} />
         <StatCard label="Active Orders"   value={active}         accent="var(--accent)" />
@@ -1048,7 +1071,10 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
                 {q ? `${visibleProducts.length} of ${products.length}` : `(${products.length})`}
               </span>}
         </h2>
-        <button onClick={openAdd} style={{ background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, flexShrink: 0 }}>+ Add Product</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <RefreshBtn onClick={fetchProducts} loading={productsLoading} />
+          <button onClick={openAdd} style={{ background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, flexShrink: 0 }}>+ Add Product</button>
+        </div>
       </div>
 
       {/* Search bar */}
@@ -1143,7 +1169,10 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
 
     return (
     <div style={{ maxWidth: isMobile ? '100%' : 560 }}>
-      <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: isMobile ? 18 : 22, color: 'var(--text)', marginBottom: 8 }}>Forex Rate Panel</h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: isMobile ? 18 : 22, color: 'var(--text)', margin: 0 }}>Forex Rate Panel</h2>
+        <RefreshBtn onClick={() => { fetchOrders(); }} loading={false} />
+      </div>
       <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.7, marginBottom: isMobile ? 20 : 32 }}>
         Rate is auto-fetched from live market data. You can override it manually — your override stays active until the next auto-refresh.
       </p>
@@ -1230,6 +1259,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
         {/* Toolbar */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', marginBottom: 24 }}>
           <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: isMobile ? 18 : 22, color: 'var(--text)', margin: 0, flex: 1 }}>Revenue Overview</h2>
+          <RefreshBtn onClick={fetchOrders} loading={ordersLoading} />
 
           {/* Currency toggle */}
           <div style={{ display: 'flex', gap: 2, background: 'var(--bg-alt)', borderRadius: 10, padding: 4, border: '1px solid var(--border)' }}>
@@ -1325,7 +1355,10 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
 
     return (
     <div>
-      <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 22, color: 'var(--text)', marginBottom: 24 }}>Customer Database</h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+        <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 22, color: 'var(--text)', margin: 0 }}>Customer Database</h2>
+        <RefreshBtn onClick={fetchOrders} loading={ordersLoading} />
+      </div>
       <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 20, overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 520 }}>
@@ -1408,6 +1441,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
             <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 20, color: 'var(--text)', margin: 0 }}>
               Messages {unreadMessages > 0 && <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--accent)' }}>({unreadMessages} unread)</span>}
             </h2>
+            <RefreshBtn onClick={fetchMessages} loading={messagesLoading} />
           </div>
 
           {messagesLoading ? (
@@ -1532,10 +1566,13 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 22, color: 'var(--text)', margin: 0 }}>Coupons</h2>
-          <button onClick={() => { setCouponForm({ ...BLANK_COUPON }); setCouponSaveErr(''); }}
-            style={{ padding: '10px 20px', borderRadius: 10, border: 'none', background: 'var(--accent)', color: 'white', fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
-            + New Coupon
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <RefreshBtn onClick={fetchCoupons} loading={couponsLoading} />
+            <button onClick={() => { setCouponForm({ ...BLANK_COUPON }); setCouponSaveErr(''); }}
+              style={{ padding: '10px 20px', borderRadius: 10, border: 'none', background: 'var(--accent)', color: 'white', fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+              + New Coupon
+            </button>
+          </div>
         </div>
 
         {/* Create / edit form */}
