@@ -380,7 +380,9 @@ const FAQPage = () => {
 const ContactPage = () => {
   const { isMobile } = useResponsive();
   const [form, setForm] = React.useState({ name: '', email: '', message: '' });
-  const [sent, setSent] = React.useState(false);
+  const [sent, setSent]         = React.useState(false);
+  const [sending, setSending]   = React.useState(false);
+  const [sendError, setSendError] = React.useState('');
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', paddingTop: 80 }}>
@@ -442,9 +444,33 @@ const ContactPage = () => {
                   onBlur={e => e.target.style.borderColor = 'var(--border)'}
                 />
               </div>
-              <button onClick={() => setSent(true)} disabled={!form.name || !form.email || !form.message}
-                style={{ width: '100%', padding: '16px', borderRadius: 12, border: 'none', background: (form.name && form.email && form.message) ? 'var(--accent)' : 'var(--border)', color: (form.name && form.email && form.message) ? 'white' : 'var(--text-muted)', cursor: (form.name && form.email && form.message) ? 'pointer' : 'not-allowed', fontFamily: 'var(--font-body)', fontSize: 16, fontWeight: 700 }}>
-                Send Message →
+              {sendError && (
+                <div style={{ marginBottom: 14, padding: '10px 14px', borderRadius: 10, background: 'oklch(97% 0.02 20)', border: '1px solid oklch(85% 0.05 20)', fontFamily: 'var(--font-body)', fontSize: 13, color: 'oklch(40% 0.15 20)' }}>
+                  {sendError}
+                </div>
+              )}
+              <button
+                disabled={!form.name || !form.email || !form.message || sending}
+                onClick={async () => {
+                  setSending(true);
+                  setSendError('');
+                  try {
+                    const r = await fetch('/api/contact', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(form),
+                    });
+                    const d = await r.json();
+                    if (!r.ok) throw new Error(d.error || 'Failed to send');
+                    setSent(true);
+                  } catch (e) {
+                    setSendError(e.message || 'Something went wrong. Please try WhatsApp or email directly.');
+                  } finally {
+                    setSending(false);
+                  }
+                }}
+                style={{ width: '100%', padding: '16px', borderRadius: 12, border: 'none', background: (form.name && form.email && form.message && !sending) ? 'var(--accent)' : 'var(--border)', color: (form.name && form.email && form.message && !sending) ? 'white' : 'var(--text-muted)', cursor: (form.name && form.email && form.message && !sending) ? 'pointer' : 'not-allowed', fontFamily: 'var(--font-body)', fontSize: 16, fontWeight: 700 }}>
+                {sending ? 'Sending…' : 'Send Message →'}
               </button>
             </div>
           )}

@@ -18,7 +18,8 @@ app.use(express.static(path.join(__dirname, '..')));
 // API routes
 app.use('/api/products', require('./routes/products'));
 app.use('/api/orders',   require('./routes/orders'));
-app.use('/api/coupons', require('./routes/coupons'));
+app.use('/api/coupons',  require('./routes/coupons'));
+app.use('/api/contact', require('./routes/contact'));
 
 // Public config — exposes non-secret keys needed by the frontend
 app.get('/api/config', (req, res) => {

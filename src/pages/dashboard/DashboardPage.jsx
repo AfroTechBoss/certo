@@ -218,6 +218,19 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
   const [couponSaving,   setCouponSaving]   = React.useState(false);
   const [couponSaveErr,  setCouponSaveErr]  = React.useState('');
 
+  const [messages,        setMessages]        = React.useState([]);
+  const [messagesLoading, setMessagesLoading] = React.useState(false);
+
+  const fetchMessages = React.useCallback(() => {
+    setMessagesLoading(true);
+    fetch('/api/contact')
+      .then(r => r.json())
+      .then(d => { setMessages(Array.isArray(d) ? d : []); setMessagesLoading(false); })
+      .catch(() => setMessagesLoading(false));
+  }, []);
+
+  React.useEffect(() => { fetchMessages(); }, [fetchMessages]);
+
   const fetchCoupons = React.useCallback(() => {
     setCouponsLoading(true);
     fetch('/api/coupons')
@@ -228,9 +241,12 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
 
   React.useEffect(() => { fetchCoupons(); }, [fetchCoupons]);
 
+  const unreadMessages = messages.filter(m => !m.read).length;
+
   const tabs = [
     { key: 'orders',    label: 'Orders',    count: orders.filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled').length },
     { key: 'products',  label: 'Products'  },
+    { key: 'messages',  label: 'Messages',  count: unreadMessages },
     { key: 'coupons',   label: 'Coupons'   },
     { key: 'forex',     label: 'Forex'     },
     { key: 'revenue',   label: 'Revenue'   },
@@ -1359,7 +1375,115 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
     );
   };
 
-  const BLANK_COUPON = { code: '', description: '', discount_type: 'fixed', discount_value: '', applies_to: 'delivery', max_uses: '', expires_at: '', is_active: true };
+  const MessagesTab = () => {
+    const [selected, setSelected] = React.useState(null);
+
+    const markRead = async (msg, read) => {
+      await fetch(`/api/contact/${msg.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ read }),
+      });
+      fetchMessages();
+      if (selected?.id === msg.id) setSelected(s => ({ ...s, read }));
+    };
+
+    const deleteMsg = async (id) => {
+      if (!confirm('Delete this message?')) return;
+      await fetch(`/api/contact/${id}`, { method: 'DELETE' });
+      fetchMessages();
+      if (selected?.id === id) setSelected(null);
+    };
+
+    const openMsg = (msg) => {
+      setSelected(msg);
+      if (!msg.read) markRead(msg, true);
+    };
+
+    return (
+      <div style={{ display: 'grid', gridTemplateColumns: selected ? '1fr 1fr' : '1fr', gap: 20 }}>
+        {/* List */}
+        <div style={{ background: 'var(--bg)', borderRadius: 14, border: '1px solid var(--border)', overflow: 'hidden' }}>
+          <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 20, color: 'var(--text)', margin: 0 }}>
+              Messages {unreadMessages > 0 && <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--accent)' }}>({unreadMessages} unread)</span>}
+            </h2>
+          </div>
+
+          {messagesLoading ? (
+            <div style={{ textAlign: 'center', padding: 40, fontFamily: 'var(--font-body)', color: 'var(--text-muted)' }}>Loading…</div>
+          ) : messages.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 60, fontFamily: 'var(--font-body)', color: 'var(--text-muted)' }}>No messages yet.</div>
+          ) : messages.map((msg, i) => (
+            <div
+              key={msg.id}
+              onClick={() => openMsg(msg)}
+              style={{
+                padding: '14px 20px', cursor: 'pointer',
+                borderBottom: i < messages.length - 1 ? '1px solid var(--border)' : 'none',
+                background: selected?.id === msg.id ? 'var(--accent-tint)' : msg.read ? 'var(--bg)' : 'oklch(98% 0.01 250)',
+                borderLeft: `3px solid ${selected?.id === msg.id ? 'var(--accent)' : msg.read ? 'transparent' : 'var(--accent)'}`,
+              }}
+              onMouseEnter={e => { if (selected?.id !== msg.id) e.currentTarget.style.background = 'var(--bg-alt)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = selected?.id === msg.id ? 'var(--accent-tint)' : msg.read ? 'var(--bg)' : 'oklch(98% 0.01 250)'; }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: msg.read ? 500 : 700, color: 'var(--text)', marginBottom: 2 }}>
+                  {!msg.read && <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: 'var(--accent)', marginRight: 6, verticalAlign: 'middle', marginTop: -2 }} />}
+                  {msg.name}
+                </div>
+                <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--text-muted)', flexShrink: 0 }}>
+                  {new Date(msg.created_at).toLocaleDateString('en-NG', { month: 'short', day: 'numeric' })}
+                </div>
+              </div>
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>{msg.email}</div>
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {msg.message}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Detail pane */}
+        {selected && (
+          <div style={{ background: 'var(--bg)', borderRadius: 14, border: '1px solid var(--border)', padding: 24, alignSelf: 'start', position: 'sticky', top: 80 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+              <div>
+                <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 18, color: 'var(--text)', marginBottom: 4 }}>{selected.name}</div>
+                <a href={`mailto:${selected.email}`} style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--accent)', textDecoration: 'none' }}>{selected.email}</a>
+              </div>
+              <button onClick={() => setSelected(null)} style={{ background: 'none', border: '1.5px solid var(--border)', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', fontSize: 14, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+            </div>
+
+            <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginBottom: 16 }}>
+              {new Date(selected.created_at).toLocaleString('en-NG', { month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+            </div>
+
+            <div style={{ fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--text)', lineHeight: 1.75, whiteSpace: 'pre-wrap', background: 'var(--bg-alt)', borderRadius: 10, padding: '16px', marginBottom: 20, border: '1px solid var(--border)' }}>
+              {selected.message}
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <a href={`mailto:${selected.email}`}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 18px', borderRadius: 10, background: 'var(--accent)', color: 'white', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 700, textDecoration: 'none', cursor: 'pointer' }}>
+                ✉ Reply via Email
+              </a>
+              <button onClick={() => markRead(selected, !selected.read)}
+                style={{ padding: '10px 16px', borderRadius: 10, border: '1.5px solid var(--border)', background: 'transparent', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text)', cursor: 'pointer' }}>
+                {selected.read ? 'Mark Unread' : 'Mark Read'}
+              </button>
+              <button onClick={() => deleteMsg(selected.id)}
+                style={{ padding: '10px 16px', borderRadius: 10, border: '1px solid oklch(85% 0.05 20)', background: 'transparent', fontFamily: 'var(--font-body)', fontSize: 13, color: 'oklch(50% 0.18 20)', cursor: 'pointer' }}>
+                Delete
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const BLANK_COUPON ={ code: '', description: '', discount_type: 'fixed', discount_value: '', applies_to: 'delivery', max_uses: '', expires_at: '', is_active: true };
 
   const CouponsTab = () => {
     const saveCoupon = async () => {
@@ -1559,6 +1683,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
   const tabContent = {
     orders:    OrdersTab(),
     products:  ProductsTab(),
+    messages:  MessagesTab(),
     coupons:   CouponsTab(),
     forex:     ForexTab(),
     revenue:   RevenueTab(),
