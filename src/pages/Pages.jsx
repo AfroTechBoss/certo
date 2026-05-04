@@ -196,9 +196,21 @@ const TrackOrderPage = ({ initialOrderId }) => {
                   padding: '4px 12px', borderRadius: 8, fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700,
                 }}>{order.status}</span>
               </div>
-              <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)' }}>
-                {order.product_name}{order.product_subtitle ? ` · ${order.product_subtitle}` : ''} · {order.customer_name}
-              </div>
+              {/* Items list — shows all products in the order */}
+              {Array.isArray(order.items) && order.items.length > 0 ? (
+                <div style={{ marginTop: 4 }}>
+                  {order.items.map((item, i) => (
+                    <div key={i} style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                      {item.name}{item.subtitle ? ` · ${item.subtitle}` : ''}{item.applecare && item.applecare !== 'none' ? ` + ${item.applecare}` : ''}
+                    </div>
+                  ))}
+                  <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)', marginTop: 4, opacity: 0.7 }}>{order.customer_name}</div>
+                </div>
+              ) : (
+                <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)' }}>
+                  {order.product_name}{order.product_subtitle ? ` · ${order.product_subtitle}` : ''} · {order.customer_name}
+                </div>
+              )}
             </div>
 
             <div>

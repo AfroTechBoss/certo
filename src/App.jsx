@@ -209,12 +209,35 @@ const App = () => {
   };
 
   const addToCart = (item) => {
-    setCart(prev => [...prev, item]);
+    setCart(prev => {
+      const key = `${item.product.id}_${item.applecare?.id || 'none'}`;
+      const exists = prev.find(i => `${i.product.id}_${i.applecare?.id || 'none'}` === key);
+      if (exists) {
+        return prev.map(i =>
+          `${i.product.id}_${i.applecare?.id || 'none'}` === key
+            ? { ...i, qty: (i.qty || 1) + 1 }
+            : i
+        );
+      }
+      return [...prev, { ...item, qty: 1 }];
+    });
+  };
+
+  const updateCartItemQty = (productId, applecareid, delta) => {
+    setCart(prev =>
+      prev
+        .map(i =>
+          i.product.id === productId && (i.applecare?.id || 'none') === applecareid
+            ? { ...i, qty: (i.qty || 1) + delta }
+            : i
+        )
+        .filter(i => (i.qty || 1) > 0)
+    );
   };
 
   const clearCart = () => setCart([]);
 
-  const cartCount = cart.length;
+  const cartCount = cart.reduce((sum, item) => sum + (item.qty || 1), 0);
   const isDashboard = page.startsWith('dashboard');
 
   const renderPage = () => {
@@ -254,7 +277,7 @@ const App = () => {
 
       case 'cart':
       case 'checkout':
-        return <CheckoutFlow cart={cart} navigate={navigate} clearCart={clearCart} />;
+        return <CheckoutFlow cart={cart} navigate={navigate} clearCart={clearCart} updateCartItemQty={updateCartItemQty} />;
 
       case 'dashboard':
       case 'dashboard-products':

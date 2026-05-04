@@ -6,8 +6,9 @@ const pool    = require('../db');
 router.get('/', async (req, res) => {
   try {
     const { category, condition, in_stock, featured, limit, page, search, sort } = req.query;
-    const CARD_COLS = 'id,name,subtitle,category,listing_type,apple_url,image_urls,usd_price,in_stock,featured,badge,delivery_days,condition,condition_note,stock_count,created_at,updated_at';
-    let where = 'WHERE 1=1';
+    const CARD_COLS = 'id,name,subtitle,category,listing_type,apple_url,image_urls,usd_price,in_stock,featured,badge,delivery_days,condition,condition_note,stock_count,listing_status,created_at,updated_at';
+    const isAdmin = req.query.admin === 'true';
+    let where = isAdmin ? 'WHERE 1=1' : "WHERE listing_status != 'hidden'";
     const params = [];
 
     if (category) {
@@ -70,6 +71,7 @@ router.patch('/:id', async (req, res) => {
       'name','subtitle','usd_price','in_stock','featured','badge',
       'delivery_days','condition','condition_note','stock_count',
       'overview','specs','includes','features','tech_specs','description',
+      'listing_status',
     ];
     const fields = Object.keys(req.body).filter(k => allowed.includes(k));
     if (!fields.length) return res.status(400).json({ error: 'Nothing to update' });

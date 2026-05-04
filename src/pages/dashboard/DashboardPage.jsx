@@ -5,27 +5,29 @@
 function normaliseDashProduct(p) {
   const rate = (typeof CERTO_RATE !== 'undefined' ? CERTO_RATE : 1590);
   const usdPrice = parseFloat(p.usd_price) || 0;
+  const listingStatus = p.listing_status || (p.in_stock ? 'live' : 'out_of_stock');
   return {
-    id:          p.id,
-    name:        p.name,
-    subtitle:    p.subtitle || '',
-    type:        p.category,
-    condition:   p.condition,
+    id:            p.id,
+    name:          p.name,
+    subtitle:      p.subtitle || '',
+    type:          p.category,
+    condition:     p.condition,
     conditionNote: p.condition_note || '',
     usdPrice,
-    ngnPrice:    Math.round(usdPrice * rate),
-    images:      (p.image_urls || []).map(u => u ? `/api/img?url=${encodeURIComponent(u.replace(/[&?]\.v=[^&]*/, ''))}` : null).filter(Boolean),
-    badge:       p.badge || '',
-    deliveryDays: p.delivery_days || '10–18 business days',
-    inStock:     p.in_stock,
-    featured:    p.featured,
-    stock:       p.stock_count || (p.in_stock ? 1 : 0),
-    overview:    p.overview || [],
-    specs:       p.specs || [],
-    includes:    p.includes || [],
-    features:    p.features || [],
-    techSpecs:   p.tech_specs || [],
-    apple_url:   p.apple_url,
+    ngnPrice:      Math.round(usdPrice * rate),
+    images:        (p.image_urls || []).map(u => u ? `/api/img?url=${encodeURIComponent(u.replace(/[&?]\.v=[^&]*/, ''))}` : null).filter(Boolean),
+    badge:         p.badge || '',
+    deliveryDays:  p.delivery_days || '10–18 business days',
+    listingStatus,
+    inStock:       listingStatus === 'live',
+    featured:      p.featured,
+    stock:         p.stock_count || (p.in_stock ? 1 : 0),
+    overview:      p.overview || [],
+    specs:         p.specs || [],
+    includes:      p.includes || [],
+    features:      p.features || [],
+    techSpecs:     p.tech_specs || [],
+    apple_url:     p.apple_url,
   };
 }
 
@@ -47,12 +49,15 @@ function normaliseOrder(o) {
     date:     o.created_at ? new Date(o.created_at).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric' }) : '',
     flag:     o.flagged,
     flag_reason: o.flag_reason || '',
-    notes:    o.notes || '',
+    notes:           o.notes || '',
+    payment_method:  o.payment_method || 'Paystack',
+    items:           Array.isArray(o.items) ? o.items : [],
     raw:      o,
   };
 }
 
 const ALL_STATUSES = [
+  'Payment Pending',
   'Order Confirmed',
   'Purchased from Apple',
   'In Transit to US Partner',
@@ -60,9 +65,11 @@ const ALL_STATUSES = [
   'Arrived in Nigeria',
   'Out for Delivery',
   'Delivered',
+  'Cancelled',
 ];
 
 const statusColor = (s) => {
+  if (s === 'Payment Pending')         return { bg: 'oklch(95% 0.08 70)',   color: 'oklch(42% 0.18 55)'  };
   if (s === 'Delivered')               return { bg: 'oklch(93% 0.06 155)',  color: 'oklch(35% 0.15 155)' };
   if (s === 'Order Confirmed')         return { bg: 'oklch(93% 0.06 250)',  color: 'oklch(40% 0.15 250)' };
   if (s === 'Customs Clearance')       return { bg: 'oklch(96% 0.06 80)',   color: 'oklch(45% 0.15 65)'  };
@@ -70,6 +77,7 @@ const statusColor = (s) => {
   if (s === 'Out for Delivery')        return { bg: 'oklch(95% 0.07 60)',   color: 'oklch(42% 0.18 55)'  };
   if (s === 'In Transit to US Partner')return { bg: 'oklch(94% 0.06 220)',  color: 'oklch(42% 0.14 220)' };
   if (s === 'Purchased from Apple')    return { bg: 'oklch(94% 0.05 30)',   color: 'oklch(44% 0.14 30)'  };
+  if (s === 'Cancelled')               return { bg: 'oklch(94% 0.02 0)',    color: 'oklch(45% 0.12 0)'   };
   return { bg: 'oklch(94% 0.03 250)', color: 'oklch(45% 0.12 250)' };
 };
 
@@ -186,7 +194,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
 
   const fetchProducts = React.useCallback(() => {
     setProductsLoading(true);
-    fetch('/api/products')
+    fetch('/api/products?limit=1000&admin=true')
       .then(r => r.json())
       .then(rows => {
         setProducts((Array.isArray(rows) ? rows : []).map(normaliseDashProduct));
@@ -198,13 +206,32 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
   React.useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
   // Orders — filter + search state
-  const [orderSearch,       setOrderSearch]       = React.useState('');
-  const [orderStatusFilter, setOrderStatusFilter]  = React.useState('all');
-  const [orderFlaggedOnly,  setOrderFlaggedOnly]   = React.useState(false);
+  const [orderSearch,          setOrderSearch]          = React.useState('');
+  const [orderStatusFilter,    setOrderStatusFilter]     = React.useState('all');
+  const [orderFlaggedOnly,     setOrderFlaggedOnly]      = React.useState(false);
+  const [orderPendingOnly,     setOrderPendingOnly]      = React.useState(false);
+  const [productSearch,        setProductSearch]         = React.useState('');
+
+  const [coupons,        setCoupons]        = React.useState([]);
+  const [couponsLoading, setCouponsLoading] = React.useState(false);
+  const [couponForm,     setCouponForm]     = React.useState(null); // null = closed, {} = open (new), {id,...} = editing
+  const [couponSaving,   setCouponSaving]   = React.useState(false);
+  const [couponSaveErr,  setCouponSaveErr]  = React.useState('');
+
+  const fetchCoupons = React.useCallback(() => {
+    setCouponsLoading(true);
+    fetch('/api/coupons')
+      .then(r => r.json())
+      .then(d => { setCoupons(Array.isArray(d) ? d : []); setCouponsLoading(false); })
+      .catch(() => setCouponsLoading(false));
+  }, []);
+
+  React.useEffect(() => { fetchCoupons(); }, [fetchCoupons]);
 
   const tabs = [
     { key: 'orders',    label: 'Orders',    count: orders.filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled').length },
     { key: 'products',  label: 'Products'  },
+    { key: 'coupons',   label: 'Coupons'   },
     { key: 'forex',     label: 'Forex'     },
     { key: 'revenue',   label: 'Revenue'   },
     { key: 'customers', label: 'Customers' },
@@ -231,10 +258,11 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
     });
   }
 
-  const totalRevNgn = orders.reduce((s, o) => s + o.ngn, 0);
-  const totalRevUsd = orders.reduce((s, o) => s + o.usd, 0);
-  const delivered   = orders.filter(o => o.status === 'Delivered').length;
-  const active      = orders.filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled').length;
+  const totalRevNgn   = orders.reduce((s, o) => s + o.ngn, 0);
+  const totalRevUsd   = orders.reduce((s, o) => s + o.usd, 0);
+  const delivered     = orders.filter(o => o.status === 'Delivered').length;
+  const active        = orders.filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled' && o.status !== 'Payment Pending').length;
+  const pendingPayment = orders.filter(o => o.status === 'Payment Pending').length;
 
   const filteredOrders = React.useMemo(() => {
     let list = orders.filter(o => {
@@ -245,26 +273,28 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
         if (!hit) return false;
       }
       if (orderStatusFilter === 'open') {
-        if (o.status === 'Delivered' || o.status === 'Cancelled') return false;
+        if (o.status === 'Delivered' || o.status === 'Cancelled' || o.status === 'Payment Pending') return false;
       } else if (orderStatusFilter !== 'all') {
         if (o.status !== orderStatusFilter) return false;
       }
       if (orderFlaggedOnly && !o.flag) return false;
+      if (orderPendingOnly && o.status !== 'Payment Pending') return false;
       return true;
     });
     return applyTimeFilter(list, orderTimeFilter, customFrom, customTo);
-  }, [orders, orderSearch, orderStatusFilter, orderTimeFilter, orderFlaggedOnly, customFrom, customTo]);
+  }, [orders, orderSearch, orderStatusFilter, orderTimeFilter, orderFlaggedOnly, orderPendingOnly, customFrom, customTo]);
 
   const activeFilters =
     (orderSearch.trim() ? 1 : 0) +
     (orderStatusFilter !== 'all' ? 1 : 0) +
     (orderTimeFilter !== 'all' ? 1 : 0) +
-    (orderFlaggedOnly ? 1 : 0);
+    (orderFlaggedOnly ? 1 : 0) +
+    (orderPendingOnly ? 1 : 0);
 
   const clearFilters = () => {
     setOrderSearch(''); setOrderStatusFilter('all');
     setOrderTimeFilter('all'); setCustomFrom(''); setCustomTo('');
-    setOrderFlaggedOnly(false);
+    setOrderFlaggedOnly(false); setOrderPendingOnly(false);
   };
 
   // Resend confirmation email for an order
@@ -336,11 +366,13 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
 
   const OrdersTab = () => (
     <div>
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
-        <StatCard label="Total Orders"  value={orders.length} />
-        <StatCard label="Active Orders" value={active}    accent="var(--accent)" />
-        <StatCard label="Delivered"     value={delivered} accent="oklch(45% 0.15 155)" />
-        <StatCard label="Flagged"       value={orders.filter(o => o.flag).length} accent="oklch(50% 0.18 25)" />
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(5, 1fr)', gap: 12, marginBottom: 24 }}>
+        <StatCard label="Total Orders"    value={orders.length} />
+        <StatCard label="Active Orders"   value={active}         accent="var(--accent)" />
+        <StatCard label="Delivered"       value={delivered}      accent="oklch(45% 0.15 155)" />
+        <StatCard label="Awaiting Payment" value={pendingPayment} accent="oklch(42% 0.18 55)"
+          sub={pendingPayment > 0 ? 'Crypto — payment not confirmed' : 'None outstanding'} />
+        <StatCard label="Flagged"         value={orders.filter(o => o.flag).length} accent="oklch(50% 0.18 25)" />
       </div>
 
       {selectedOrder ? (
@@ -373,7 +405,8 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
                 { label: 'Order Date', value: selectedOrder.date     },
                 { label: 'USD Total',  value: `$${Number(selectedOrder.usd).toLocaleString()}` },
                 { label: 'NGN Total',  value: `₦${Number(selectedOrder.ngn).toLocaleString()}` },
-                { label: 'Status',     value: selectedOrder.status   },
+                { label: 'Status',     value: selectedOrder.status          },
+                { label: 'Payment Via', value: selectedOrder.payment_method || 'Paystack' },
                 { label: 'Address',    value: selectedOrder.address  },
               ].map(f => (
                 <div key={f.label}>
@@ -383,27 +416,105 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
               ))}
             </div>
 
-            {/* Product field — clickable name */}
-            <div style={{ marginBottom: 20, padding: '16px', background: 'var(--bg-alt)', borderRadius: 12, border: '1px solid var(--border)' }}>
-              <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>Product</div>
-              <div style={{ fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: selectedOrder.apple_url ? 8 : 0 }}>
-                {selectedOrder.product_id ? (
-                  <button onClick={() => navigate('product', selectedOrder.product_id)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 700, color: 'var(--accent)', padding: 0, textDecoration: 'underline', textAlign: 'left' }}>
-                    {selectedOrder.product}
-                  </button>
-                ) : <span>{selectedOrder.product}</span>}
-              </div>
-              {selectedOrder.apple_url && (
-                <div>
-                  <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4, letterSpacing: '0.04em', textTransform: 'uppercase' }}>Apple Product Page</div>
-                  <a href={selectedOrder.apple_url} target="_blank" rel="noreferrer"
-                    style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--accent)', wordBreak: 'break-all' }}>
-                    {selectedOrder.apple_url}
-                  </a>
+            {/* Legacy fallback — only shown for old orders that pre-date the items JSONB column */}
+            {(!selectedOrder.items || selectedOrder.items.length === 0) && (
+              <div style={{ marginBottom: 20, padding: '16px', background: 'var(--bg-alt)', borderRadius: 12, border: '1px solid var(--border)' }}>
+                <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>Product</div>
+                <div style={{ fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>
+                  {selectedOrder.product || '—'}
                 </div>
-              )}
-            </div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {selectedOrder.apple_url && (
+                    <a href={selectedOrder.apple_url} target="_blank" rel="noreferrer"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                      🍎 Apple Page
+                    </a>
+                  )}
+                  {selectedOrder.product_id && (
+                    <button onClick={() => navigate('product', selectedOrder.product_id)}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                      🔗 Certo Page
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Full items list (shown when order has multiple products) */}
+            {selectedOrder.items && selectedOrder.items.length > 0 && (
+              <div style={{ marginBottom: 20, padding: 16, background: 'var(--bg-alt)', borderRadius: 12, border: '1px solid var(--border)' }}>
+                <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
+                  {(() => {
+                    const totalUnits = selectedOrder.items.reduce((sum, it) => sum + (it.qty || 1), 0);
+                    const lineCount  = selectedOrder.items.length;
+                    return totalUnits === lineCount
+                      ? `Order Items (${lineCount})`
+                      : `Order Items (${lineCount} line${lineCount !== 1 ? 's' : ''} · ${totalUnits} units)`;
+                  })()}
+                </div>
+                {selectedOrder.items.map((item, i) => {
+                  const qty = item.qty && item.qty > 1 ? item.qty : 1;
+                  const lineTotal = Number(item.usd_price) * qty;
+                  return (
+                    <div key={i} style={{ padding: '12px 0', borderBottom: i < selectedOrder.items.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                      {/* Name + price row */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
+                            {qty > 1 && <span style={{ display: 'inline-block', background: 'var(--border)', borderRadius: 4, padding: '1px 6px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginRight: 6 }}>{qty}×</span>}
+                            {item.name}
+                          </div>
+                          {item.subtitle && <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginTop: 1 }}>{item.subtitle}</div>}
+                          {item.applecare && item.applecare !== 'none' && (
+                            <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--accent)', marginTop: 2 }}>+ {item.applecare}</div>
+                          )}
+                        </div>
+                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                          <div style={{ fontFamily: 'var(--font-head)', fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>
+                            ${lineTotal.toLocaleString()}
+                          </div>
+                          {qty > 1 && (
+                            <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--text-muted)' }}>{qty} × ${Number(item.usd_price).toLocaleString()}</div>
+                          )}
+                        </div>
+                      </div>
+                      {/* Link buttons — always shown; fall back to Apple search if no direct URL */}
+                      <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                        <a
+                          href={item.apple_url || `https://www.apple.com/search/${encodeURIComponent((item.name || '') + ' ' + (item.subtitle || ''))}`}
+                          target="_blank" rel="noreferrer"
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap' }}
+                        >
+                          🍎 {item.apple_url ? 'Apple Page' : 'Search Apple'}
+                        </a>
+                        {item.product_id && (
+                          <button
+                            onClick={() => navigate('product', item.product_id)}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                          >
+                            🔗 Certo Page
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Pending payment banner */}
+            {selectedOrder.status === 'Payment Pending' && (
+              <div style={{ padding: '14px 18px', borderRadius: 12, background: 'oklch(95% 0.08 70)', border: '1.5px solid oklch(75% 0.15 60)', marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                <div>
+                  <div style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 14, color: 'oklch(38% 0.18 55)', marginBottom: 2 }}>⏳ Awaiting payment</div>
+                  <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'oklch(45% 0.15 55)' }}>Payment has not been confirmed yet. Once you've verified the payment, click Mark as Paid to confirm the order and notify the customer.</div>
+                </div>
+                <button onClick={() => updateStatus(selectedOrder.id, 'Order Confirmed')}
+                  style={{ padding: '10px 20px', borderRadius: 10, border: 'none', background: 'oklch(42% 0.18 55)', color: 'white', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
+                  ✓ Mark as Paid
+                </button>
+              </div>
+            )}
 
             {/* Action buttons */}
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 20 }}>
@@ -494,6 +605,24 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
               </>
             )}
 
+            {/* Awaiting payment toggle */}
+            <button
+              onClick={() => setOrderPendingOnly(v => !v)}
+              style={{
+                ...inputStyle,
+                background: orderPendingOnly ? 'oklch(95% 0.08 70)' : 'var(--bg)',
+                borderColor: orderPendingOnly ? 'oklch(55% 0.18 55)' : 'var(--border)',
+                color: orderPendingOnly ? 'oklch(42% 0.18 55)' : 'var(--text-muted)',
+                fontWeight: orderPendingOnly ? 700 : 400,
+                cursor: 'pointer',
+              }}
+            >
+              ⏳ Awaiting payment
+              {pendingPayment > 0 && (
+                <span style={{ marginLeft: 6, background: 'oklch(42% 0.18 55)', color: 'white', borderRadius: 10, padding: '1px 6px', fontSize: 11, fontWeight: 700 }}>{pendingPayment}</span>
+              )}
+            </button>
+
             {/* Flagged toggle */}
             <button
               onClick={() => setOrderFlaggedOnly(v => !v)}
@@ -526,17 +655,17 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 600 }}>
             <thead>
               <tr style={{ background: 'var(--bg-alt)' }}>
-                {['Order ID', 'Customer', 'Product', 'Status', 'NGN Total', 'Date', ''].map(h => (
+                {['Order ID', 'Customer', 'Product', 'Status', 'Via', 'NGN Total', 'Date', ''].map(h => (
                   <th key={h} style={{ padding: '12px 20px', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textAlign: 'left', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {ordersLoading ? (
-                <tr><td colSpan={7} style={{ padding: '40px 20px', textAlign: 'center', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)' }}>Loading orders…</td></tr>
+                <tr><td colSpan={8} style={{ padding: '40px 20px', textAlign: 'center', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)' }}>Loading orders…</td></tr>
               ) : filteredOrders.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ padding: '40px 20px', textAlign: 'center', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)' }}>
+                  <td colSpan={8} style={{ padding: '40px 20px', textAlign: 'center', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)' }}>
                     No orders match your filters.
                   </td>
                 </tr>
@@ -548,6 +677,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                     onClick={() => setSelectedOrder(o)}>
                     <td style={{ padding: '14px 20px', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 700, color: 'var(--accent)' }}>
+                      {o.status === 'Payment Pending' && <span style={{ marginRight: 6 }} title="Awaiting payment">⏳</span>}
                       {o.flag && <span style={{ marginRight: 6 }}>🚩</span>}{o.id}
                     </td>
                     <td style={{ padding: '14px 20px' }}>
@@ -560,9 +690,25 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
                       </div>
                       <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)' }}>{o.phone}</div>
                     </td>
-                    <td style={{ padding: '14px 20px', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)', maxWidth: 160 }}>{o.product}</td>
+                    <td style={{ padding: '14px 20px', maxWidth: 160 }}>
+                      <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)' }}>{o.product}</div>
+                      {o.items && o.items.length > 1 && (
+                        <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--accent)', marginTop: 2 }}>+{o.items.length - 1} more item{o.items.length - 1 > 1 ? 's' : ''}</div>
+                      )}
+                    </td>
                     <td style={{ padding: '14px 20px' }}>
                       <span style={{ padding: '4px 10px', borderRadius: 6, background: sc.bg, color: sc.color, fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>{o.status}</span>
+                    </td>
+                    <td style={{ padding: '14px 20px' }}>
+                      {(() => {
+                        const pm = o.payment_method || 'Paystack';
+                        const pmStyle = pm === 'MoonPay'
+                          ? { bg: 'oklch(93% 0.06 280)', color: 'oklch(38% 0.18 280)' }
+                          : pm === 'Test Mode'
+                          ? { bg: 'oklch(94% 0.02 0)', color: 'oklch(45% 0.1 0)' }
+                          : { bg: 'oklch(93% 0.07 145)', color: 'oklch(35% 0.15 145)' };
+                        return <span style={{ padding: '4px 10px', borderRadius: 6, background: pmStyle.bg, color: pmStyle.color, fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}>{pm}</span>;
+                      })()}
                     </td>
                     <td style={{ padding: '14px 20px', fontFamily: 'var(--font-head)', fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>₦{o.ngn.toLocaleString()}</td>
                     <td style={{ padding: '14px 20px', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{o.date}</td>
@@ -592,7 +738,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
       name: 'New Product', subtitle: '', type: 'iPhone',
       condition: 'new', conditionNote: '',
       usdPrice: 0, images: [], badge: '', deliveryDays: '10–18 business days',
-      inStock: true, featured: false,
+      listingStatus: 'live', inStock: true, featured: false,
       overview: [], specs: [], includes: [], features: [], techSpecs: [],
       stock: 0, ngnPrice: 0,
     };
@@ -619,7 +765,9 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: updated.name, subtitle: updated.subtitle,
-          usd_price: updated.usdPrice, in_stock: updated.inStock,
+          usd_price: updated.usdPrice,
+          listing_status: updated.listingStatus || 'live',
+          in_stock: (updated.listingStatus || 'live') === 'live',
           featured: updated.featured, badge: updated.badge,
           delivery_days: updated.deliveryDays, condition: updated.condition,
           condition_note: updated.conditionNote, stock_count: updated.stock,
@@ -686,9 +834,11 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
               </div>
               <div>
                 <label style={lbl}>Listing status</label>
-                <select style={{ ...fld, cursor: 'pointer' }} value={editDraft.inStock ? 'live' : 'out'} onChange={e => setDF('inStock', e.target.value === 'live')}>
-                  <option value="live">Live</option>
-                  <option value="out">Out of Stock</option>
+                <select style={{ ...fld, cursor: 'pointer' }} value={editDraft.listingStatus || 'live'} onChange={e => { setDF('listingStatus', e.target.value); setDF('inStock', e.target.value === 'live'); }}>
+                  <option value="live">🟢 Live (on sale)</option>
+                  <option value="out_of_stock">🔴 Out of Stock</option>
+                  <option value="coming_soon">🟡 Coming Soon</option>
+                  <option value="hidden">⚫ Hidden (admin only)</option>
                 </select>
               </div>
             </div>
@@ -855,14 +1005,62 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
     );
   };
 
-  const ProductsTab = () => (
+  const ProductsTab = () => {
+    const q = productSearch.trim().toLowerCase();
+    const visibleProducts = q
+      ? products.filter(p => {
+          const certoUrl = `/product/${p.id}`;
+          return (
+            p.name.toLowerCase().includes(q) ||
+            p.id.toLowerCase().includes(q) ||
+            (p.subtitle || '').toLowerCase().includes(q) ||
+            (p.type || '').toLowerCase().includes(q) ||
+            (p.apple_url || '').toLowerCase().includes(q) ||
+            certoUrl.includes(q)
+          );
+        })
+      : products;
+
+    return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, gap: 12 }}>
+      {/* Title row */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 12 }}>
         <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: isMobile ? 18 : 22, color: 'var(--text)' }}>
-          Product Listings {productsLoading ? <span style={{ fontSize: 13, fontWeight: 400, color: 'var(--text-muted)' }}>Loading…</span> : <span style={{ fontSize: 13, fontWeight: 400, color: 'var(--text-muted)' }}>({products.length})</span>}
+          Product Listings {productsLoading
+            ? <span style={{ fontSize: 13, fontWeight: 400, color: 'var(--text-muted)' }}>Loading…</span>
+            : <span style={{ fontSize: 13, fontWeight: 400, color: 'var(--text-muted)' }}>
+                {q ? `${visibleProducts.length} of ${products.length}` : `(${products.length})`}
+              </span>}
         </h2>
         <button onClick={openAdd} style={{ background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, flexShrink: 0 }}>+ Add Product</button>
       </div>
+
+      {/* Search bar */}
+      <div style={{ position: 'relative', marginBottom: 16 }}>
+        <span style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: 'var(--text-muted)', pointerEvents: 'none' }}>🔍</span>
+        <input
+          type="text"
+          value={productSearch}
+          onChange={e => setProductSearch(e.target.value)}
+          placeholder="Search by name, ID, category, Apple URL, Certo URL…"
+          style={{
+            width: '100%', padding: '10px 14px 10px 36px', borderRadius: 10,
+            border: '1.5px solid var(--border)', background: 'var(--bg)',
+            fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text)',
+            outline: 'none', boxSizing: 'border-box',
+            transition: 'border-color 0.15s',
+          }}
+          onFocus={e => e.target.style.borderColor = 'var(--accent)'}
+          onBlur={e => e.target.style.borderColor = 'var(--border)'}
+        />
+        {q && (
+          <button onClick={() => setProductSearch('')}
+            style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: 'var(--text-muted)', lineHeight: 1, padding: 0 }}>
+            ×
+          </button>
+        )}
+      </div>
+
       <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 20, overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
@@ -874,7 +1072,11 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
             </tr>
           </thead>
           <tbody>
-            {products.map(p => (
+            {visibleProducts.length === 0 ? (
+              <tr><td colSpan={8} style={{ padding: '40px 20px', textAlign: 'center', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)' }}>
+                No products match "{productSearch}"
+              </td></tr>
+            ) : visibleProducts.map(p => (
               <tr key={p.id} style={{ borderTop: '1px solid var(--border)' }}
                 onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-alt)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
@@ -888,9 +1090,17 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
                 <td style={{ padding: '14px 20px', fontFamily: 'var(--font-head)', fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>₦{p.ngnPrice.toLocaleString()}</td>
                 <td style={{ padding: '14px 20px', fontFamily: 'var(--font-body)', fontSize: 14, color: p.stock === 0 ? 'oklch(50% 0.18 25)' : 'var(--text)' }}>{p.stock}</td>
                 <td style={{ padding: '14px 20px' }}>
-                  <span style={{ padding: '3px 10px', borderRadius: 6, background: p.inStock ? 'oklch(93% 0.06 155)' : 'oklch(94% 0.02 0)', color: p.inStock ? 'oklch(35% 0.15 155)' : 'oklch(45% 0.12 0)', fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700 }}>
-                    {p.inStock ? 'Live' : 'Out of Stock'}
-                  </span>
+                  {(() => {
+                    const ls = p.listingStatus || 'live';
+                    const stMap = {
+                      live:         { bg: 'oklch(93% 0.06 155)',  color: 'oklch(35% 0.15 155)', label: 'Live' },
+                      out_of_stock: { bg: 'oklch(94% 0.02 0)',    color: 'oklch(45% 0.12 0)',   label: 'Out of Stock' },
+                      coming_soon:  { bg: 'oklch(95% 0.07 60)',   color: 'oklch(42% 0.18 55)',  label: 'Coming Soon' },
+                      hidden:       { bg: 'oklch(92% 0.01 0)',    color: 'oklch(52% 0.04 0)',   label: 'Hidden' },
+                    };
+                    const st = stMap[ls] || stMap.live;
+                    return <span style={{ padding: '3px 10px', borderRadius: 6, background: st.bg, color: st.color, fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700 }}>{st.label}</span>;
+                  })()}
                 </td>
                 <td style={{ padding: '14px 20px' }}>
                   <button onClick={() => openEdit(p)} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 6, padding: '5px 10px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)' }}>Edit</button>
@@ -903,6 +1113,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
       </div>
     </div>
   );
+  };
 
   const ForexTab = () => {
     const timeSince = fetchedAt ? (() => {
@@ -1148,9 +1359,207 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
     );
   };
 
+  const BLANK_COUPON = { code: '', description: '', discount_type: 'fixed', discount_value: '', applies_to: 'delivery', max_uses: '', expires_at: '', is_active: true };
+
+  const CouponsTab = () => {
+    const saveCoupon = async () => {
+      setCouponSaving(true);
+      setCouponSaveErr('');
+      try {
+        const isNew = !couponForm.id;
+        const url   = isNew ? '/api/coupons' : `/api/coupons/${couponForm.id}`;
+        const method = isNew ? 'POST' : 'PATCH';
+        const body = { ...couponForm };
+        if (!body.max_uses) body.max_uses = null;
+        if (!body.expires_at) body.expires_at = null;
+        if (!isNew) delete body.code; // code is immutable after creation
+
+        const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || 'Save failed');
+        setCouponForm(null);
+        fetchCoupons();
+      } catch (e) {
+        setCouponSaveErr(e.message);
+      } finally {
+        setCouponSaving(false);
+      }
+    };
+
+    const deleteCoupon = async (id) => {
+      if (!confirm('Delete this coupon?')) return;
+      await fetch(`/api/coupons/${id}`, { method: 'DELETE' });
+      fetchCoupons();
+    };
+
+    const toggleActive = async (c) => {
+      await fetch(`/api/coupons/${c.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active: !c.is_active }),
+      });
+      fetchCoupons();
+    };
+
+    const fieldStyle = { width: '100%', padding: '10px 12px', borderRadius: 8, border: '1.5px solid var(--border)', fontFamily: 'var(--font-body)', fontSize: 14, background: 'var(--bg)', color: 'var(--text)', outline: 'none', boxSizing: 'border-box' };
+    const labelStyle = { fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: 5 };
+
+    return (
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 22, color: 'var(--text)', margin: 0 }}>Coupons</h2>
+          <button onClick={() => { setCouponForm({ ...BLANK_COUPON }); setCouponSaveErr(''); }}
+            style={{ padding: '10px 20px', borderRadius: 10, border: 'none', background: 'var(--accent)', color: 'white', fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+            + New Coupon
+          </button>
+        </div>
+
+        {/* Create / edit form */}
+        {couponForm && (
+          <div style={{ background: 'var(--bg)', border: '1.5px solid var(--accent)', borderRadius: 14, padding: 24, marginBottom: 24 }}>
+            <h3 style={{ fontFamily: 'var(--font-head)', fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 20, marginTop: 0 }}>
+              {couponForm.id ? `Edit Coupon — ${couponForm.code}` : 'New Coupon'}
+            </h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16, marginBottom: 16 }}>
+              {!couponForm.id && (
+                <div>
+                  <label style={labelStyle}>Code *</label>
+                  <input style={fieldStyle} value={couponForm.code} placeholder="e.g. WELCOME20"
+                    onChange={e => setCouponForm(f => ({ ...f, code: e.target.value.toUpperCase() }))} />
+                </div>
+              )}
+              <div>
+                <label style={labelStyle}>Description</label>
+                <input style={fieldStyle} value={couponForm.description} placeholder="e.g. Welcome discount"
+                  onChange={e => setCouponForm(f => ({ ...f, description: e.target.value }))} />
+              </div>
+              <div>
+                <label style={labelStyle}>Discount Type *</label>
+                <select style={fieldStyle} value={couponForm.discount_type}
+                  onChange={e => setCouponForm(f => ({ ...f, discount_type: e.target.value }))}>
+                  <option value="fixed">Fixed ($)</option>
+                  <option value="percent">Percent (%)</option>
+                </select>
+              </div>
+              <div>
+                <label style={labelStyle}>Discount Value *</label>
+                <input style={fieldStyle} type="number" min="0" value={couponForm.discount_value} placeholder="e.g. 20"
+                  onChange={e => setCouponForm(f => ({ ...f, discount_value: e.target.value }))} />
+              </div>
+              <div>
+                <label style={labelStyle}>Applies To *</label>
+                <select style={fieldStyle} value={couponForm.applies_to}
+                  onChange={e => setCouponForm(f => ({ ...f, applies_to: e.target.value }))}>
+                  <option value="delivery">Delivery fee only</option>
+                  <option value="service">Service fee only</option>
+                  <option value="both">Delivery + Service fees</option>
+                </select>
+              </div>
+              <div>
+                <label style={labelStyle}>Max Total Uses (blank = unlimited)</label>
+                <input style={fieldStyle} type="number" min="1" value={couponForm.max_uses} placeholder="e.g. 100"
+                  onChange={e => setCouponForm(f => ({ ...f, max_uses: e.target.value }))} />
+              </div>
+              <div>
+                <label style={labelStyle}>Expires At (blank = never)</label>
+                <input style={fieldStyle} type="date" value={couponForm.expires_at ? couponForm.expires_at.split('T')[0] : ''}
+                  onChange={e => setCouponForm(f => ({ ...f, expires_at: e.target.value }))} />
+              </div>
+              {couponForm.id && (
+                <div>
+                  <label style={labelStyle}>Status</label>
+                  <select style={fieldStyle} value={couponForm.is_active ? 'true' : 'false'}
+                    onChange={e => setCouponForm(f => ({ ...f, is_active: e.target.value === 'true' }))}>
+                    <option value="true">Active</option>
+                    <option value="false">Inactive</option>
+                  </select>
+                </div>
+              )}
+            </div>
+            {couponSaveErr && <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'oklch(45% 0.2 20)', marginBottom: 12 }}>{couponSaveErr}</div>}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={saveCoupon} disabled={couponSaving}
+                style={{ padding: '10px 24px', borderRadius: 10, border: 'none', background: 'var(--accent)', color: 'white', fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+                {couponSaving ? 'Saving…' : 'Save'}
+              </button>
+              <button onClick={() => setCouponForm(null)}
+                style={{ padding: '10px 20px', borderRadius: 10, border: '1.5px solid var(--border)', background: 'transparent', color: 'var(--text)', fontFamily: 'var(--font-body)', fontSize: 14, cursor: 'pointer' }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Coupon list */}
+        {couponsLoading ? (
+          <div style={{ textAlign: 'center', padding: 40, fontFamily: 'var(--font-body)', color: 'var(--text-muted)' }}>Loading…</div>
+        ) : coupons.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: 60, fontFamily: 'var(--font-body)', color: 'var(--text-muted)' }}>No coupons yet. Create one above.</div>
+        ) : (
+          <div style={{ background: 'var(--bg)', borderRadius: 14, border: '1px solid var(--border)', overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ background: 'var(--bg-alt)' }}>
+                  {['Code', 'Discount', 'Applies To', 'Uses', 'Expires', 'Status', ''].map(h => (
+                    <th key={h} style={{ padding: '12px 16px', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textAlign: 'left', letterSpacing: '0.04em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {coupons.map((c, i) => {
+                  const discountLabel = c.discount_type === 'fixed' ? `$${Number(c.discount_value).toFixed(2)} off` : `${c.discount_value}% off`;
+                  const appliesToLabel = c.applies_to === 'both' ? 'Delivery + Service' : c.applies_to === 'delivery' ? 'Delivery fee' : 'Service fee';
+                  const expired = c.expires_at && new Date(c.expires_at) < new Date();
+                  const exhausted = c.max_uses !== null && c.used_count >= c.max_uses;
+                  const effectivelyInactive = !c.is_active || expired || exhausted;
+                  return (
+                    <tr key={c.id} style={{ borderTop: i > 0 ? '1px solid var(--border)' : 'none' }}>
+                      <td style={{ padding: '14px 16px' }}>
+                        <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{c.code}</div>
+                        {c.description && <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)' }}>{c.description}</div>}
+                      </td>
+                      <td style={{ padding: '14px 16px', fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600, color: 'var(--accent)' }}>{discountLabel}</td>
+                      <td style={{ padding: '14px 16px', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)' }}>{appliesToLabel}</td>
+                      <td style={{ padding: '14px 16px', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text)' }}>
+                        {c.used_count}{c.max_uses !== null ? ` / ${c.max_uses}` : ''}
+                      </td>
+                      <td style={{ padding: '14px 16px', fontFamily: 'var(--font-body)', fontSize: 13, color: expired ? 'oklch(45% 0.2 20)' : 'var(--text-muted)' }}>
+                        {c.expires_at ? new Date(c.expires_at).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                      </td>
+                      <td style={{ padding: '14px 16px' }}>
+                        <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 20, fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600,
+                          background: effectivelyInactive ? 'oklch(94% 0.02 0)' : 'oklch(93% 0.06 145)',
+                          color: effectivelyInactive ? 'oklch(45% 0.08 0)' : 'oklch(35% 0.15 145)' }}>
+                          {expired ? 'Expired' : exhausted ? 'Exhausted' : c.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '14px 16px' }}>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button onClick={() => { setCouponForm({ ...c, expires_at: c.expires_at ? c.expires_at.split('T')[0] : '' }); setCouponSaveErr(''); }}
+                            style={{ padding: '5px 12px', borderRadius: 7, border: '1px solid var(--border)', background: 'transparent', fontFamily: 'var(--font-body)', fontSize: 12, cursor: 'pointer', color: 'var(--text)' }}>Edit</button>
+                          <button onClick={() => toggleActive(c)}
+                            style={{ padding: '5px 12px', borderRadius: 7, border: '1px solid var(--border)', background: 'transparent', fontFamily: 'var(--font-body)', fontSize: 12, cursor: 'pointer', color: 'var(--text-muted)' }}>
+                            {c.is_active ? 'Disable' : 'Enable'}
+                          </button>
+                          <button onClick={() => deleteCoupon(c.id)}
+                            style={{ padding: '5px 12px', borderRadius: 7, border: '1px solid oklch(85% 0.05 20)', background: 'transparent', fontFamily: 'var(--font-body)', fontSize: 12, cursor: 'pointer', color: 'oklch(50% 0.18 20)' }}>Delete</button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const tabContent = {
     orders:    OrdersTab(),
     products:  ProductsTab(),
+    coupons:   CouponsTab(),
     forex:     ForexTab(),
     revenue:   RevenueTab(),
     customers: CustomersTab(),

@@ -18,7 +18,8 @@ const normaliseProduct = (p) => ({
   images: (p.image_urls || []).map(proxyImg),
   badge: p.badge || '',
   deliveryDays: p.delivery_days || '10–18 business days',
-  inStock: p.in_stock,
+  listingStatus: p.listing_status || (p.in_stock ? 'live' : 'out_of_stock'),
+  inStock: p.listing_status ? p.listing_status === 'live' : p.in_stock,
   featured: p.featured,
   overview: p.overview || [],
   specs: p.specs || [],
@@ -76,7 +77,9 @@ const ProductCard = ({ product, navigate, compact }) => {
             position: 'absolute', inset: 0, background: 'rgba(250,249,247,0.7)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <span style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: compact ? 10 : 14, color: 'var(--text-muted)', letterSpacing: '0.05em' }}>OUT OF STOCK</span>
+            <span style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: compact ? 10 : 14, color: 'var(--text-muted)', letterSpacing: '0.05em' }}>
+              {product.listingStatus === 'coming_soon' ? 'COMING SOON' : 'OUT OF STOCK'}
+            </span>
           </div>
         )}
         {product.featured && product.inStock && (
@@ -704,7 +707,9 @@ const ProductDetailPage = ({ productId, navigate, addToCart }) => {
               transition: 'all 0.2s',
             }}
           >
-            {!product.inStock ? 'Out of Stock' : added ? '✓ Added to Order' : 'Add to Order →'}
+            {!product.inStock
+              ? (product.listingStatus === 'coming_soon' ? 'Coming Soon' : 'Out of Stock')
+              : added ? '✓ Added to Order' : 'Add to Order →'}
           </button>
         </div>
       </div>

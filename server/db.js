@@ -1,33 +1,33 @@
 require('dotenv').config();
-const { Pool } = require('pg');
+const { Pool, neonConfig } = require('@neondatabase/serverless');
+const ws = require('ws');
 
+// Use WebSocket transport in Node.js (edge runtimes provide their own WebSocket)
+neonConfig.webSocketConstructor = ws;
+
+// channel_binding=require is not needed for the Neon WS driver
 const pgUrl = (process.env.DATABASE_URL || '').replace('channel_binding=require', 'channel_binding=disable');
 
-const pool = new Pool({
-  connectionString: pgUrl,
-  ssl: { rejectUnauthorized: false },
-  max: 5,
-  connectionTimeoutMillis: 10000,  // wait up to 10s for a connection (covers Neon cold start)
-  idleTimeoutMillis:       20000,  // release idle connections after 20s
-  keepAlive:               true,
-  keepAliveInitialDelayMillis: 10000,
-});
+const pool = new Pool({ connectionString: pgUrl });
 
 pool.on('error', (err) => {
   console.error('[pool] idle client error:', err.message);
 });
 
-// Query with automatic retry on transient connection errors (ECONNRESET, ECONNREFUSED)
+// Query with automatic retry on transient errors (covers Neon cold start)
 async function query(sql, params) {
-  const RETRIES = 2;
+  const RETRIES = 3;
   for (let attempt = 1; attempt <= RETRIES; attempt++) {
     try {
       return await pool.query(sql, params);
     } catch (err) {
-      const transient = err.code === 'ECONNRESET' || err.code === 'ECONNREFUSED' || err.code === 'ETIMEDOUT';
+      const transient = err.code === 'ECONNRESET' || err.code === 'ECONNREFUSED' || err.code === 'ETIMEDOUT'
+        || !err.code
+        || err.message?.includes('timeout') || err.message?.includes('terminated') || err.message?.includes('ECONNRESET');
       if (transient && attempt < RETRIES) {
-        console.warn(`[db] ${err.code} on attempt ${attempt}, retrying…`);
-        await new Promise(r => setTimeout(r, 300 * attempt));
+        const delay = 1000 * attempt; // 1s, 2s
+        console.warn(`[db] ${err.code || err.message?.slice(0, 50)} — attempt ${attempt}/${RETRIES}, retrying in ${delay}ms…`);
+        await new Promise(r => setTimeout(r, delay));
         continue;
       }
       throw err;
@@ -35,5 +35,5 @@ async function query(sql, params) {
   }
 }
 
-pool.queryR = query;   // retry-enabled query
+pool.queryR = query;
 module.exports = pool;

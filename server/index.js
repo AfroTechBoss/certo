@@ -3,6 +3,7 @@ const express  = require('express');
 const cors     = require('cors');
 const path     = require('path');
 const fs       = require('fs');
+const crypto   = require('crypto');
 const pool     = require('./db');
 
 const app  = express();
@@ -17,14 +18,79 @@ app.use(express.static(path.join(__dirname, '..')));
 // API routes
 app.use('/api/products', require('./routes/products'));
 app.use('/api/orders',   require('./routes/orders'));
+app.use('/api/coupons', require('./routes/coupons'));
 
 // Public config — exposes non-secret keys needed by the frontend
 app.get('/api/config', (req, res) => {
   res.json({
-    paystackKey:  process.env.PAYSTACK_PUBLIC_KEY || '',
-    helioPayLink: process.env.HELIO_PAY_LINK      || '',
-    testMode:     process.env.TEST_MODE === 'true',
+    paystackKey:    process.env.PAYSTACK_PUBLIC_KEY || '',
+    helioPayLink:   process.env.HELIO_PAY_LINK      || '',
+    moonpayKey:     process.env.MOONPAY_PUBLIC_KEY  || '',
+    moonpayWallet:  process.env.MOONPAY_WALLET      || '',
+    moonpaySandbox: process.env.MOONPAY_SANDBOX !== 'false',
+    testMode:       process.env.TEST_MODE === 'true',
   });
+});
+
+// Paystack payment verification — called by the frontend after Paystack popup confirms
+// Verifies the transaction server-side with Paystack's API, then promotes the order to confirmed
+app.post('/api/paystack/verify', async (req, res) => {
+  const { reference, orderId } = req.body;
+  if (!reference || !orderId) return res.status(400).json({ error: 'Missing reference or orderId' });
+
+  const secret = process.env.PAYSTACK_SECRET_KEY;
+  if (!secret) return res.status(500).json({ error: 'Paystack secret key not configured' });
+
+  try {
+    const psRes = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`, {
+      headers: { Authorization: `Bearer ${secret}` },
+    });
+    const psData = await psRes.json();
+
+    if (!psRes.ok || !psData.status || psData.data?.status !== 'success') {
+      console.warn('[paystack] Verification failed for', reference, JSON.stringify(psData?.data?.status));
+      return res.status(402).json({ error: 'Payment not confirmed by Paystack', detail: psData?.data?.status });
+    }
+
+    // Payment verified — promote the order to confirmed (the PATCH handler sends the email)
+    const { rows } = await pool.queryR(
+      `UPDATE orders SET status = 'Order Confirmed', updated_at = NOW() WHERE id = $1 AND status = 'Payment Pending' RETURNING *`,
+      [orderId],
+    );
+
+    if (!rows.length) {
+      // Order was already confirmed (double-submit) — treat as success
+      return res.json({ ok: true, alreadyConfirmed: true });
+    }
+
+    const updated = rows[0];
+
+    // Send confirmation email (same helper pattern used in the PATCH route)
+    const { sendOrderConfirmation } = require('./email');
+    try {
+      Promise.resolve(sendOrderConfirmation(updated))
+        .then(() => pool.queryR('UPDATE orders SET email_sent = true WHERE id = $1', [orderId]))
+        .catch(err => console.error('[email] confirmation failed for', orderId, ':', err.message));
+    } catch (err) {
+      console.error('[email] confirmation setup error for', orderId, ':', err.message);
+    }
+
+    res.json({ ok: true, order: updated });
+  } catch (err) {
+    console.error('[paystack] verify error:', err.message);
+    res.status(500).json({ error: 'Verification request failed' });
+  }
+});
+
+// MoonPay URL signing — signs the widget query string with HMAC-SHA256 using the secret key
+// The secret key never leaves the server; only the resulting signature is returned
+app.get('/api/moonpay-sign', (req, res) => {
+  const qs = req.query.query; // full query string, e.g. "?apiKey=...&currencyCode=..."
+  if (!qs) return res.status(400).json({ error: 'Missing query string' });
+  const secret = process.env.MOONPAY_SECRET_KEY;
+  if (!secret) return res.status(500).json({ error: 'MoonPay not configured' });
+  const signature = crypto.createHmac('sha256', secret).update(qs).digest('base64');
+  res.json({ signature });
 });
 
 // Image proxy — Apple CDN requires apple.com Referer; we proxy to avoid hotlink blocks

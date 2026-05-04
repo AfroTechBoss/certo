@@ -1,7 +1,7 @@
 const express = require('express');
 const router  = express.Router();
 const pool    = require('../db');
-const { sendOrderConfirmation, sendStatusUpdate } = require('../email');
+const { sendOrderConfirmation, sendStatusUpdate, sendCancellationEmail } = require('../email');
 
 function generateOrderId() {
   const now  = new Date();
@@ -19,11 +19,18 @@ router.post('/', async (req, res) => {
     applecare,
     qty,
     usd_price, ngn_price, forex_rate,
+    initial_status,
+    payment_method,
+    items,
+    coupon_code, coupon_discount,
   } = req.body;
 
   if (!customer_name || !customer_email || !customer_phone || !address || !product_name || !usd_price) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
+
+  // Only allow 'Payment Pending' as an explicit override (e.g. MoonPay/crypto orders awaiting confirmation)
+  const orderStatus = initial_status === 'Payment Pending' ? 'Payment Pending' : 'Order Confirmed';
 
   const id = generateOrderId();
 
@@ -33,26 +40,38 @@ router.post('/', async (req, res) => {
         id, customer_name, customer_email, customer_phone,
         address, state,
         product_id, product_name, product_subtitle, product_image_url, apple_url,
-        applecare, qty, usd_price, ngn_price, forex_rate
+        applecare, qty, usd_price, ngn_price, forex_rate, status, payment_method, items,
+        coupon_code, coupon_discount
       ) VALUES (
         $1,$2,$3,$4,
         $5,$6,
         $7,$8,$9,$10,$11,
-        $12,$13,$14,$15,$16
+        $12,$13,$14,$15,$16,$17,$18,$19,
+        $20,$21
       ) RETURNING *
     `, [
       id, customer_name, customer_email, customer_phone,
       address, state,
       product_id, product_name, product_subtitle, product_image_url, apple_url,
-      applecare || 'none', qty || 1, usd_price, ngn_price, forex_rate,
+      applecare || 'none', qty || 1, usd_price, ngn_price, forex_rate, orderStatus,
+      payment_method || 'Paystack',
+      JSON.stringify(Array.isArray(items) ? items : []),
+      coupon_code || null, coupon_discount || 0,
     ]);
 
     const order = rows[0];
 
-    // Send confirmation email (non-blocking)
-    sendOrderConfirmation(order)
-      .then(() => pool.queryR('UPDATE orders SET email_sent = true WHERE id = $1', [id]))
-      .catch(err => console.error('Email send failed for', id, ':', err.message));
+    if (coupon_code) {
+      pool.queryR('UPDATE coupons SET used_count = used_count + 1 WHERE UPPER(code) = UPPER($1)', [coupon_code])
+        .catch(err => console.error('Coupon increment failed:', err.message));
+    }
+
+    // Only send confirmation email for confirmed orders — pending orders get it after payment
+    if (orderStatus !== 'Payment Pending') {
+      sendOrderConfirmation(order)
+        .then(() => pool.queryR('UPDATE orders SET email_sent = true WHERE id = $1', [id]))
+        .catch(err => console.error('Email send failed for', id, ':', err.message));
+    }
 
     res.status(201).json({ id: order.id, order });
   } catch (err) {
@@ -70,7 +89,7 @@ router.get('/', async (req, res) => {
 
     if (status && status !== 'all') {
       if (status === 'open') {
-        q += ` AND status NOT IN ('Delivered', 'Cancelled')`;
+        q += ` AND status NOT IN ('Delivered', 'Cancelled', 'Payment Pending')`;
       } else {
         params.push(status);
         q += ` AND status = $${params.length}`;
@@ -141,7 +160,7 @@ router.get('/:id', async (req, res) => {
   try {
     const { rows } = await pool.queryR(
       `SELECT id, customer_name, product_name, product_subtitle, product_image_url,
-              status, created_at, updated_at, applecare, qty
+              status, created_at, updated_at, applecare, qty, items
        FROM orders WHERE id = $1`,
       [req.params.id],
     );
@@ -191,11 +210,34 @@ router.patch('/:id', async (req, res) => {
 
     const updated = rows[0];
 
-    // Send status-change email for key milestones (non-blocking)
+    // Non-blocking helper — wraps a fire-and-forget email send so any error (sync or async)
+    // is logged without ever bubbling up to the outer catch and causing a 500 response
+    const fireEmail = (label, fn) => {
+      try {
+        Promise.resolve(fn()).catch(err => console.error(`[email] ${label} failed for ${updated.id}:`, err.message));
+      } catch(err) {
+        console.error(`[email] ${label} setup error for ${updated.id}:`, err.message);
+      }
+    };
+
+    // If a pending-payment order just got confirmed, send the confirmation email now
+    if (req.body.status === 'Order Confirmed' && prevStatus === 'Payment Pending') {
+      fireEmail('confirmation', () =>
+        sendOrderConfirmation(updated)
+          .then(() => pool.queryR('UPDATE orders SET email_sent = true WHERE id = $1', [updated.id]))
+      );
+    }
+
+    // Send status-change email for key milestones
     const emailStatuses = ['Arrived in Nigeria', 'Out for Delivery', 'Delivered'];
     if (req.body.status && req.body.status !== prevStatus && emailStatuses.includes(req.body.status)) {
-      sendStatusUpdate(updated)
-        .catch(err => console.error('Status email failed for', updated.id, ':', err.message));
+      fireEmail('status update', () => sendStatusUpdate(updated));
+    }
+
+    // Send cancellation email when an order is cancelled
+    if (req.body.status === 'Cancelled' && prevStatus !== 'Cancelled') {
+      console.log(`[email] Sending cancellation email for ${updated.id} to ${updated.customer_email}`);
+      fireEmail('cancellation', () => sendCancellationEmail(updated));
     }
 
     res.json(updated);
