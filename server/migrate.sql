@@ -35,3 +35,13 @@ CREATE TABLE IF NOT EXISTS contact_messages (
   read       BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- admin_logs table
+CREATE TABLE IF NOT EXISTS admin_logs (
+  id         SERIAL PRIMARY KEY,
+  admin_name TEXT NOT NULL,
+  action     TEXT NOT NULL,
+  details    TEXT DEFAULT '',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS admin_logs_created_idx ON admin_logs(created_at DESC);

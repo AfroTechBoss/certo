@@ -2,6 +2,7 @@ const express = require('express');
 const router  = express.Router();
 const pool    = require('../db');
 const { adminAuth } = require('../adminAuth');
+const logAdminAction = require('../logAdminAction');
 
 // GET /api/products
 router.get('/', async (req, res) => {
@@ -86,6 +87,8 @@ router.patch('/:id', adminAuth, async (req, res) => {
       values,
     );
     if (!rows.length) return res.status(404).json({ error: 'Product not found' });
+    const changedFields = fields.join(', ');
+    logAdminAction(req.adminName, 'Updated product', `"${rows[0].name}" — fields: ${changedFields}`).catch(() => {});
     res.json(rows[0]);
   } catch (err) {
     console.error('PATCH /products/:id:', err);

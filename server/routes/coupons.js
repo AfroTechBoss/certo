@@ -2,6 +2,7 @@ const express = require('express');
 const router  = express.Router();
 const pool    = require('../db');
 const { adminAuth } = require('../adminAuth');
+const logAdminAction = require('../logAdminAction');
 
 // POST /api/coupons/validate  (public — check a code before applying)
 router.post('/validate', async (req, res) => {
@@ -49,6 +50,7 @@ router.post('/', adminAuth, async (req, res) => {
       [code, description || '', discount_type, discount_value, applies_to,
        max_uses || null, expires_at || null]
     );
+    logAdminAction(req.adminName, 'Created coupon', `Code: ${rows[0].code}, ${discount_type} discount of ${discount_value} on ${applies_to}`).catch(() => {});
     res.status(201).json(rows[0]);
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'A coupon with that code already exists' });
@@ -69,6 +71,9 @@ router.patch('/:id', adminAuth, async (req, res) => {
       `UPDATE coupons SET ${setClauses} WHERE id = $${values.length} RETURNING *`, values
     );
     if (!rows.length) return res.status(404).json({ error: 'Coupon not found' });
+    const isToggle = fields.length === 1 && fields[0] === 'is_active';
+    const action = isToggle ? (rows[0].is_active ? 'Enabled coupon' : 'Disabled coupon') : 'Updated coupon';
+    logAdminAction(req.adminName, action, `Code: ${rows[0].code}`).catch(() => {});
     res.json(rows[0]);
   } catch (err) {
     res.status(500).json({ error: 'Failed to update coupon' });
@@ -78,7 +83,9 @@ router.patch('/:id', adminAuth, async (req, res) => {
 // DELETE /api/coupons/:id  (admin)
 router.delete('/:id', adminAuth, async (req, res) => {
   try {
+    const { rows: pre } = await pool.queryR('SELECT code FROM coupons WHERE id = $1', [req.params.id]);
     await pool.queryR('DELETE FROM coupons WHERE id = $1', [req.params.id]);
+    logAdminAction(req.adminName, 'Deleted coupon', `Code: ${pre[0]?.code || req.params.id}`).catch(() => {});
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: 'Failed to delete coupon' });

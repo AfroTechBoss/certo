@@ -2,6 +2,7 @@ const express = require('express');
 const router  = express.Router();
 const pool    = require('../db');
 const { adminAuth } = require('../adminAuth');
+const logAdminAction = require('../logAdminAction');
 
 // POST /api/contact  (public — submit a contact message)
 router.post('/', async (req, res) => {
@@ -53,7 +54,9 @@ router.patch('/:id', adminAuth, async (req, res) => {
 // DELETE /api/contact/:id  (admin)
 router.delete('/:id', adminAuth, async (req, res) => {
   try {
+    const { rows: pre } = await pool.queryR('SELECT name, email FROM contact_messages WHERE id = $1', [req.params.id]);
     await pool.queryR('DELETE FROM contact_messages WHERE id = $1', [req.params.id]);
+    logAdminAction(req.adminName, 'Deleted contact message', `From: ${pre[0]?.name || '?'} <${pre[0]?.email || '?'}>`).catch(() => {});
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: 'Failed to delete message' });

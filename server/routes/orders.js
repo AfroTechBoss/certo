@@ -3,6 +3,7 @@ const router  = express.Router();
 const pool    = require('../db');
 const { sendOrderConfirmation, sendStatusUpdate, sendCancellationEmail } = require('../email');
 const { adminAuth } = require('../adminAuth');
+const logAdminAction = require('../logAdminAction');
 
 function generateOrderId() {
   const now  = new Date();
@@ -181,6 +182,7 @@ router.post('/:id/resend-email', adminAuth, async (req, res) => {
     const order = rows[0];
     await sendOrderConfirmation(order);
     await pool.queryR('UPDATE orders SET email_sent = true, updated_at = NOW() WHERE id = $1', [req.params.id]);
+    logAdminAction(req.adminName, 'Resent confirmation email', `Order ${req.params.id} → ${order.customer_email}`).catch(() => {});
     res.json({ ok: true, message: `Confirmation email sent to ${order.customer_email}` });
   } catch (err) {
     console.error('Resend email failed for', req.params.id, ':', err.message);
@@ -210,6 +212,16 @@ router.patch('/:id', adminAuth, async (req, res) => {
     if (!rows.length) return res.status(404).json({ error: 'Order not found' });
 
     const updated = rows[0];
+
+    // Log the admin action
+    if (req.body.status && req.body.status !== prevStatus) {
+      logAdminAction(req.adminName, 'Updated order status', `Order ${updated.id}: ${prevStatus} → ${req.body.status}`).catch(() => {});
+    } else if (req.body.flagged !== undefined) {
+      const action = req.body.flagged ? 'Flagged order' : 'Unflagged order';
+      logAdminAction(req.adminName, action, `Order ${updated.id}${req.body.flag_reason ? ': ' + req.body.flag_reason : ''}`).catch(() => {});
+    } else if (req.body.notes !== undefined) {
+      logAdminAction(req.adminName, 'Updated order notes', `Order ${updated.id}`).catch(() => {});
+    }
 
     // Non-blocking helper — wraps a fire-and-forget email send so any error (sync or async)
     // is logged without ever bubbling up to the outer catch and causing a 500 response

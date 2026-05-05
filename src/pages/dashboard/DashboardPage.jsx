@@ -145,6 +145,9 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
   const [adminToken,    setAdminToken]    = React.useState(() => {
     try { return sessionStorage.getItem('certo_admin_token') || ''; } catch(e) { return ''; }
   });
+  const [adminName,     setAdminName]     = React.useState(() => {
+    try { return sessionStorage.getItem('certo_admin_name') || ''; } catch(e) { return ''; }
+  });
   const [loginPwd,      setLoginPwd]      = React.useState('');
   const [loginErr,      setLoginErr]      = React.useState('');
   const [loginLoading,  setLoginLoading]  = React.useState(false);
@@ -162,8 +165,12 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Login failed');
-      try { sessionStorage.setItem('certo_admin_token', d.token); } catch(e) {}
+      try {
+        sessionStorage.setItem('certo_admin_token', d.token);
+        sessionStorage.setItem('certo_admin_name',  d.name || '');
+      } catch(e) {}
       setAdminToken(d.token);
+      setAdminName(d.name || '');
       setLoginPwd('');
     } catch(err) {
       setLoginErr(err.message);
@@ -173,8 +180,12 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
   };
 
   const handleLogout = () => {
-    try { sessionStorage.removeItem('certo_admin_token'); } catch(e) {}
+    try {
+      sessionStorage.removeItem('certo_admin_token');
+      sessionStorage.removeItem('certo_admin_name');
+    } catch(e) {}
     setAdminToken('');
+    setAdminName('');
   };
 
   // Show login screen until authenticated
@@ -319,6 +330,19 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
 
   React.useEffect(() => { fetchCoupons(); }, [fetchCoupons]);
 
+  const [logs,        setLogs]        = React.useState([]);
+  const [logsLoading, setLogsLoading] = React.useState(false);
+
+  const fetchLogs = React.useCallback(() => {
+    setLogsLoading(true);
+    authFetch('/api/admin/logs')
+      .then(r => r.json())
+      .then(d => { setLogs(Array.isArray(d) ? d : []); setLogsLoading(false); })
+      .catch(() => setLogsLoading(false));
+  }, []);
+
+  React.useEffect(() => { fetchLogs(); }, [fetchLogs]);
+
   // Auto-refresh orders and messages every 2 minutes so the admin sees new data without a page reload
   React.useEffect(() => {
     const interval = setInterval(() => {
@@ -335,6 +359,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
     { key: 'products',  label: 'Products'  },
     { key: 'messages',  label: 'Messages',  count: unreadMessages },
     { key: 'coupons',   label: 'Coupons'   },
+    { key: 'activity',  label: 'Activity'  },
     { key: 'forex',     label: 'Forex'     },
     { key: 'revenue',   label: 'Revenue'   },
     { key: 'customers', label: 'Customers' },
@@ -1795,11 +1820,103 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
     );
   };
 
+  const ActivityTab = () => {
+    const [clearConfirm, setClearConfirm] = React.useState(false);
+    const [clearing,     setClearing]     = React.useState(false);
+
+    const actionIcon = (action = '') => {
+      if (action.startsWith('Sign'))    return '🔐';
+      if (action.startsWith('Updat'))   return '✏️';
+      if (action.startsWith('Creat'))   return '➕';
+      if (action.startsWith('Delet'))   return '🗑️';
+      if (action.startsWith('Enabl'))   return '✅';
+      if (action.startsWith('Disabl'))  return '🔴';
+      if (action.startsWith('Resent'))  return '✉️';
+      if (action.startsWith('Status'))  return '🔄';
+      if (action.startsWith('Flagg'))   return '🚩';
+      if (action.startsWith('Unflag'))  return '✅';
+      if (action.startsWith('Note'))    return '📝';
+      if (action.startsWith('Cleared')) return '🧹';
+      return '•';
+    };
+
+    const doClear = async () => {
+      setClearing(true);
+      try {
+        await authFetch('/api/admin/logs', { method: 'DELETE' });
+        fetchLogs();
+        setClearConfirm(false);
+      } catch(e) {}
+      setClearing(false);
+    };
+
+    const fmt = (ts) => {
+      const d = new Date(ts);
+      return d.toLocaleString('en-NG', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    };
+
+    return (
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <div>
+            <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 18, color: 'var(--text)' }}>Activity Log</div>
+            <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>{logs.length} entries</div>
+          </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button onClick={fetchLogs} style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 14px', cursor: 'pointer' }}>
+              ↻ Refresh
+            </button>
+            {clearConfirm ? (
+              <>
+                <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'oklch(45% 0.18 25)' }}>Clear all logs?</span>
+                <button onClick={doClear} disabled={clearing} style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 700, color: 'white', background: 'oklch(50% 0.2 25)', border: 'none', borderRadius: 8, padding: '7px 14px', cursor: 'pointer' }}>
+                  {clearing ? 'Clearing…' : 'Yes, clear'}
+                </button>
+                <button onClick={() => setClearConfirm(false)} style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 14px', cursor: 'pointer' }}>
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <button onClick={() => setClearConfirm(true)} style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'oklch(45% 0.18 25)', background: 'oklch(96% 0.04 25)', border: '1px solid oklch(85% 0.08 25)', borderRadius: 8, padding: '7px 14px', cursor: 'pointer' }}>
+                🗑 Clear logs
+              </button>
+            )}
+          </div>
+        </div>
+
+        {logsLoading ? (
+          <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)', padding: '48px 0', textAlign: 'center' }}>Loading…</div>
+        ) : logs.length === 0 ? (
+          <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)', padding: '48px 0', textAlign: 'center' }}>No activity yet.</div>
+        ) : (
+          <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden' }}>
+            {logs.map((log, i) => (
+              <div key={log.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 14, padding: '14px 20px', borderBottom: i < logs.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                <div style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>{actionIcon(log.action)}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{log.action}</span>
+                    <span style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700, color: 'var(--accent)', background: 'var(--accent-tint)', border: '1px solid var(--accent-tint2)', borderRadius: 5, padding: '2px 8px' }}>{log.admin_name}</span>
+                  </div>
+                  {log.details && (
+                    <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginTop: 3 }}>{log.details}</div>
+                  )}
+                </div>
+                <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--text-muted)', flexShrink: 0, textAlign: 'right', marginTop: 2 }}>{fmt(log.created_at)}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const tabContent = {
     orders:    OrdersTab(),
     products:  ProductsTab(),
     messages:  MessagesTab(),
     coupons:   CouponsTab(),
+    activity:  ActivityTab(),
     forex:     ForexTab(),
     revenue:   RevenueTab(),
     customers: CustomersTab(),
@@ -1815,6 +1932,11 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
             {!isMobile && <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)' }}>Internal order & product management</p>}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {adminName && (
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, color: 'var(--accent)', background: 'var(--accent-tint)', border: '1px solid var(--accent-tint2)', borderRadius: 8, padding: '5px 12px' }}>
+                👋 {adminName}
+              </div>
+            )}
             <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '5px 10px' }}>
               ₦{CERTO_RATE.toLocaleString()}/USD
             </div>

@@ -5,7 +5,7 @@ const path     = require('path');
 const fs       = require('fs');
 const crypto   = require('crypto');
 const pool     = require('./db');
-const { generateToken } = require('./adminAuth');
+const { generateToken, parseAccounts } = require('./adminAuth');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -13,38 +13,49 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Admin login — validates password against ADMIN_PASSWORDS (comma-separated env var)
-// Returns a signed 30-day token; the signing secret never leaves the server
+// Admin login — validates password against ADMIN_ACCOUNTS (format: "Name:pass,Name2:pass2")
+// Returns a signed 30-day token (name embedded) + the admin's display name
 app.post('/api/admin/login', (req, res) => {
   const { password } = req.body;
   if (!password) return res.status(400).json({ error: 'Password required' });
 
-  const passwords = (process.env.ADMIN_PASSWORDS || '')
-    .split(',').map(p => p.trim()).filter(Boolean);
+  if (!process.env.ADMIN_SECRET)  return res.status(500).json({ error: 'ADMIN_SECRET not configured' });
 
-  if (!passwords.length)         return res.status(500).json({ error: 'Admin passwords not configured — set ADMIN_PASSWORDS in env' });
-  if (!process.env.ADMIN_SECRET) return res.status(500).json({ error: 'Admin secret not configured — set ADMIN_SECRET in env' });
+  const accounts = parseAccounts();
+  if (!accounts.length) return res.status(500).json({ error: 'ADMIN_ACCOUNTS not configured' });
 
-  // Constant-time comparison to prevent timing-based password enumeration
-  const match = passwords.some(p => {
+  // Constant-time comparison to prevent timing-based enumeration
+  let matchedName = null;
+  for (const acct of accounts) {
     try {
-      return p.length === password.length &&
-        crypto.timingSafeEqual(Buffer.from(p), Buffer.from(password));
-    } catch { return false; }
-  });
+      if (acct.password.length === password.length &&
+          crypto.timingSafeEqual(Buffer.from(acct.password), Buffer.from(password))) {
+        matchedName = acct.name;
+        break;
+      }
+    } catch { /* length mismatch → skip */ }
+  }
 
-  if (!match) return res.status(401).json({ error: 'Incorrect password' });
-  res.json({ token: generateToken() });
+  if (!matchedName) return res.status(401).json({ error: 'Incorrect password' });
+
+  // Fire-and-forget login log
+  try {
+    const logAdminAction = require('./logAdminAction');
+    logAdminAction(matchedName, 'Signed in', '').catch(() => {});
+  } catch(_) {}
+
+  res.json({ token: generateToken(matchedName), name: matchedName });
 });
 
 // Serve static frontend files
 app.use(express.static(path.join(__dirname, '..')));
 
 // API routes
-app.use('/api/products', require('./routes/products'));
-app.use('/api/orders',   require('./routes/orders'));
-app.use('/api/coupons',  require('./routes/coupons'));
-app.use('/api/contact', require('./routes/contact'));
+app.use('/api/products',    require('./routes/products'));
+app.use('/api/orders',      require('./routes/orders'));
+app.use('/api/coupons',     require('./routes/coupons'));
+app.use('/api/contact',     require('./routes/contact'));
+app.use('/api/admin/logs',  require('./routes/adminLog'));
 
 // Public config — exposes non-secret keys needed by the frontend
 app.get('/api/config', (req, res) => {
