@@ -4,6 +4,7 @@ const pool    = require('../db');
 const { sendOrderConfirmation, sendStatusUpdate, sendCancellationEmail } = require('../email');
 const { adminAuth } = require('../adminAuth');
 const logAdminAction = require('../logAdminAction');
+const logOrderEvent  = require('../logAdminAction'); // same helper, aliased for clarity
 
 function generateOrderId() {
   const now  = new Date();
@@ -74,6 +75,9 @@ router.post('/', async (req, res) => {
         .then(() => pool.queryR('UPDATE orders SET email_sent = true WHERE id = $1', [id]))
         .catch(err => console.error('Email send failed for', id, ':', err.message));
     }
+
+    // Log new order (System actor so it stands out from admin actions)
+    logOrderEvent('System', 'New order placed', `${id} — ${customer_name} — ${product_name}${product_subtitle ? ' ' + product_subtitle : ''} — $${usd_price}`).catch(() => {});
 
     res.status(201).json({ id: order.id, order });
   } catch (err) {

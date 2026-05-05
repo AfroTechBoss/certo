@@ -57,6 +57,18 @@ app.use('/api/coupons',     require('./routes/coupons'));
 app.use('/api/contact',     require('./routes/contact'));
 app.use('/api/admin/logs',  require('./routes/adminLog'));
 
+// POST /api/admin/event  — lightweight client-side event logger
+// The dashboard calls this for actions that happen entirely on the frontend
+// (e.g. opening an order detail, overriding the forex rate)
+const { adminAuth: _adminAuth } = require('./adminAuth');
+const _logEvent = require('./logAdminAction');
+app.post('/api/admin/event', _adminAuth, (req, res) => {
+  const { action, details } = req.body;
+  if (!action) return res.status(400).json({ error: 'action required' });
+  _logEvent(req.adminName, action, details || '').catch(() => {});
+  res.json({ ok: true });
+});
+
 // Public config — exposes non-secret keys needed by the frontend
 app.get('/api/config', (req, res) => {
   res.json({

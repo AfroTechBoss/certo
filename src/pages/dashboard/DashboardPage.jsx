@@ -11,6 +11,15 @@ function authFetch(url, opts = {}) {
   });
 }
 
+// Fire-and-forget client-side event logger — records actions that happen purely in the browser
+function logEvent(action, details = '') {
+  authFetch('/api/admin/event', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, details }),
+  }).catch(() => {});
+}
+
 // Normalise a product row from /api/products into the dashboard UI shape
 function normaliseDashProduct(p) {
   const rate = (typeof CERTO_RATE !== 'undefined' ? CERTO_RATE : 1590);
@@ -817,7 +826,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
                   <tr key={o.id} style={{ borderTop: '1px solid var(--border)', cursor: 'pointer' }}
                     onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-alt)'}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                    onClick={() => setSelectedOrder(o)}>
+                    onClick={() => { setSelectedOrder(o); logEvent('Opened order', `${o.id} — ${o.customer} — ${o.product} — ${o.status}`); }}>
                     <td style={{ padding: '14px 20px', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 700, color: 'var(--accent)' }}>
                       {o.status === 'Payment Pending' && <span style={{ marginRight: 6 }} title="Awaiting payment">⏳</span>}
                       {o.flag && <span style={{ marginRight: 6 }}>🚩</span>}{o.id}
@@ -1303,7 +1312,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
           )}
         </div>
         {manualOverride && (
-          <button onClick={() => { setManualOverride(false); if (autoRate) { setForexRate(autoRate); setForexInput(String(autoRate)); } }}
+          <button onClick={() => { setManualOverride(false); if (autoRate) { setForexRate(autoRate); setForexInput(String(autoRate)); } logEvent('Restored live forex rate', `Rate set back to ₦${autoRate?.toLocaleString()}/USD`); }}
             style={{ marginTop: 14, fontSize: 12, color: 'oklch(45% 0.18 155)', background: 'oklch(93% 0.06 155)', border: 'none', borderRadius: 7, padding: '8px 16px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontWeight: 600, width: isMobile ? '100%' : 'auto' }}>
             ↺ Restore live rate {autoRate ? `(₦${autoRate.toLocaleString()})` : ''}
           </button>
@@ -1319,7 +1328,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
             onFocus={e => e.target.style.borderColor = 'var(--accent)'}
             onBlur={e => e.target.style.borderColor = 'var(--border)'}
           />
-          <button onClick={() => { setForexRate(Number(forexInput)); setManualOverride(true); setForexSaved(true); setTimeout(() => setForexSaved(false), 2000); }}
+          <button onClick={() => { const r = Number(forexInput); setForexRate(r); setManualOverride(true); setForexSaved(true); setTimeout(() => setForexSaved(false), 2000); logEvent('Overrode forex rate', `Manual rate set to ₦${r.toLocaleString()}/USD`); }}
             style={{ padding: '14px 28px', borderRadius: 12, border: 'none', background: forexSaved ? 'oklch(50% 0.18 145)' : 'var(--accent)', color: 'white', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 700, width: isMobile ? '100%' : 'auto' }}>
             {forexSaved ? '✓ Saved' : 'Override Rate'}
           </button>

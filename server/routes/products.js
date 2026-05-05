@@ -87,9 +87,29 @@ router.patch('/:id', adminAuth, async (req, res) => {
       values,
     );
     if (!rows.length) return res.status(404).json({ error: 'Product not found' });
-    const changedFields = fields.join(', ');
-    logAdminAction(req.adminName, 'Updated product', `"${rows[0].name}" — fields: ${changedFields}`).catch(() => {});
-    res.json(rows[0]);
+    const p = rows[0];
+
+    // Build a human-readable summary of exactly what changed
+    const changes = fields.map(f => {
+      const val = req.body[f];
+      if (f === 'listing_status') return `Listing → ${val}`;
+      if (f === 'usd_price')      return `Price → $${val}`;
+      if (f === 'in_stock')       return `In stock → ${val}`;
+      if (f === 'stock_count')    return `Stock count → ${val}`;
+      if (f === 'featured')       return `Featured → ${val}`;
+      if (f === 'condition')      return `Condition → ${val}`;
+      if (f === 'badge')          return `Badge → "${val}"`;
+      if (f === 'delivery_days')  return `Delivery days → "${val}"`;
+      if (f === 'weight_kg')      return `Weight → ${val} kg`;
+      return f;
+    }).join(' | ');
+
+    const action = fields.length === 1 && fields[0] === 'listing_status'
+      ? `Set product ${req.body.listing_status}`
+      : 'Updated product';
+
+    logAdminAction(req.adminName, action, `"${p.name}" — ${changes}`).catch(() => {});
+    res.json(p);
   } catch (err) {
     console.error('PATCH /products/:id:', err);
     res.status(500).json({ error: 'Failed to update product' });
