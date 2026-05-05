@@ -170,7 +170,7 @@ const ShopPage = ({ navigate, addToCart, initialType }) => {
     setLoading(true);
     const params = new URLSearchParams({ limit: PER_PAGE, page });
     if (typeFilter !== 'All') params.set('category', typeFilter === 'MacBook' ? 'Mac' : typeFilter);
-    if (condFilter !== 'All') params.set('condition', condFilter.toLowerCase());
+    if (condFilter !== 'All') params.set('condition', condFilter === 'Refurbished' ? 'refurb' : condFilter.toLowerCase());
     if (search)               params.set('search', search);
     if (sort !== 'featured')  params.set('sort', sort === 'price-asc' ? 'price_asc' : 'price_desc');
     fetch(`/api/products?${params}`)
