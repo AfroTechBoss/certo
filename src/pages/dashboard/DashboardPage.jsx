@@ -181,6 +181,12 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
       setAdminToken(d.token);
       setAdminName(d.name || '');
       setLoginPwd('');
+      // Immediately load all dashboard data — token is in sessionStorage so authFetch works now
+      fetchOrders();
+      fetchProducts();
+      fetchMessages();
+      fetchCoupons();
+      fetchLogs();
     } catch(err) {
       setLoginErr(err.message);
     } finally {
@@ -197,36 +203,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
     setAdminName('');
   };
 
-  // Show login screen until authenticated
-  if (!adminToken) return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-      <div style={{ width: '100%', maxWidth: 400 }}>
-        <div style={{ textAlign: 'center', marginBottom: 36 }}>
-          <div style={{ fontFamily: 'var(--font-head)', fontWeight: 800, fontSize: 28, color: 'var(--text)', letterSpacing: '-0.02em' }}>Certo Admin</div>
-          <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)', marginTop: 6 }}>Sign in to continue</div>
-        </div>
-        <form onSubmit={handleLogin} style={{ background: 'var(--bg-alt)', border: '1.5px solid var(--border)', borderRadius: 16, padding: 28 }}>
-          <label style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 8 }}>Password</label>
-          <div style={{ position: 'relative', marginBottom: 16 }}>
-            <input
-              type={showPwd ? 'text' : 'password'}
-              value={loginPwd}
-              onChange={e => { setLoginPwd(e.target.value); setLoginErr(''); }}
-              placeholder="Enter admin password"
-              autoFocus
-              style={{ width: '100%', padding: '12px 44px 12px 14px', borderRadius: 10, border: `1.5px solid ${loginErr ? 'oklch(60% 0.2 20)' : 'var(--border)'}`, fontFamily: 'var(--font-body)', fontSize: 15, background: 'var(--bg)', color: 'var(--text)', outline: 'none', boxSizing: 'border-box' }}
-            />
-            <button type="button" onClick={() => setShowPwd(v => !v)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 13, padding: 2 }}>{showPwd ? 'Hide' : 'Show'}</button>
-          </div>
-          {loginErr && <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'oklch(45% 0.2 20)', marginBottom: 14 }}>⚠ {loginErr}</div>}
-          <button type="submit" disabled={loginLoading || !loginPwd.trim()} style={{ width: '100%', padding: '13px', borderRadius: 10, border: 'none', background: loginPwd.trim() ? 'var(--accent)' : 'var(--border)', color: loginPwd.trim() ? 'white' : 'var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 700, cursor: loginPwd.trim() ? 'pointer' : 'not-allowed' }}>
-            {loginLoading ? 'Signing in…' : 'Sign In →'}
-          </button>
-        </form>
-      </div>
-    </div>
-  );
-  // ── End auth gate ──────────────────────────────────────────────────────────
+  // ── Login screen JSX (rendered at the bottom after all hooks — see rules-of-hooks note) ──
 
   const [activeTab,    setActiveTab]    = React.useState(subPage);
   const [forexRate,    setForexRate]    = React.useState(liveRate || CERTO_RATE);
@@ -1828,6 +1805,36 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
       </div>
     );
   };
+
+  // ── All hooks have been called above — safe to conditionally return the login screen now ──
+  if (!adminToken) return (
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <div style={{ width: '100%', maxWidth: 400 }}>
+        <div style={{ textAlign: 'center', marginBottom: 36 }}>
+          <div style={{ fontFamily: 'var(--font-head)', fontWeight: 800, fontSize: 28, color: 'var(--text)', letterSpacing: '-0.02em' }}>Certo Admin</div>
+          <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)', marginTop: 6 }}>Sign in to continue</div>
+        </div>
+        <form onSubmit={handleLogin} style={{ background: 'var(--bg-alt)', border: '1.5px solid var(--border)', borderRadius: 16, padding: 28 }}>
+          <label style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 8 }}>Password</label>
+          <div style={{ position: 'relative', marginBottom: 16 }}>
+            <input
+              type={showPwd ? 'text' : 'password'}
+              value={loginPwd}
+              onChange={e => { setLoginPwd(e.target.value); setLoginErr(''); }}
+              placeholder="Enter admin password"
+              autoFocus
+              style={{ width: '100%', padding: '12px 44px 12px 14px', borderRadius: 10, border: `1.5px solid ${loginErr ? 'oklch(60% 0.2 20)' : 'var(--border)'}`, fontFamily: 'var(--font-body)', fontSize: 15, background: 'var(--bg)', color: 'var(--text)', outline: 'none', boxSizing: 'border-box' }}
+            />
+            <button type="button" onClick={() => setShowPwd(v => !v)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 13, padding: 2 }}>{showPwd ? 'Hide' : 'Show'}</button>
+          </div>
+          {loginErr && <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'oklch(45% 0.2 20)', marginBottom: 14 }}>⚠ {loginErr}</div>}
+          <button type="submit" disabled={loginLoading || !loginPwd.trim()} style={{ width: '100%', padding: '13px', borderRadius: 10, border: 'none', background: loginPwd.trim() ? 'var(--accent)' : 'var(--border)', color: loginPwd.trim() ? 'white' : 'var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 700, cursor: loginPwd.trim() ? 'pointer' : 'not-allowed' }}>
+            {loginLoading ? 'Signing in…' : 'Sign In →'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
 
   const ActivityTab = () => {
     const [clearConfirm, setClearConfirm] = React.useState(false);
