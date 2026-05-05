@@ -2,6 +2,7 @@ const express = require('express');
 const router  = express.Router();
 const pool    = require('../db');
 const { sendOrderConfirmation, sendStatusUpdate, sendCancellationEmail } = require('../email');
+const { adminAuth } = require('../adminAuth');
 
 function generateOrderId() {
   const now  = new Date();
@@ -81,7 +82,7 @@ router.post('/', async (req, res) => {
 });
 
 // GET /api/orders  (admin — all orders)
-router.get('/', async (req, res) => {
+router.get('/', adminAuth, async (req, res) => {
   try {
     const { status, flagged, search, timeframe, limit = 200 } = req.query;
     let q = 'SELECT * FROM orders WHERE 1=1';
@@ -127,7 +128,7 @@ router.get('/', async (req, res) => {
 });
 
 // GET /api/orders/stats  (admin revenue stats)
-router.get('/stats', async (req, res) => {
+router.get('/stats', adminAuth, async (req, res) => {
   try {
     const { timeframe } = req.query;
     let where = '1=1';
@@ -173,7 +174,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST /api/orders/:id/resend-email  (admin — resend confirmation email)
-router.post('/:id/resend-email', async (req, res) => {
+router.post('/:id/resend-email', adminAuth, async (req, res) => {
   try {
     const { rows } = await pool.queryR('SELECT * FROM orders WHERE id = $1', [req.params.id]);
     if (!rows.length) return res.status(404).json({ error: 'Order not found' });
@@ -188,7 +189,7 @@ router.post('/:id/resend-email', async (req, res) => {
 });
 
 // PATCH /api/orders/:id  (admin — update status, flag, notes)
-router.patch('/:id', async (req, res) => {
+router.patch('/:id', adminAuth, async (req, res) => {
   try {
     const allowed = ['status', 'flagged', 'flag_reason', 'notes'];
     const fields  = Object.keys(req.body).filter(k => allowed.includes(k));

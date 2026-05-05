@@ -1,6 +1,7 @@
 const express = require('express');
 const router  = express.Router();
 const pool    = require('../db');
+const { adminAuth } = require('../adminAuth');
 
 // GET /api/products
 router.get('/', async (req, res) => {
@@ -65,7 +66,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // PATCH /api/products/:id  (admin — update stock, price, etc.)
-router.patch('/:id', async (req, res) => {
+router.patch('/:id', adminAuth, async (req, res) => {
   try {
     const allowed = [
       'name','subtitle','usd_price','in_stock','featured','badge',

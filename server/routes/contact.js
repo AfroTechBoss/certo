@@ -1,6 +1,7 @@
 const express = require('express');
 const router  = express.Router();
 const pool    = require('../db');
+const { adminAuth } = require('../adminAuth');
 
 // POST /api/contact  (public — submit a contact message)
 router.post('/', async (req, res) => {
@@ -22,7 +23,7 @@ router.post('/', async (req, res) => {
 });
 
 // GET /api/contact  (admin — list all messages)
-router.get('/', async (req, res) => {
+router.get('/', adminAuth, async (req, res) => {
   try {
     const { rows } = await pool.queryR(
       `SELECT * FROM contact_messages ORDER BY created_at DESC LIMIT 500`,
@@ -34,7 +35,7 @@ router.get('/', async (req, res) => {
 });
 
 // PATCH /api/contact/:id  (admin — mark read/unread)
-router.patch('/:id', async (req, res) => {
+router.patch('/:id', adminAuth, async (req, res) => {
   const { read } = req.body;
   if (read === undefined) return res.status(400).json({ error: 'Nothing to update' });
   try {
@@ -50,7 +51,7 @@ router.patch('/:id', async (req, res) => {
 });
 
 // DELETE /api/contact/:id  (admin)
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', adminAuth, async (req, res) => {
   try {
     await pool.queryR('DELETE FROM contact_messages WHERE id = $1', [req.params.id]);
     res.json({ ok: true });

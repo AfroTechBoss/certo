@@ -1,6 +1,16 @@
 
 // Certo — Internal Dashboard
 
+// Auth helper — reads the token from sessionStorage on every call so it never goes stale
+function authFetch(url, opts = {}) {
+  let token = '';
+  try { token = sessionStorage.getItem('certo_admin_token') || ''; } catch(e) {}
+  return fetch(url, {
+    ...opts,
+    headers: { ...(opts.headers || {}), 'Authorization': `Bearer ${token}` },
+  });
+}
+
 // Normalise a product row from /api/products into the dashboard UI shape
 function normaliseDashProduct(p) {
   const rate = (typeof CERTO_RATE !== 'undefined' ? CERTO_RATE : 1590);
@@ -130,6 +140,74 @@ const WHATSAPP_NUMBER = '2348000000000'; // update in .env WHATSAPP_NUMBER
 
 const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
   const { isMobile } = useResponsive();
+
+  // ── Auth gate ──────────────────────────────────────────────────────────────
+  const [adminToken,    setAdminToken]    = React.useState(() => {
+    try { return sessionStorage.getItem('certo_admin_token') || ''; } catch(e) { return ''; }
+  });
+  const [loginPwd,      setLoginPwd]      = React.useState('');
+  const [loginErr,      setLoginErr]      = React.useState('');
+  const [loginLoading,  setLoginLoading]  = React.useState(false);
+  const [showPwd,       setShowPwd]       = React.useState(false);
+
+  const handleLogin = async (e) => {
+    e && e.preventDefault();
+    if (!loginPwd.trim()) return;
+    setLoginLoading(true); setLoginErr('');
+    try {
+      const r = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: loginPwd }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Login failed');
+      try { sessionStorage.setItem('certo_admin_token', d.token); } catch(e) {}
+      setAdminToken(d.token);
+      setLoginPwd('');
+    } catch(err) {
+      setLoginErr(err.message);
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    try { sessionStorage.removeItem('certo_admin_token'); } catch(e) {}
+    setAdminToken('');
+  };
+
+  // Show login screen until authenticated
+  if (!adminToken) return (
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <div style={{ width: '100%', maxWidth: 400 }}>
+        <div style={{ textAlign: 'center', marginBottom: 36 }}>
+          <div style={{ fontFamily: 'var(--font-head)', fontWeight: 800, fontSize: 28, color: 'var(--text)', letterSpacing: '-0.02em' }}>Certo Admin</div>
+          <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)', marginTop: 6 }}>Sign in to continue</div>
+        </div>
+        <form onSubmit={handleLogin} style={{ background: 'var(--bg-alt)', border: '1.5px solid var(--border)', borderRadius: 16, padding: 28 }}>
+          <label style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 8 }}>Password</label>
+          <div style={{ position: 'relative', marginBottom: 16 }}>
+            <input
+              type={showPwd ? 'text' : 'password'}
+              value={loginPwd}
+              onChange={e => { setLoginPwd(e.target.value); setLoginErr(''); }}
+              placeholder="Enter admin password"
+              autoFocus
+              style={{ width: '100%', padding: '12px 44px 12px 14px', borderRadius: 10, border: `1.5px solid ${loginErr ? 'oklch(60% 0.2 20)' : 'var(--border)'}`, fontFamily: 'var(--font-body)', fontSize: 15, background: 'var(--bg)', color: 'var(--text)', outline: 'none', boxSizing: 'border-box' }}
+            />
+            <button type="button" onClick={() => setShowPwd(v => !v)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 13, padding: 2 }}>{showPwd ? 'Hide' : 'Show'}</button>
+          </div>
+          {loginErr && <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'oklch(45% 0.2 20)', marginBottom: 14 }}>⚠ {loginErr}</div>}
+          <button type="submit" disabled={loginLoading || !loginPwd.trim()} style={{ width: '100%', padding: '13px', borderRadius: 10, border: 'none', background: loginPwd.trim() ? 'var(--accent)' : 'var(--border)', color: loginPwd.trim() ? 'white' : 'var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 700, cursor: loginPwd.trim() ? 'pointer' : 'not-allowed' }}>
+            {loginLoading ? 'Signing in…' : 'Sign In →'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+  // ── End auth gate ──────────────────────────────────────────────────────────
+
   const [activeTab,    setActiveTab]    = React.useState(subPage);
   const [forexRate,    setForexRate]    = React.useState(liveRate || CERTO_RATE);
   const [forexInput,   setForexInput]   = React.useState(String(liveRate || CERTO_RATE));
@@ -178,7 +256,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
 
   const fetchOrders = React.useCallback(() => {
     setOrdersLoading(true);
-    fetch('/api/orders?limit=500')
+    authFetch('/api/orders?limit=500')
       .then(r => r.json())
       .then(data => { setOrders(Array.isArray(data) ? data.map(normaliseOrder) : []); setOrdersLoading(false); })
       .catch(() => setOrdersLoading(false));
@@ -194,7 +272,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
 
   const fetchProducts = React.useCallback(() => {
     setProductsLoading(true);
-    fetch('/api/products?limit=1000&admin=true')
+    authFetch('/api/products?limit=1000&admin=true')
       .then(r => r.json())
       .then(rows => {
         setProducts((Array.isArray(rows) ? rows : []).map(normaliseDashProduct));
@@ -223,7 +301,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
 
   const fetchMessages = React.useCallback(() => {
     setMessagesLoading(true);
-    fetch('/api/contact')
+    authFetch('/api/contact')
       .then(r => r.json())
       .then(d => { setMessages(Array.isArray(d) ? d : []); setMessagesLoading(false); })
       .catch(() => setMessagesLoading(false));
@@ -233,7 +311,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
 
   const fetchCoupons = React.useCallback(() => {
     setCouponsLoading(true);
-    fetch('/api/coupons')
+    authFetch('/api/coupons')
       .then(r => r.json())
       .then(d => { setCoupons(Array.isArray(d) ? d : []); setCouponsLoading(false); })
       .catch(() => setCouponsLoading(false));
@@ -326,7 +404,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
   const resendEmail = async (orderId) => {
     setResendState(s => ({ ...s, [orderId]: 'loading' }));
     try {
-      const res = await fetch(`/api/orders/${orderId}/resend-email`, { method: 'POST' });
+      const res = await authFetch(`/api/orders/${orderId}/resend-email`, { method: 'POST' });
       const data = await res.json();
       if (res.ok) {
         setResendState(s => ({ ...s, [orderId]: 'ok' }));
@@ -345,7 +423,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
   const toggleFlag = async (orderId, currently) => {
     const reason = currently ? '' : (flagReason.trim() || 'Flagged by admin');
     try {
-      const res = await fetch(`/api/orders/${orderId}`, {
+      const res = await authFetch(`/api/orders/${orderId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ flagged: !currently, flag_reason: reason }),
@@ -362,7 +440,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
   // Update order status
   const updateStatus = async (orderId, newStatus) => {
     try {
-      const res = await fetch(`/api/orders/${orderId}`, {
+      const res = await authFetch(`/api/orders/${orderId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
@@ -799,7 +877,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
     if (exists) {
       setProducts(prev => prev.map(p => p.id === editingProduct.id ? updated : p));
       // Persist to API (map back to snake_case)
-      fetch(`/api/products/${encodeURIComponent(updated.id)}`, {
+      authFetch(`/api/products/${encodeURIComponent(updated.id)}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1412,7 +1490,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
     const [selected, setSelected] = React.useState(null);
 
     const markRead = async (msg, read) => {
-      await fetch(`/api/contact/${msg.id}`, {
+      await authFetch(`/api/contact/${msg.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ read }),
@@ -1423,7 +1501,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
 
     const deleteMsg = async (id) => {
       if (!confirm('Delete this message?')) return;
-      await fetch(`/api/contact/${id}`, { method: 'DELETE' });
+      await authFetch(`/api/contact/${id}`, { method: 'DELETE' });
       fetchMessages();
       if (selected?.id === id) setSelected(null);
     };
@@ -1532,7 +1610,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
         if (!body.expires_at) body.expires_at = null;
         if (!isNew) delete body.code; // code is immutable after creation
 
-        const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const r = await authFetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
         const d = await r.json();
         if (!r.ok) throw new Error(d.error || 'Save failed');
         setCouponForm(null);
@@ -1546,12 +1624,12 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
 
     const deleteCoupon = async (id) => {
       if (!confirm('Delete this coupon?')) return;
-      await fetch(`/api/coupons/${id}`, { method: 'DELETE' });
+      await authFetch(`/api/coupons/${id}`, { method: 'DELETE' });
       fetchCoupons();
     };
 
     const toggleActive = async (c) => {
-      await fetch(`/api/coupons/${c.id}`, {
+      await authFetch(`/api/coupons/${c.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ is_active: !c.is_active }),
@@ -1736,8 +1814,13 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
             <h1 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: isMobile ? 22 : 28, color: 'var(--text)', marginBottom: 4 }}>Dashboard</h1>
             {!isMobile && <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)' }}>Internal order & product management</p>}
           </div>
-          <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '5px 10px' }}>
-            ₦{CERTO_RATE.toLocaleString()}/USD
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '5px 10px' }}>
+              ₦{CERTO_RATE.toLocaleString()}/USD
+            </div>
+            <button onClick={handleLogout} title="Sign out" style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '5px 10px', cursor: 'pointer' }}>
+              Sign out
+            </button>
           </div>
         </div>
 

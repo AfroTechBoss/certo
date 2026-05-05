@@ -1,6 +1,7 @@
 const express = require('express');
 const router  = express.Router();
 const pool    = require('../db');
+const { adminAuth } = require('../adminAuth');
 
 // POST /api/coupons/validate  (public — check a code before applying)
 router.post('/validate', async (req, res) => {
@@ -27,7 +28,7 @@ router.post('/validate', async (req, res) => {
 });
 
 // GET /api/coupons  (admin)
-router.get('/', async (req, res) => {
+router.get('/', adminAuth, async (req, res) => {
   try {
     const { rows } = await pool.queryR(`SELECT * FROM coupons ORDER BY created_at DESC`);
     res.json(rows);
@@ -37,7 +38,7 @@ router.get('/', async (req, res) => {
 });
 
 // POST /api/coupons  (admin — create)
-router.post('/', async (req, res) => {
+router.post('/', adminAuth, async (req, res) => {
   const { code, description, discount_type, discount_value, applies_to, max_uses, expires_at } = req.body;
   if (!code || !discount_type || discount_value == null || !applies_to)
     return res.status(400).json({ error: 'Missing required fields' });
@@ -57,7 +58,7 @@ router.post('/', async (req, res) => {
 });
 
 // PATCH /api/coupons/:id  (admin — update)
-router.patch('/:id', async (req, res) => {
+router.patch('/:id', adminAuth, async (req, res) => {
   const allowed = ['description', 'discount_type', 'discount_value', 'applies_to', 'max_uses', 'is_active', 'expires_at'];
   const fields  = Object.keys(req.body).filter(k => allowed.includes(k));
   if (!fields.length) return res.status(400).json({ error: 'Nothing to update' });
@@ -75,7 +76,7 @@ router.patch('/:id', async (req, res) => {
 });
 
 // DELETE /api/coupons/:id  (admin)
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', adminAuth, async (req, res) => {
   try {
     await pool.queryR('DELETE FROM coupons WHERE id = $1', [req.params.id]);
     res.json({ ok: true });

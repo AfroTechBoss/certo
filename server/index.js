@@ -5,12 +5,37 @@ const path     = require('path');
 const fs       = require('fs');
 const crypto   = require('crypto');
 const pool     = require('./db');
+const { generateToken } = require('./adminAuth');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
+
+// Admin login — validates password against ADMIN_PASSWORDS (comma-separated env var)
+// Returns a signed 30-day token; the signing secret never leaves the server
+app.post('/api/admin/login', (req, res) => {
+  const { password } = req.body;
+  if (!password) return res.status(400).json({ error: 'Password required' });
+
+  const passwords = (process.env.ADMIN_PASSWORDS || '')
+    .split(',').map(p => p.trim()).filter(Boolean);
+
+  if (!passwords.length)         return res.status(500).json({ error: 'Admin passwords not configured — set ADMIN_PASSWORDS in env' });
+  if (!process.env.ADMIN_SECRET) return res.status(500).json({ error: 'Admin secret not configured — set ADMIN_SECRET in env' });
+
+  // Constant-time comparison to prevent timing-based password enumeration
+  const match = passwords.some(p => {
+    try {
+      return p.length === password.length &&
+        crypto.timingSafeEqual(Buffer.from(p), Buffer.from(password));
+    } catch { return false; }
+  });
+
+  if (!match) return res.status(401).json({ error: 'Incorrect password' });
+  res.json({ token: generateToken() });
+});
 
 // Serve static frontend files
 app.use(express.static(path.join(__dirname, '..')));
