@@ -459,4 +459,4 @@ async function sendCancellationEmail(order) {
   });
 }
 
-module.exports = { sendOrderConfirmation, sendStatusUpdate, sendCancellationEmail };
+module.exports = { sendOrderConfirmation, sendStatusUpdate, sendCancellationEmail, transporter };
