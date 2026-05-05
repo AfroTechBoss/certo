@@ -1,8 +1,9 @@
 -- Certo production migration — run once on the Neon dashboard SQL editor
 -- Safe to re-run: all statements use IF NOT EXISTS / IF EXISTS guards
 
--- products: add listing_status column
+-- products: add listing_status and weight columns
 ALTER TABLE products ADD COLUMN IF NOT EXISTS listing_status TEXT DEFAULT 'live';
+ALTER TABLE products ADD COLUMN IF NOT EXISTS weight_kg      NUMERIC(8,3);
 
 -- orders: add columns introduced after the initial schema
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS items           JSONB   DEFAULT '[]';

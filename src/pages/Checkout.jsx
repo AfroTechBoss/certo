@@ -64,9 +64,52 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
   }, []);
 
   const cartItems = cart || [];
-  const SERVICE_FEE          = 35;
-  const DANGEROUS_FEE_UNIT   = 40;
-  const DELIVERY_FEE         = 63.37;
+  const SERVICE_FEE        = 35;
+  const DANGEROUS_FEE_UNIT = 40;
+
+  // ── Delivery fee table (NGN) — from courier pricing sheet, keyed by max weight (kg) ──
+  const DELIVERY_TABLE = [
+    [0.5,74246.11],[1,74480.82],[1.5,74715.51],[2,74950.22],[2.5,101344.14],
+    [3,125504.95],[3.5,149665.75],[4,180673.26],[4.5,197441.06],[5,202486.39],
+    [6,236540.20],[7,265464.82],[8,294389.47],[9,323314.10],[10,358036.42],
+    [11,376021.10],[12,399803.47],[13,423585.84],[14,447368.19],[15,498279.05],
+    [16,523428.70],[17,548578.37],[18,573728.06],[19,598877.73],[20,628879.52],
+    [21,632462.58],[22,662579.85],[23,692697.13],[24,722814.37],[25,689534.51],
+    [26,787171.32],[27,814752.70],[28,842334.07],[29,869915.46],[30,897496.84],
+    [31,1051285.60],[32,1082938.19],[33,1114590.78],[34,1146243.36],[35,1177895.96],
+    [36,1209548.53],[37,1241201.13],[38,1272853.71],[39,1304506.27],[40,1336158.89],
+    [41,1367811.47],[42,1399464.05],[43,1431116.64],[44,1462769.23],[45,1494421.81],
+    [46,1526074.38],[47,1557726.99],[48,1589379.57],[49,1621032.16],[50,1518879.78],
+    [51,1547884.90],[52,1576890.00],[53,1605895.12],[54,1634900.25],[55,1663905.36],
+    [56,1692910.48],[57,1721915.61],[58,1750920.70],[59,1779925.84],[60,1808930.95],
+    [61,1837936.06],[62,1866941.20],[63,1895946.30],[64,1924951.44],[65,1953956.56],
+    [66,1982961.66],[67,2011966.77],[68,2040971.89],[69,2069977.00],[70,2098982.13],
+  ];
+
+  // Category fallback weights (kg) for products that have no weight_kg stored yet
+  const CATEGORY_WEIGHT_KG = {
+    iPhone: 0.25, iPad: 0.65, Mac: 3.0, AirPods: 0.1,
+    Watch: 0.1, 'Apple TV': 0.5, HomePod: 1.4, Accessories: 0.35,
+  };
+
+  const getItemWeightKg = (product) => {
+    if (product.weight_kg) return Number(product.weight_kg);
+    return CATEGORY_WEIGHT_KG[product.category || product.type] || 0.5;
+  };
+
+  const lookupDeliveryNgn = (totalKg) => {
+    const kg = Math.max(totalKg, 0.5); // minimum 0.5 kg tier
+    for (const [maxKg, price] of DELIVERY_TABLE) {
+      if (kg <= maxKg) return price;
+    }
+    return DELIVERY_TABLE[DELIVERY_TABLE.length - 1][1];
+  };
+
+  const totalWeightKg = cartItems.reduce(
+    (sum, item) => sum + getItemWeightKg(item.product) * (item.qty || 1), 0,
+  );
+  const deliveryFeeNgn = cartItems.length > 0 ? lookupDeliveryNgn(totalWeightKg) : 0;
+  const deliveryFeeUsd = CERTO_RATE > 0 ? deliveryFeeNgn / CERTO_RATE : 0;
 
   const [couponInput,   setCouponInput]   = React.useState('');
   const [couponData,    setCouponData]    = React.useState(null); // validated coupon object
@@ -103,15 +146,15 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
   const dangerousFee = totalQty * DANGEROUS_FEE_UNIT;
 
   const couponDiscount = couponData ? (() => {
-    const base = couponData.applies_to === 'delivery' ? DELIVERY_FEE
+    const base = couponData.applies_to === 'delivery' ? deliveryFeeUsd
                : couponData.applies_to === 'service'  ? SERVICE_FEE
-               : DELIVERY_FEE + SERVICE_FEE;
+               : deliveryFeeUsd + SERVICE_FEE;
     return couponData.discount_type === 'fixed'
       ? Math.min(Number(couponData.discount_value), base)
       : base * (Number(couponData.discount_value) / 100);
   })() : 0;
 
-  const totalUsd = itemsSubtotal + SERVICE_FEE + dangerousFee + DELIVERY_FEE - couponDiscount;
+  const totalUsd = itemsSubtotal + SERVICE_FEE + dangerousFee + deliveryFeeUsd - couponDiscount;
   const totalNgn = totalUsd * CERTO_RATE;
 
   const STEPS = ['Cart', 'Delivery', 'Forex', 'Payment', 'Confirmed'];
@@ -215,7 +258,7 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
               { label: 'Items subtotal',       value: `$${itemsSubtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
               { label: 'Service fee',          value: `$${SERVICE_FEE.toFixed(2)}` },
               { label: `Dangerous goods fee (${totalQty} item${totalQty !== 1 ? 's' : ''} × $${DANGEROUS_FEE_UNIT})`, value: `$${dangerousFee.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
-              { label: 'Delivery fee',         value: `$${DELIVERY_FEE.toFixed(2)}` },
+              { label: `Delivery fee (${totalWeightKg.toFixed(2)} kg)`, value: `₦${Math.round(deliveryFeeNgn).toLocaleString()}` },
             ].map(row => (
               <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0' }}>
                 <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)' }}>{row.label}</span>

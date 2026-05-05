@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS products (
   features       JSONB DEFAULT '[]',
   tech_specs     JSONB DEFAULT '[]',
   stock_count    INTEGER DEFAULT 1,
+  weight_kg      NUMERIC(8,3),
   created_at     TIMESTAMPTZ DEFAULT NOW(),
   updated_at     TIMESTAMPTZ DEFAULT NOW()
 );
