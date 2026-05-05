@@ -108,7 +108,7 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
   const totalWeightKg = cartItems.reduce(
     (sum, item) => sum + getItemWeightKg(item.product) * (item.qty || 1), 0,
   );
-  const deliveryFeeNgn = cartItems.length > 0 ? lookupDeliveryNgn(totalWeightKg) : 0;
+  const deliveryFeeNgn = cartItems.length > 0 ? lookupDeliveryNgn(totalWeightKg) * 1.05 : 0;
   const deliveryFeeUsd = CERTO_RATE > 0 ? deliveryFeeNgn / CERTO_RATE : 0;
 
   const [couponInput,   setCouponInput]   = React.useState('');
@@ -258,7 +258,7 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
               { label: 'Items subtotal',       value: `$${itemsSubtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
               { label: 'Service fee',          value: `$${SERVICE_FEE.toFixed(2)}` },
               { label: `Dangerous goods fee (${totalQty} item${totalQty !== 1 ? 's' : ''} × $${DANGEROUS_FEE_UNIT})`, value: `$${dangerousFee.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
-              { label: `Delivery fee (${totalWeightKg.toFixed(2)} kg)`, value: `₦${Math.round(deliveryFeeNgn).toLocaleString()}` },
+              { label: `Delivery fee (${totalWeightKg.toFixed(2)} kg)`, value: `$${deliveryFeeUsd.toFixed(2)}` },
             ].map(row => (
               <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0' }}>
                 <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)' }}>{row.label}</span>
