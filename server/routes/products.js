@@ -6,7 +6,7 @@ const pool    = require('../db');
 router.get('/', async (req, res) => {
   try {
     const { category, condition, in_stock, featured, limit, page, search, sort } = req.query;
-    const CARD_COLS = 'id,name,subtitle,category,listing_type,apple_url,image_urls,usd_price,in_stock,featured,badge,delivery_days,condition,condition_note,stock_count,listing_status,weight_kg,created_at,updated_at';
+    const CARD_COLS = 'id,name,subtitle,category,listing_type,apple_url,image_urls,usd_price,in_stock,featured,badge,delivery_days,condition,condition_note,stock_count,listing_status,created_at,updated_at';
     const isAdmin = req.query.admin === 'true';
     let where = isAdmin ? 'WHERE 1=1' : "WHERE listing_status != 'hidden'";
     const params = [];
