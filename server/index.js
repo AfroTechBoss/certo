@@ -72,7 +72,7 @@ app.post('/api/admin/event', _adminAuth, (req, res) => {
 // Public config — exposes non-secret keys needed by the frontend
 app.get('/api/config', (req, res) => {
   res.json({
-    paystackKey:    process.env.PAYSTACK_PUBLIC_KEY || '',
+    korapayKey:     process.env.KORAPAY_PUBLIC_KEY  || '',
     helioPayLink:   process.env.HELIO_PAY_LINK      || '',
     moonpayKey:     process.env.MOONPAY_PUBLIC_KEY  || '',
     moonpayWallet:  process.env.MOONPAY_WALLET      || '',
@@ -81,40 +81,41 @@ app.get('/api/config', (req, res) => {
   });
 });
 
-// Paystack payment verification — called by the frontend after Paystack popup confirms
-// Verifies the transaction server-side with Paystack's API, then promotes the order to confirmed
-app.post('/api/paystack/verify', async (req, res) => {
+// ── Korapay ──────────────────────────────────────────────────────────────────
+
+// POST /api/korapay/verify — called by the frontend after the Korapay popup fires onSuccess
+// Verifies the charge server-side with Korapay's API before promoting the order to confirmed
+app.post('/api/korapay/verify', async (req, res) => {
   const { reference, orderId } = req.body;
   if (!reference || !orderId) return res.status(400).json({ error: 'Missing reference or orderId' });
 
-  const secret = process.env.PAYSTACK_SECRET_KEY;
-  if (!secret) return res.status(500).json({ error: 'Paystack secret key not configured' });
+  const secret = process.env.KORAPAY_SECRET_KEY;
+  if (!secret) return res.status(500).json({ error: 'Korapay secret key not configured' });
 
   try {
-    const psRes = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`, {
+    const kRes = await fetch(`https://api.korapay.com/merchant/api/v1/charges/${encodeURIComponent(reference)}`, {
       headers: { Authorization: `Bearer ${secret}` },
     });
-    const psData = await psRes.json();
+    const kData = await kRes.json();
 
-    if (!psRes.ok || !psData.status || psData.data?.status !== 'success') {
-      console.warn('[paystack] Verification failed for', reference, JSON.stringify(psData?.data?.status));
-      return res.status(402).json({ error: 'Payment not confirmed by Paystack', detail: psData?.data?.status });
+    if (!kRes.ok || !kData.status || kData.data?.status !== 'success') {
+      console.warn('[korapay] Verification failed for', reference, JSON.stringify(kData?.data?.status));
+      return res.status(402).json({ error: 'Payment not confirmed by Korapay', detail: kData?.data?.status });
     }
 
-    // Payment verified — promote the order to confirmed (the PATCH handler sends the email)
+    // Payment verified — promote the order to confirmed
     const { rows } = await pool.queryR(
       `UPDATE orders SET status = 'Order Confirmed', updated_at = NOW() WHERE id = $1 AND status = 'Payment Pending' RETURNING *`,
       [orderId],
     );
 
     if (!rows.length) {
-      // Order was already confirmed (double-submit) — treat as success
+      // Already confirmed (double-submit) — safe to treat as success
       return res.json({ ok: true, alreadyConfirmed: true });
     }
 
     const updated = rows[0];
 
-    // Send confirmation email (same helper pattern used in the PATCH route)
     const { sendOrderConfirmation } = require('./email');
     try {
       Promise.resolve(sendOrderConfirmation(updated))
@@ -126,10 +127,54 @@ app.post('/api/paystack/verify', async (req, res) => {
 
     res.json({ ok: true, order: updated });
   } catch (err) {
-    console.error('[paystack] verify error:', err.message);
+    console.error('[korapay] verify error:', err.message);
     res.status(500).json({ error: 'Verification request failed' });
   }
 });
+
+// POST /api/korapay/webhook — Korapay server-to-server event notification
+// Handles charge.success as a redundant confirmation path alongside the frontend verify call
+app.post('/api/korapay/webhook', express.json(), async (req, res) => {
+  // Validate signature: HMAC-SHA256 of raw JSON body with secret key
+  const signature = req.headers['x-korapay-signature'];
+  const secret    = process.env.KORAPAY_SECRET_KEY;
+  if (secret && signature) {
+    const expected = crypto
+      .createHmac('sha256', secret)
+      .update(JSON.stringify(req.body))
+      .digest('hex');
+    if (signature !== expected) {
+      console.warn('[korapay] Webhook signature mismatch — ignoring');
+      return res.status(400).json({ error: 'Invalid signature' });
+    }
+  }
+
+  const event = req.body;
+  if (event?.event === 'charge.success') {
+    const reference = event?.data?.reference;
+    if (reference) {
+      try {
+        // Only promotes if still Payment Pending — idempotent if already confirmed by frontend
+        const { rows } = await pool.queryR(
+          `UPDATE orders SET status = 'Order Confirmed', updated_at = NOW() WHERE id = $1 AND status = 'Payment Pending' RETURNING *`,
+          [reference],
+        );
+        if (rows.length) {
+          const { sendOrderConfirmation } = require('./email');
+          sendOrderConfirmation(rows[0])
+            .then(() => pool.queryR('UPDATE orders SET email_sent = true WHERE id = $1', [reference]))
+            .catch(err => console.error('[email] webhook confirmation failed for', reference, ':', err.message));
+          console.log('[korapay] Webhook confirmed order', reference);
+        }
+      } catch (err) {
+        console.error('[korapay] Webhook DB error:', err.message);
+      }
+    }
+  }
+
+  res.json({ ok: true }); // always 200 so Korapay doesn't retry
+});
+// ─────────────────────────────────────────────────────────────────────────────
 
 // MoonPay URL signing — signs the widget query string with HMAC-SHA256 using the secret key
 // The secret key never leaves the server; only the resulting signature is returned

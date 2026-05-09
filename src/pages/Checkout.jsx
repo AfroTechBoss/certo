@@ -28,7 +28,7 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
   const [orderId, setOrderId] = React.useState('');
   const [submitting, setSubmitting] = React.useState(false);
   const [submitError, setSubmitError] = React.useState('');
-  const [payConfig, setPayConfig] = React.useState({ paystackKey: '', helioPayLink: '', moonpayKey: '', moonpayWallet: '', moonpaySandbox: true, testMode: false });
+  const [payConfig, setPayConfig] = React.useState({ korapayKey: '', helioPayLink: '', moonpayKey: '', moonpayWallet: '', moonpaySandbox: true, testMode: false });
   const [moonpayUrl, setMoonpayUrl] = React.useState('');
   const [showMoonpay, setShowMoonpay] = React.useState(false);
   const [confirmedItems, setConfirmedItems] = React.useState([]); // snapshot of cart at time of order
@@ -419,7 +419,7 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
           forex_rate:        CERTO_RATE,
           // All orders start as Payment Pending — confirmed only after payment is verified
           initial_status:    'Payment Pending',
-          payment_method:    payConfig.testMode ? 'Test Mode' : 'Paystack',
+          payment_method:    payConfig.testMode ? 'Test Mode' : 'Korapay',
           coupon_code:     couponData?.code || null,
           coupon_discount: couponDiscount || 0,
           // All cart items stored so the full order is visible in the admin
@@ -453,29 +453,25 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
         setSubmitting(false);
         setStep(4);
       } else {
-        // Open Paystack inline popup
-        if (!window.PaystackPop) throw new Error('Paystack failed to load — check your connection and try again');
-        if (!payConfig.paystackKey) throw new Error('Payment is not configured yet — please contact us directly');
-        const handler = window.PaystackPop.setup({
-          key:      payConfig.paystackKey,
-          email:    delivery.email,
-          amount:   Math.round(totalNgn * 100), // kobo
-          currency: 'NGN',
-          ref:      newOrderId,
-          metadata: {
-            custom_fields: [
-              { display_name: 'Order ID',   variable_name: 'order_id',  value: newOrderId     },
-              { display_name: 'Customer',   variable_name: 'customer',  value: delivery.name  },
-              { display_name: 'Phone',      variable_name: 'phone',     value: delivery.phone },
-            ],
+        // Open Korapay inline popup
+        if (!window.Korapay) throw new Error('Korapay failed to load — check your connection and try again');
+        if (!payConfig.korapayKey) throw new Error('Payment is not configured yet — please contact us directly');
+        Korapay.initialize({
+          key:       payConfig.korapayKey,
+          reference: newOrderId,
+          amount:    Math.round(totalNgn * 100), // kobo
+          currency:  'NGN',
+          customer: {
+            name:  delivery.name,
+            email: delivery.email,
           },
-          callback: async (response) => {
-            // Paystack client confirmed — now verify server-side before showing confirmation
+          onSuccess: async (data) => {
+            // Korapay client confirmed — verify server-side before showing confirmation
             try {
-              const vRes = await fetch('/api/paystack/verify', {
+              const vRes = await fetch('/api/korapay/verify', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ reference: response.reference, orderId: newOrderId }),
+                body: JSON.stringify({ reference: data.reference, orderId: newOrderId }),
               });
               const vData = await vRes.json();
               if (!vRes.ok) throw new Error(vData.error || 'Payment verification failed');
@@ -491,9 +487,12 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
             setSubmitError(`Payment cancelled. Your order ${newOrderId} is saved — you can complete payment anytime by contacting us.`);
             setSubmitting(false);
           },
+          onFailed: (data) => {
+            setSubmitError(`Payment failed. Please try again or contact us with your order ID: ${newOrderId}`);
+            setSubmitting(false);
+          },
         });
-        handler.openIframe();
-        // Do NOT setSubmitting(false) here — Paystack is open; wait for callback/onClose
+        // Do NOT setSubmitting(false) here — Korapay is open; wait for onSuccess/onClose/onFailed
       }
     } catch (err) {
       setSubmitError(err.message || 'Something went wrong. Please try again.');
@@ -514,13 +513,13 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
 
       {/* Method selector */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 28 }}>
-        {/* Naira via Paystack */}
+        {/* Naira via Korapay */}
         <div style={{
           flex: 1, padding: '18px 16px', borderRadius: 14,
           border: '2px solid var(--accent)', background: 'var(--accent-tint)',
         }}>
           <div style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 15, color: 'var(--accent)', marginBottom: 4 }}>🇳🇬  Pay in Naira</div>
-          <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>via Paystack · bank transfer, card, USSD</div>
+          <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>via Korapay · bank transfer, card, USSD</div>
         </div>
 
         {/* USD / Crypto — Coming Soon */}
@@ -551,7 +550,7 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
         </div>
         <div style={{ marginTop: 16, padding: '12px 14px', background: 'oklch(96% 0.03 145)', borderRadius: 10, border: '1px solid oklch(88% 0.05 145)' }}>
           <span style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'oklch(35% 0.12 145)' }}>
-            🔒 Secured by Paystack — bank transfer, debit card, or USSD accepted
+            🔒 Secured by Korapay — bank transfer, debit card, or USSD accepted
           </span>
         </div>
       </div>
@@ -569,7 +568,7 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
         cursor: submitting ? 'not-allowed' : 'pointer',
         fontFamily: 'var(--font-body)', fontSize: 17, fontWeight: 700,
       }}>
-        {submitting ? 'Processing…' : `Pay ₦${Math.round(totalNgn).toLocaleString()} via Paystack →`}
+        {submitting ? 'Processing…' : `Pay ₦${Math.round(totalNgn).toLocaleString()} via Korapay →`}
       </button>
     </div>
   );
