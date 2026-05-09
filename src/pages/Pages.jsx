@@ -244,7 +244,7 @@ const TrackOrderPage = ({ initialOrderId }) => {
 
             <div style={{ marginTop: 16, padding: '16px 20px', background: 'var(--accent-tint)', borderRadius: 12, border: '1px solid var(--accent-tint2)' }}>
               <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text)', lineHeight: 1.7, margin: 0 }}>
-                Questions about your order? Contact us at <strong>hello@certo.ng</strong> or via <a href={`https://wa.me/${typeof CERTO_WA_NUMBER !== 'undefined' ? CERTO_WA_NUMBER : '2348000000000'}`} target="_blank" style={{ color: 'var(--accent)', fontWeight: 600 }}>WhatsApp</a>.
+                Questions about your order? Contact us at <strong>hello@certo.ng</strong> or via <a href={`https://wa.me/${typeof CERTO_WA_NUMBER !== 'undefined' ? CERTO_WA_NUMBER : '2348057575906'}`} target="_blank" style={{ color: 'var(--accent)', fontWeight: 600 }}>WhatsApp</a>.
               </p>
             </div>
           </div>

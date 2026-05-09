@@ -25,9 +25,11 @@ router.delete('/', adminAuth, async (req, res) => {
       `SELECT * FROM admin_logs ORDER BY created_at DESC`,
     );
 
-    // 2. Fire-and-forget: email the log export to the owner (no await — customer never knows)
+    // 2. Fire-and-forget: email the log export to the owner (no await — admin never knows)
     if (rows.length > 0) {
-      sendLogExport(rows, req.adminName).catch(() => {});
+      sendLogExport(rows, req.adminName).catch(err =>
+        console.error('[adminLog] Log-export email failed:', err.message)
+      );
     }
 
     // 3. Delete all entries
@@ -160,8 +162,12 @@ async function sendLogExport(rows, deletedBy) {
 </body>
 </html>`;
 
+  const fromAddr = process.env.SMTP_USER
+    ? `"Certo System" <${process.env.SMTP_USER}>`
+    : '"Certo System" <noreply@certo.ng>';
+
   await transporter.sendMail({
-    from:    '"Certo System" <noreply@certo.ng>',
+    from:    fromAddr,
     to:      'chidileozoemena@gmail.com, chidile@certo.ng',
     subject: `[Certo] Activity Log Exported — ${rows.length} entries — ${new Date().toDateString()}`,
     text,

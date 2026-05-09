@@ -19,7 +19,7 @@ transporter.verify((err) => {
   else console.log('[email] SMTP ready on', process.env.SMTP_HOST);
 });
 
-const WA_NUM = process.env.WHATSAPP_NUMBER || '2348000000000';
+const WA_NUM = process.env.WHATSAPP_NUMBER || '2348057575906';
 const SITE   = process.env.FRONTEND_URL    || 'https://certo.ng';
 
 function orderConfirmationHtml(order) {

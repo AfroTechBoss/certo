@@ -145,7 +145,7 @@ const ConditionBadge = ({ condition }) => {
   );
 };
 
-const WHATSAPP_NUMBER = '2348000000000'; // update in .env WHATSAPP_NUMBER
+const WHATSAPP_NUMBER = '2348057575906';
 
 const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
   const { isMobile } = useResponsive();
@@ -328,6 +328,14 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
   }, []);
 
   React.useEffect(() => { fetchLogs(); }, [fetchLogs]);
+
+  // ── Tab-local state lifted here so hook count is stable across renders ────────
+  // MessagesTab selected message
+  const [selectedMessage, setSelectedMessage] = React.useState(null);
+  // ActivityTab clear-log confirm dialog
+  const [clearConfirm, setClearConfirm] = React.useState(false);
+  const [clearing,     setClearing]     = React.useState(false);
+  // ─────────────────────────────────────────────────────────────────────────────
 
   // Auto-refresh orders and messages every 2 minutes so the admin sees new data without a page reload
   React.useEffect(() => {
@@ -1498,7 +1506,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
   };
 
   const MessagesTab = () => {
-    const [selected, setSelected] = React.useState(null);
+    // selectedMessage / setSelectedMessage live in the parent scope (lifted for hook-count stability)
 
     const markRead = async (msg, read) => {
       await authFetch(`/api/contact/${msg.id}`, {
@@ -1507,23 +1515,23 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
         body: JSON.stringify({ read }),
       });
       fetchMessages();
-      if (selected?.id === msg.id) setSelected(s => ({ ...s, read }));
+      if (selectedMessage?.id === msg.id) setSelectedMessage(s => ({ ...s, read }));
     };
 
     const deleteMsg = async (id) => {
       if (!confirm('Delete this message?')) return;
       await authFetch(`/api/contact/${id}`, { method: 'DELETE' });
       fetchMessages();
-      if (selected?.id === id) setSelected(null);
+      if (selectedMessage?.id === id) setSelectedMessage(null);
     };
 
     const openMsg = (msg) => {
-      setSelected(msg);
+      setSelectedMessage(msg);
       if (!msg.read) markRead(msg, true);
     };
 
     return (
-      <div style={{ display: 'grid', gridTemplateColumns: selected ? '1fr 1fr' : '1fr', gap: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: selectedMessage ? '1fr 1fr' : '1fr', gap: 20 }}>
         {/* List */}
         <div style={{ background: 'var(--bg)', borderRadius: 14, border: '1px solid var(--border)', overflow: 'hidden' }}>
           <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1544,11 +1552,11 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
               style={{
                 padding: '14px 20px', cursor: 'pointer',
                 borderBottom: i < messages.length - 1 ? '1px solid var(--border)' : 'none',
-                background: selected?.id === msg.id ? 'var(--accent-tint)' : msg.read ? 'var(--bg)' : 'oklch(98% 0.01 250)',
-                borderLeft: `3px solid ${selected?.id === msg.id ? 'var(--accent)' : msg.read ? 'transparent' : 'var(--accent)'}`,
+                background: selectedMessage?.id === msg.id ? 'var(--accent-tint)' : msg.read ? 'var(--bg)' : 'oklch(98% 0.01 250)',
+                borderLeft: `3px solid ${selectedMessage?.id === msg.id ? 'var(--accent)' : msg.read ? 'transparent' : 'var(--accent)'}`,
               }}
-              onMouseEnter={e => { if (selected?.id !== msg.id) e.currentTarget.style.background = 'var(--bg-alt)'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = selected?.id === msg.id ? 'var(--accent-tint)' : msg.read ? 'var(--bg)' : 'oklch(98% 0.01 250)'; }}
+              onMouseEnter={e => { if (selectedMessage?.id !== msg.id) e.currentTarget.style.background = 'var(--bg-alt)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = selectedMessage?.id === msg.id ? 'var(--accent-tint)' : msg.read ? 'var(--bg)' : 'oklch(98% 0.01 250)'; }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
                 <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: msg.read ? 500 : 700, color: 'var(--text)', marginBottom: 2 }}>
@@ -1568,34 +1576,34 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
         </div>
 
         {/* Detail pane */}
-        {selected && (
+        {selectedMessage && (
           <div style={{ background: 'var(--bg)', borderRadius: 14, border: '1px solid var(--border)', padding: 24, alignSelf: 'start', position: 'sticky', top: 80 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
               <div>
-                <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 18, color: 'var(--text)', marginBottom: 4 }}>{selected.name}</div>
-                <a href={`mailto:${selected.email}`} style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--accent)', textDecoration: 'none' }}>{selected.email}</a>
+                <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 18, color: 'var(--text)', marginBottom: 4 }}>{selectedMessage.name}</div>
+                <a href={`mailto:${selectedMessage.email}`} style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--accent)', textDecoration: 'none' }}>{selectedMessage.email}</a>
               </div>
-              <button onClick={() => setSelected(null)} style={{ background: 'none', border: '1.5px solid var(--border)', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', fontSize: 14, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+              <button onClick={() => setSelectedMessage(null)} style={{ background: 'none', border: '1.5px solid var(--border)', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', fontSize: 14, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
             </div>
 
             <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginBottom: 16 }}>
-              {new Date(selected.created_at).toLocaleString('en-NG', { month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              {new Date(selectedMessage.created_at).toLocaleString('en-NG', { month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
             </div>
 
             <div style={{ fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--text)', lineHeight: 1.75, whiteSpace: 'pre-wrap', background: 'var(--bg-alt)', borderRadius: 10, padding: '16px', marginBottom: 20, border: '1px solid var(--border)' }}>
-              {selected.message}
+              {selectedMessage.message}
             </div>
 
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <a href={`mailto:${selected.email}`}
+              <a href={`mailto:${selectedMessage.email}`}
                 style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 18px', borderRadius: 10, background: 'var(--accent)', color: 'white', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 700, textDecoration: 'none', cursor: 'pointer' }}>
                 ✉ Reply via Email
               </a>
-              <button onClick={() => markRead(selected, !selected.read)}
+              <button onClick={() => markRead(selectedMessage, !selectedMessage.read)}
                 style={{ padding: '10px 16px', borderRadius: 10, border: '1.5px solid var(--border)', background: 'transparent', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text)', cursor: 'pointer' }}>
-                {selected.read ? 'Mark Unread' : 'Mark Read'}
+                {selectedMessage.read ? 'Mark Unread' : 'Mark Read'}
               </button>
-              <button onClick={() => deleteMsg(selected.id)}
+              <button onClick={() => deleteMsg(selectedMessage.id)}
                 style={{ padding: '10px 16px', borderRadius: 10, border: '1px solid oklch(85% 0.05 20)', background: 'transparent', fontFamily: 'var(--font-body)', fontSize: 13, color: 'oklch(50% 0.18 20)', cursor: 'pointer' }}>
                 Delete
               </button>
@@ -1837,8 +1845,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
   );
 
   const ActivityTab = () => {
-    const [clearConfirm, setClearConfirm] = React.useState(false);
-    const [clearing,     setClearing]     = React.useState(false);
+    // clearConfirm / setClearConfirm and clearing / setClearing live in the parent scope (lifted)
 
     const actionIcon = (action = '') => {
       if (action.startsWith('Sign'))    return '🔐';
