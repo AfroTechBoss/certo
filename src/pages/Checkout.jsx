@@ -454,9 +454,10 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
         setStep(4);
       } else {
         // Open Korapay inline popup
-        if (!window.Korapay) throw new Error('Korapay failed to load — check your connection and try again');
+        if (!window.KoraPayment) throw new Error('Korapay failed to load — check your connection and try again');
         if (!payConfig.korapayKey) throw new Error('Payment is not configured yet — please contact us directly');
-        Korapay.initialize({
+        const koraInstance = new KoraPayment();
+        koraInstance.initialize({
           key:       payConfig.korapayKey,
           reference: newOrderId,
           amount:    Math.round(totalNgn * 100), // kobo
