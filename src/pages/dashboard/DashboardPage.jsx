@@ -1338,7 +1338,9 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
   };
 
   const RevenueTab = () => {
-    const revOrders  = applyTimeFilter(orders, revTimeFilter, revCustomFrom, revCustomTo);
+    // Exclude Payment Pending and Cancelled — only count confirmed/paid orders
+    const revOrders  = applyTimeFilter(orders, revTimeFilter, revCustomFrom, revCustomTo)
+      .filter(o => o.status !== 'Payment Pending' && o.status !== 'Cancelled');
     const revNgn     = revOrders.reduce((s, o) => s + o.ngn, 0);
     const revUsd     = revOrders.reduce((s, o) => s + o.usd, 0);
     const totalProfit= revOrders.reduce((s, o) => s + o.usd * 0.12, 0);
