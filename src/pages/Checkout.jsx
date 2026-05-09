@@ -463,7 +463,7 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
           : new KoraCtor();
         koraInstance.initialize({
           key:       payConfig.korapayKey,
-          reference: newOrderId,
+          reference: `${newOrderId}-${Date.now()}`,
           amount:    Math.round(totalNgn * 100), // kobo
           currency:  'NGN',
           customer: {
