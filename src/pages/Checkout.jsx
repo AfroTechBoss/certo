@@ -454,9 +454,13 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
         setStep(4);
       } else {
         // Open Korapay inline popup
-        if (!window.KoraPayment) throw new Error('Korapay failed to load — check your connection and try again');
+        // The UMD bundle sets window.KoraPayment = {} (namespace), with the class at .KoraPayment.KoraPayment
+        const KoraCtor = window.KoraPayment?.KoraPayment || window.KoraPayment?.default;
+        if (!KoraCtor) throw new Error('Korapay failed to load — check your connection and try again');
         if (!payConfig.korapayKey) throw new Error('Payment is not configured yet — please contact us directly');
-        const koraInstance = new KoraPayment();
+        const koraInstance = window.KoraPayment.createKoraPayment
+          ? window.KoraPayment.createKoraPayment()
+          : new KoraCtor();
         koraInstance.initialize({
           key:       payConfig.korapayKey,
           reference: newOrderId,
