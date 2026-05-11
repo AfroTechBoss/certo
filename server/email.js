@@ -208,7 +208,7 @@ async function sendOrderConfirmation(order) {
   const html = orderConfirmationHtml(order);
 
   const info = await transporter.sendMail({
-    from:    '"Certo" <noreply@certo.ng>',
+    from:    process.env.SMTP_USER ? `"Certo" <${process.env.SMTP_USER}>` : '"Certo" <noreply@certo.ng>',
     to:      `${order.customer_name} <${order.customer_email}>`,
     subject: `Order Confirmed – ${order.id} | Certo`,
     html,
@@ -345,7 +345,7 @@ async function sendStatusUpdate(order) {
   if (!subject) return; // only send for these three statuses
   const html = statusUpdateHtml(order);
   return transporter.sendMail({
-    from:    '"Certo" <noreply@certo.ng>',
+    from:    process.env.SMTP_USER ? `"Certo" <${process.env.SMTP_USER}>` : '"Certo" <noreply@certo.ng>',
     to:      `${order.customer_name} <${order.customer_email}>`,
     subject: subject + order.id,
     html,
@@ -451,7 +451,7 @@ function cancellationHtml(order) {
 async function sendCancellationEmail(order) {
   const html = cancellationHtml(order);
   return transporter.sendMail({
-    from:    '"Certo" <noreply@certo.ng>',
+    from:    process.env.SMTP_USER ? `"Certo" <${process.env.SMTP_USER}>` : '"Certo" <noreply@certo.ng>',
     to:      `${order.customer_name} <${order.customer_email}>`,
     subject: `Your Certo order has been cancelled – ${order.id}`,
     html,

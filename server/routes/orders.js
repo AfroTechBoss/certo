@@ -227,34 +227,34 @@ router.patch('/:id', adminAuth, async (req, res) => {
       logAdminAction(req.adminName, 'Updated order notes', `Order ${updated.id}`).catch(() => {});
     }
 
-    // Non-blocking helper — wraps a fire-and-forget email send so any error (sync or async)
-    // is logged without ever bubbling up to the outer catch and causing a 500 response
-    const fireEmail = (label, fn) => {
+    // Await emails before responding — on Vercel serverless, fire-and-forget is killed when
+    // the response closes. Each email is awaited individually but errors never cause a 500.
+    const sendEmail = async (label, fn) => {
       try {
-        Promise.resolve(fn()).catch(err => console.error(`[email] ${label} failed for ${updated.id}:`, err.message));
-      } catch(err) {
-        console.error(`[email] ${label} setup error for ${updated.id}:`, err.message);
+        await fn();
+      } catch (err) {
+        console.error(`[email] ${label} failed for ${updated.id}:`, err.message);
       }
     };
 
     // If a pending-payment order just got confirmed, send the confirmation email now
     if (req.body.status === 'Order Confirmed' && prevStatus === 'Payment Pending') {
-      fireEmail('confirmation', () =>
-        sendOrderConfirmation(updated)
-          .then(() => pool.queryR('UPDATE orders SET email_sent = true WHERE id = $1', [updated.id]))
-      );
+      await sendEmail('confirmation', async () => {
+        await sendOrderConfirmation(updated);
+        await pool.queryR('UPDATE orders SET email_sent = true WHERE id = $1', [updated.id]);
+      });
     }
 
     // Send status-change email for key milestones
     const emailStatuses = ['Arrived in Nigeria', 'Out for Delivery', 'Delivered'];
     if (req.body.status && req.body.status !== prevStatus && emailStatuses.includes(req.body.status)) {
-      fireEmail('status update', () => sendStatusUpdate(updated));
+      await sendEmail('status update', () => sendStatusUpdate(updated));
     }
 
     // Send cancellation email when an order is cancelled
     if (req.body.status === 'Cancelled' && prevStatus !== 'Cancelled') {
       console.log(`[email] Sending cancellation email for ${updated.id} to ${updated.customer_email}`);
-      fireEmail('cancellation', () => sendCancellationEmail(updated));
+      await sendEmail('cancellation', () => sendCancellationEmail(updated));
     }
 
     res.json(updated);

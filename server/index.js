@@ -116,13 +116,16 @@ app.post('/api/flutterwave/verify', async (req, res) => {
 
     const updated = rows[0];
 
+    // Await the email before responding — on Vercel serverless, fire-and-forget is killed
+    // when res.json() closes the response, so the email must complete inside the request lifecycle
     const { sendOrderConfirmation } = require('./email');
     try {
-      Promise.resolve(sendOrderConfirmation(updated))
-        .then(() => pool.queryR('UPDATE orders SET email_sent = true WHERE id = $1', [orderId]))
-        .catch(err => console.error('[email] confirmation failed for', orderId, ':', err.message));
+      await sendOrderConfirmation(updated);
+      await pool.queryR('UPDATE orders SET email_sent = true WHERE id = $1', [orderId]);
+      console.log('[flutterwave] Confirmation email sent for', orderId);
     } catch (err) {
-      console.error('[email] confirmation setup error for', orderId, ':', err.message);
+      console.error('[email] confirmation failed for', orderId, ':', err.message);
+      // Don't fail the response — payment is confirmed regardless of email
     }
 
     res.json({ ok: true, order: updated });
@@ -159,10 +162,13 @@ app.post('/api/flutterwave/webhook', express.json(), async (req, res) => {
         );
         if (rows.length) {
           const { sendOrderConfirmation } = require('./email');
-          sendOrderConfirmation(rows[0])
-            .then(() => pool.queryR('UPDATE orders SET email_sent = true WHERE id = $1', [orderId]))
-            .catch(err => console.error('[email] webhook confirmation failed for', orderId, ':', err.message));
-          console.log('[flutterwave] Webhook confirmed order', orderId);
+          try {
+            await sendOrderConfirmation(rows[0]);
+            await pool.queryR('UPDATE orders SET email_sent = true WHERE id = $1', [orderId]);
+            console.log('[flutterwave] Webhook confirmed order + email sent for', orderId);
+          } catch (err) {
+            console.error('[email] webhook confirmation failed for', orderId, ':', err.message);
+          }
         }
       } catch (err) {
         console.error('[flutterwave] Webhook DB error:', err.message);
