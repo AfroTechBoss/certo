@@ -57,7 +57,7 @@ router.post('/', async (req, res) => {
       address, state,
       product_id, product_name, product_subtitle, product_image_url, apple_url,
       applecare || 'none', qty || 1, usd_price, ngn_price, forex_rate, orderStatus,
-      payment_method || 'Korapay',
+      payment_method || 'Flutterwave',
       JSON.stringify(Array.isArray(items) ? items : []),
       coupon_code || null, coupon_discount || 0,
     ]);

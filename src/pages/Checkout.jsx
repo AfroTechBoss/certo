@@ -28,7 +28,7 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
   const [orderId, setOrderId] = React.useState('');
   const [submitting, setSubmitting] = React.useState(false);
   const [submitError, setSubmitError] = React.useState('');
-  const [payConfig, setPayConfig] = React.useState({ korapayKey: '', helioPayLink: '', moonpayKey: '', moonpayWallet: '', moonpaySandbox: true, testMode: false });
+  const [payConfig, setPayConfig] = React.useState({ flutterwaveKey: '', helioPayLink: '', moonpayKey: '', moonpayWallet: '', moonpaySandbox: true, testMode: false });
   const [moonpayUrl, setMoonpayUrl] = React.useState('');
   const [showMoonpay, setShowMoonpay] = React.useState(false);
   const [confirmedItems, setConfirmedItems] = React.useState([]); // snapshot of cart at time of order
@@ -419,7 +419,7 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
           forex_rate:        CERTO_RATE,
           // All orders start as Payment Pending — confirmed only after payment is verified
           initial_status:    'Payment Pending',
-          payment_method:    payConfig.testMode ? 'Test Mode' : 'Korapay',
+          payment_method:    payConfig.testMode ? 'Test Mode' : 'Flutterwave',
           coupon_code:     couponData?.code || null,
           coupon_discount: couponDiscount || 0,
           // All cart items stored so the full order is visible in the admin
@@ -453,51 +453,54 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
         setSubmitting(false);
         setStep(4);
       } else {
-        // Open Korapay inline popup
-        // The UMD bundle sets window.KoraPayment = {} (namespace), with the class at .KoraPayment.KoraPayment
-        const KoraCtor = window.KoraPayment?.KoraPayment || window.KoraPayment?.default;
-        if (!KoraCtor) throw new Error('Korapay failed to load — check your connection and try again');
-        if (!payConfig.korapayKey) throw new Error('Payment is not configured yet — please contact us directly');
-        const koraInstance = window.KoraPayment.createKoraPayment
-          ? window.KoraPayment.createKoraPayment()
-          : new KoraCtor();
-        koraInstance.initialize({
-          key:       payConfig.korapayKey,
-          reference: `${newOrderId}-${Date.now()}`,
-          amount:    Math.round(totalNgn * 100), // kobo
-          currency:  'NGN',
+        // Open Flutterwave inline popup
+        if (typeof window.FlutterwaveCheckout !== 'function') throw new Error('Flutterwave failed to load — check your connection and try again');
+        if (!payConfig.flutterwaveKey) throw new Error('Payment is not configured yet — please contact us directly');
+        window.FlutterwaveCheckout({
+          public_key:      payConfig.flutterwaveKey,
+          tx_ref:          `${newOrderId}-${Date.now()}`,
+          amount:          Math.round(totalNgn), // NGN whole units (not kobo)
+          currency:        'NGN',
+          payment_options: 'card, banktransfer, ussd',
           customer: {
-            name:  delivery.name,
-            email: delivery.email,
+            name:         delivery.name,
+            email:        delivery.email,
+            phone_number: delivery.phone,
           },
-          onSuccess: async (data) => {
-            // Korapay client confirmed — verify server-side before showing confirmation
-            try {
-              const vRes = await fetch('/api/korapay/verify', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ reference: data.reference, orderId: newOrderId }),
-              });
-              const vData = await vRes.json();
-              if (!vRes.ok) throw new Error(vData.error || 'Payment verification failed');
-              clearCart && clearCart();
-              setSubmitting(false);
-              setStep(4);
-            } catch (verifyErr) {
-              setSubmitError(`Payment received but verification failed: ${verifyErr.message}. Please contact us with your order ID: ${newOrderId}`);
+          customizations: {
+            title:       'Certo',
+            description: `Order ${newOrderId}`,
+            logo:        'https://certo.ng/logo.png',
+          },
+          callback: async (data) => {
+            // Flutterwave client confirmed — verify server-side before showing confirmation
+            if (data.status === 'successful' || data.status === 'completed') {
+              try {
+                const vRes = await fetch('/api/flutterwave/verify', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ transaction_id: data.transaction_id, orderId: newOrderId }),
+                });
+                const vData = await vRes.json();
+                if (!vRes.ok) throw new Error(vData.error || 'Payment verification failed');
+                clearCart && clearCart();
+                setSubmitting(false);
+                setStep(4);
+              } catch (verifyErr) {
+                setSubmitError(`Payment received but verification failed: ${verifyErr.message}. Please contact us with your order ID: ${newOrderId}`);
+                setSubmitting(false);
+              }
+            } else {
+              setSubmitError(`Payment failed. Please try again or contact us with your order ID: ${newOrderId}`);
               setSubmitting(false);
             }
           },
-          onClose: () => {
+          onclose: () => {
             setSubmitError(`Payment cancelled. Your order ${newOrderId} is saved — you can complete payment anytime by contacting us.`);
             setSubmitting(false);
           },
-          onFailed: (data) => {
-            setSubmitError(`Payment failed. Please try again or contact us with your order ID: ${newOrderId}`);
-            setSubmitting(false);
-          },
         });
-        // Do NOT setSubmitting(false) here — Korapay is open; wait for onSuccess/onClose/onFailed
+        // Do NOT setSubmitting(false) here — Flutterwave is open; wait for callback/onclose
       }
     } catch (err) {
       setSubmitError(err.message || 'Something went wrong. Please try again.');
@@ -518,13 +521,13 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
 
       {/* Method selector */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 28 }}>
-        {/* Naira via Korapay */}
+        {/* Naira via Flutterwave */}
         <div style={{
           flex: 1, padding: '18px 16px', borderRadius: 14,
           border: '2px solid var(--accent)', background: 'var(--accent-tint)',
         }}>
           <div style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 15, color: 'var(--accent)', marginBottom: 4 }}>🇳🇬  Pay in Naira</div>
-          <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>via Korapay · bank transfer, card, USSD</div>
+          <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>via Flutterwave · bank transfer, card, USSD</div>
         </div>
 
         {/* USD / Crypto — Coming Soon */}
@@ -555,7 +558,7 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
         </div>
         <div style={{ marginTop: 16, padding: '12px 14px', background: 'oklch(96% 0.03 145)', borderRadius: 10, border: '1px solid oklch(88% 0.05 145)' }}>
           <span style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'oklch(35% 0.12 145)' }}>
-            🔒 Secured by Korapay — bank transfer, debit card, or USSD accepted
+            🔒 Secured by Flutterwave — bank transfer, debit card, or USSD accepted
           </span>
         </div>
       </div>
@@ -573,7 +576,7 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
         cursor: submitting ? 'not-allowed' : 'pointer',
         fontFamily: 'var(--font-body)', fontSize: 17, fontWeight: 700,
       }}>
-        {submitting ? 'Processing…' : `Pay ₦${Math.round(totalNgn).toLocaleString()} via Korapay →`}
+        {submitting ? 'Processing…' : `Pay ₦${Math.round(totalNgn).toLocaleString()} via Flutterwave →`}
       </button>
     </div>
   );

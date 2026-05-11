@@ -302,10 +302,10 @@ const FAQPage = () => {
     {
       title: 'About payment',
       items: [
-        { q: 'What currencies do you accept?', a: 'Naira (₦) via Korapay, US Dollars via card or crypto (USDC / BTC).' },
+        { q: 'What currencies do you accept?', a: 'Naira (₦) via Flutterwave, US Dollars via card or crypto (USDC / BTC).' },
         { q: 'How does the forex clause work?', a: 'Naira prices are calculated at the current buying rate shown on the site. When you pay, you pay at that rate. We do not benefit from rate movement after payment — if the naira depreciates before we procure your device, we still buy at the rate locked in at checkout.' },
         { q: 'When are you charged?', a: 'Immediately at checkout. We begin procurement within 24 hours of payment clearing.' },
-        { q: 'Is the Korapay payment secure?', a: 'Yes. Korapay is PCI-DSS compliant and processes transactions securely across Nigeria. We never see your card details.' },
+        { q: 'Is the Flutterwave payment secure?', a: 'Yes. Flutterwave is PCI-DSS compliant and processes transactions securely across Nigeria. We never see your card details.' },
       ]
     },
     {
@@ -502,12 +502,12 @@ const PrivacyPolicyPage = ({ navigate }) => {
 
         <Section title="What we collect">
           <P>When you place an order, we collect your name, phone number, delivery address, and email address. This is the minimum we need to process and deliver your order.</P>
-          <P>When you make a naira payment via Korapay, your card details go directly to Korapay — we never see, store, or have access to your card number, CVV, or any banking credentials. Korapay is PCI-DSS compliant.</P>
+          <P>When you make a naira payment via Flutterwave, your card details go directly to Flutterwave — we never see, store, or have access to your card number, CVV, or any banking credentials. Flutterwave is PCI-DSS compliant.</P>
           <P>We also collect your order history and communication history (WhatsApp messages, emails) to support ongoing service and dispute resolution.</P>
         </Section>
 
         <Section title="How we use your data">
-          <P>We use your information to fulfil your order, send you delivery updates, and provide customer support. We do not use your data for advertising. We do not sell your data. We do not share it with third parties except those directly involved in delivering your order (our logistics partner and Korapay).</P>
+          <P>We use your information to fulfil your order, send you delivery updates, and provide customer support. We do not use your data for advertising. We do not sell your data. We do not share it with third parties except those directly involved in delivering your order (our logistics partner and Flutterwave).</P>
           <P>We may contact you after delivery to ask how your device is working. That is the full extent of our marketing — and you can opt out by asking us not to contact you again.</P>
         </Section>
 

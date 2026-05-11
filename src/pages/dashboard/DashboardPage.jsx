@@ -69,7 +69,7 @@ function normaliseOrder(o) {
     flag:     o.flagged,
     flag_reason: o.flag_reason || '',
     notes:           o.notes || '',
-    payment_method:  o.payment_method || 'Korapay',
+    payment_method:  o.payment_method || 'Flutterwave',
     items:           Array.isArray(o.items) ? o.items : [],
     raw:      o,
   };
@@ -542,7 +542,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
                 { label: 'USD Total',  value: `$${Number(selectedOrder.usd).toLocaleString()}` },
                 { label: 'NGN Total',  value: `₦${Number(selectedOrder.ngn).toLocaleString()}` },
                 { label: 'Status',     value: selectedOrder.status          },
-                { label: 'Payment Via', value: selectedOrder.payment_method || 'Korapay' },
+                { label: 'Payment Via', value: selectedOrder.payment_method || 'Flutterwave' },
                 { label: 'Address',    value: selectedOrder.address  },
               ].map(f => (
                 <div key={f.label}>
@@ -837,7 +837,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
                     </td>
                     <td style={{ padding: '14px 20px' }}>
                       {(() => {
-                        const pm = o.payment_method || 'Korapay';
+                        const pm = o.payment_method || 'Flutterwave';
                         const pmStyle = pm === 'MoonPay'
                           ? { bg: 'oklch(93% 0.06 280)', color: 'oklch(38% 0.18 280)' }
                           : pm === 'Test Mode'
