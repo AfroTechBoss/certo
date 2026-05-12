@@ -1,7 +1,7 @@
 
 // Certo — App Shell (router + global state)
 import React from 'react';
-import { CERTO_RATE, setCERTO_RATE } from './data.js';
+import { CERTO_RATE, setCERTO_RATE, useResponsive } from './data.js';
 import { NavComponent } from './components/Nav.jsx';
 import { HomePage } from './pages/HomePage.jsx';
 import { ShopPage, ProductDetailPage } from './pages/ShopPage.jsx';
