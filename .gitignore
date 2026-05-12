@@ -1,5 +1,6 @@
 .claude/
 
 node_modules/
+dist/
 .env
 parse-sheets.js

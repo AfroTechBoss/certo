@@ -47,8 +47,9 @@ app.post('/api/admin/login', (req, res) => {
   res.json({ token: generateToken(matchedName), name: matchedName });
 });
 
-// Serve static frontend files
-app.use(express.static(path.join(__dirname, '..')));
+// Serve Vite-built frontend
+const distPath = path.join(__dirname, '..', 'dist');
+app.use(express.static(distPath));
 
 // API routes
 app.use('/api/products',    require('./routes/products'));
@@ -260,7 +261,7 @@ app.get('/api/health', async (req, res) => {
 // /product/:id — inject OG meta tags into index.html for social link previews
 // Crawlers see image/title; browsers load the SPA and React navigates to the product
 app.get('/product/:id', async (req, res) => {
-  const indexPath = path.join(__dirname, '..', 'index.html');
+  const indexPath = path.join(__dirname, '..', 'dist', 'index.html');
   try {
     const { rows } = await pool.queryR(
       'SELECT id, name, subtitle, image_urls, category, usd_price FROM products WHERE id = $1',
@@ -301,7 +302,7 @@ app.get('/product/:id', async (req, res) => {
 // SPA fallback — all non-API routes serve index.html
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api')) return res.status(404).json({ error: 'Not found' });
-  res.sendFile(path.join(__dirname, '..', 'index.html'));
+  res.sendFile(path.join(__dirname, '..', 'dist', 'index.html'));
 });
 
 // On Vercel: export the app for serverless invocation (no persistent process)

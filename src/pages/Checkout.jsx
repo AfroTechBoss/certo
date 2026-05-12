@@ -1,5 +1,8 @@
 
 // Certo — Checkout Flow (5 steps)
+import React from 'react';
+import { CERTO_RATE, useResponsive } from '../data.js';
+import { ProductIcon, fmt } from './HomePage.jsx';
 
 // Defined outside CheckoutFlow so the component identity stays stable across re-renders
 const CheckoutInput = ({ label, value, onChange, placeholder, type = 'text' }) => (
@@ -709,4 +712,4 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
   );
 };
 
-Object.assign(window, { CheckoutFlow });
+export { CheckoutFlow };

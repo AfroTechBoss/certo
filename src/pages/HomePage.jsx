@@ -1,5 +1,7 @@
 
 // Certo — Homepage
+import React from 'react';
+import { CERTO_RATE, PRODUCTS, TESTIMONIALS, useResponsive } from '../data.js';
 
 const fmt = (usd) => `₦${(usd * CERTO_RATE).toLocaleString()}`;
 
@@ -398,4 +400,4 @@ const HomePage = ({ navigate }) => {
   );
 };
 
-Object.assign(window, { HomePage, ProductIcon, fmt });
+export { HomePage, ProductIcon, fmt };

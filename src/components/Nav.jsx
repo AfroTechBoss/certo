@@ -1,5 +1,7 @@
 
 // Certo — Navigation
+import React from 'react';
+import { useResponsive } from '../data.js';
 
 const CertoLogo = ({ navigate }) => (
   <button onClick={() => navigate('home')} style={{
@@ -196,4 +198,4 @@ const NavComponent = ({ page, navigate, cartCount = 0 }) => {
   );
 };
 
-Object.assign(window, { CertoLogo, NavComponent });
+export { CertoLogo, NavComponent };

@@ -1,9 +1,11 @@
 
 // Certo — shared data & constants
+import React from 'react';
 
-let CERTO_RATE = 1590; // NGN per USD — updated live from ExchangeRate-API
+export let CERTO_RATE = 1590; // NGN per USD — updated live from ExchangeRate-API
+export const setCERTO_RATE = (v) => { CERTO_RATE = v; };
 
-const PRODUCTS = [
+export const PRODUCTS = [
   {
     id: 'iphone-15-pro-256',
     name: 'iPhone 15 Pro',
@@ -444,7 +446,7 @@ const PRODUCTS = [
   },
 ];
 
-const APPLECARE_OPTIONS = [
+export const APPLECARE_OPTIONS = [
   {
     id: 'plus',
     name: 'AppleCare+',
@@ -480,7 +482,7 @@ const APPLECARE_OPTIONS = [
   },
 ];
 
-const ORDER_STATUSES = [
+export const ORDER_STATUSES = [
   { key: 'confirmed',  label: 'Order Confirmed',             done: true,  ts: 'Apr 22, 2026 · 9:14am',   note: 'Your order has been received and payment confirmed. We\'re preparing to procure your device.' },
   { key: 'purchased',  label: 'Purchased from Apple',         done: true,  ts: 'Apr 23, 2026 · 2:30pm',   note: 'Your iPhone 15 Pro has been purchased directly from Apple.com US.' },
   { key: 'transit_us', label: 'In Transit to US Partner',     done: true,  ts: 'Apr 24, 2026 · 11:05am',  note: 'Your device is on its way to our US logistics partner for inspection and packaging.' },
@@ -490,7 +492,7 @@ const ORDER_STATUSES = [
   { key: 'delivered',  label: 'Delivered',                    done: false, ts: 'Expected Apr 30',          note: '' },
 ];
 
-const MOCK_ORDER = {
+export const MOCK_ORDER = {
   id: 'CRT-2204-8841',
   product: PRODUCTS[0],
   applecare: APPLECARE_OPTIONS[0],
@@ -501,13 +503,13 @@ const MOCK_ORDER = {
   statuses: ORDER_STATUSES,
 };
 
-const TESTIMONIALS = [
+export const TESTIMONIALS = [
   { name: 'Tobi A.',   location: 'Abuja',         product: 'MacBook Air M3',  text: 'I was scared to send over ₦2 million to a website. But the tracking page and WhatsApp updates every step of the way made it feel safe. My MacBook arrived sealed, serial checked, everything perfect.', stars: 5 },
   { name: 'Chioma N.', location: 'Lagos',          product: 'iPhone 15 Pro',   text: 'Bought my first iPhone through Certo after years of buying from Slot and getting burned. The forex explanation was clear, the price was honest, and it arrived in 14 days. I\'m a convert.', stars: 5 },
   { name: 'Emeka O.',  location: 'Port Harcourt',  product: 'AirPods Pro',     text: 'Serial number checked out on Apple\'s website. The packaging was perfect — clearly never opened. Certo is the only way I\'m buying Apple products from now on.', stars: 5 },
 ];
 
-const useResponsive = () => {
+export const useResponsive = () => {
   const [w, setW] = React.useState(() => window.innerWidth);
   React.useEffect(() => {
     const h = () => setW(window.innerWidth);
@@ -517,4 +519,4 @@ const useResponsive = () => {
   return { isMobile: w < 640, isTablet: w < 1024, w };
 };
 
-Object.assign(window, { CERTO_RATE, PRODUCTS, APPLECARE_OPTIONS, ORDER_STATUSES, MOCK_ORDER, TESTIMONIALS, useResponsive });
+// data.js — all exports are named ES module exports above

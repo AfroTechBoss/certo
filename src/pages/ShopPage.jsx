@@ -1,5 +1,7 @@
 
 // Certo — Shop Page + Product Detail Page
+import React from 'react';
+import { CERTO_RATE, PRODUCTS, APPLECARE_OPTIONS, useResponsive } from '../data.js';
 
 // Strip the .v= cache-buster from Apple CDN URLs (it causes proxy encoding issues and isn't needed)
 const cleanAppleImg = (url) => url ? url.replace(/[&?]\.v=[^&]*/, '') : null;
@@ -792,4 +794,4 @@ const ProductDetailPage = ({ productId, navigate, addToCart }) => {
   );
 };
 
-Object.assign(window, { ShopPage, ProductDetailPage, ConditionBadge });
+export { ShopPage, ProductDetailPage, ConditionBadge };

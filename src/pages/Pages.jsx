@@ -1,5 +1,7 @@
 
 // Certo — Supporting Pages: How It Works, Track My Order, About, FAQ, Contact
+import React from 'react';
+import { TESTIMONIALS, useResponsive } from '../data.js';
 
 // ─── How It Works ─────────────────────────────────────────────────────────────
 const HowItWorksPage = ({ navigate }) => {
@@ -703,4 +705,4 @@ const RefundPolicyPage = ({ navigate }) => {
   );
 };
 
-Object.assign(window, { HowItWorksPage, TrackOrderPage, AboutPage, FAQPage, ContactPage, PrivacyPolicyPage, TermsOfServicePage, RefundPolicyPage });
+export { HowItWorksPage, TrackOrderPage, AboutPage, FAQPage, ContactPage, PrivacyPolicyPage, TermsOfServicePage, RefundPolicyPage };

@@ -1,5 +1,13 @@
 
 // Certo — App Shell (router + global state)
+import React from 'react';
+import { CERTO_RATE, setCERTO_RATE } from './data.js';
+import { NavComponent } from './components/Nav.jsx';
+import { HomePage } from './pages/HomePage.jsx';
+import { ShopPage, ProductDetailPage } from './pages/ShopPage.jsx';
+import { HowItWorksPage, TrackOrderPage, AboutPage, FAQPage, ContactPage, PrivacyPolicyPage, TermsOfServicePage, RefundPolicyPage } from './pages/Pages.jsx';
+import { CheckoutFlow } from './pages/Checkout.jsx';
+import { DashboardPage } from './pages/dashboard/DashboardPage.jsx';
 
 const FooterComponent = ({ navigate }) => {
   const { isMobile } = useResponsive();
@@ -147,7 +155,7 @@ const App = () => {
   const [liveRate, setLiveRate] = React.useState(() => {
     try {
       const cached = localStorage.getItem('certo_rate');
-      if (cached) { CERTO_RATE = Number(cached); return Number(cached); }
+      if (cached) { setCERTO_RATE(Number(cached)); return Number(cached); }
     } catch(e) {}
     return CERTO_RATE;
   });
@@ -166,7 +174,7 @@ const App = () => {
         .then(data => {
           if (data.rate) {
             const rate = data.rate;
-            CERTO_RATE = rate;
+            setCERTO_RATE(rate);
             setLiveRate(rate);
             const now = new Date();
             setRateFetched(now);
@@ -303,4 +311,4 @@ const App = () => {
   );
 };
 
-ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+export default App;

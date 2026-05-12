@@ -1,5 +1,7 @@
 
 // Certo — Internal Dashboard
+import React from 'react';
+import { CERTO_RATE, setCERTO_RATE, useResponsive } from '../../data.js';
 
 // Auth helper — reads the token from sessionStorage on every call so it never goes stale
 function authFetch(url, opts = {}) {
@@ -225,7 +227,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
         if (data.rate) {
           const rate = data.rate;
           const now = new Date();
-          CERTO_RATE = rate;
+          setCERTO_RATE(rate);
           setFetchedAt(now);
           setAutoRate(rate);
           if (!manualOverride) { setForexRate(rate); setForexInput(String(rate)); }
@@ -1996,4 +1998,4 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
   );
 };
 
-Object.assign(window, { DashboardPage });
+export { DashboardPage };
