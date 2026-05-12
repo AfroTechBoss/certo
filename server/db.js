@@ -2,17 +2,17 @@ require('dotenv').config();
 const { Pool, neonConfig } = require('@neondatabase/serverless');
 const ws = require('ws');
 
+// Local dev only: Neon uses a WebSocket connection whose TLS cert can't be verified
+// against the local system cert store. Safe to bypass locally; Vercel is unaffected.
+if (!process.env.VERCEL) process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
 // Use WebSocket transport in Node.js (edge runtimes provide their own WebSocket)
 neonConfig.webSocketConstructor = ws;
 
 // channel_binding=require is not needed for the Neon WS driver
 const pgUrl = (process.env.DATABASE_URL || '').replace('channel_binding=require', 'channel_binding=disable');
 
-// On Vercel the system cert store is fine; locally Node may fail to verify Neon's cert
-const pool = new Pool({
-  connectionString: pgUrl,
-  ssl: process.env.VERCEL ? true : { rejectUnauthorized: false },
-});
+const pool = new Pool({ connectionString: pgUrl });
 
 pool.on('error', (err) => {
   console.error('[pool] idle client error:', err.message);
