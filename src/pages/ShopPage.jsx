@@ -2,6 +2,7 @@
 // Certo — Shop Page + Product Detail Page
 import React from 'react';
 import { CERTO_RATE, PRODUCTS, APPLECARE_OPTIONS, useResponsive } from '../data.js';
+import { ProductIcon, fmt } from './HomePage.jsx';
 
 // Strip the .v= cache-buster from Apple CDN URLs (it causes proxy encoding issues and isn't needed)
 const cleanAppleImg = (url) => url ? url.replace(/[&?]\.v=[^&]*/, '') : null;
