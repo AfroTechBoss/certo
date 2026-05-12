@@ -8,7 +8,11 @@ neonConfig.webSocketConstructor = ws;
 // channel_binding=require is not needed for the Neon WS driver
 const pgUrl = (process.env.DATABASE_URL || '').replace('channel_binding=require', 'channel_binding=disable');
 
-const pool = new Pool({ connectionString: pgUrl });
+// On Vercel the system cert store is fine; locally Node may fail to verify Neon's cert
+const pool = new Pool({
+  connectionString: pgUrl,
+  ssl: process.env.VERCEL ? true : { rejectUnauthorized: false },
+});
 
 pool.on('error', (err) => {
   console.error('[pool] idle client error:', err.message);
