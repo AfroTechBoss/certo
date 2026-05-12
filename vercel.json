@@ -1,16 +1,16 @@
 {
   "version": 2,
   "buildCommand": "npm run build",
-  "builds": [
-    {
-      "src": "server/index.js",
-      "use": "@vercel/node",
-      "config": {
-        "includeFiles": ["dist/**", "logo.png"]
-      }
+  "outputDirectory": "dist",
+  "functions": {
+    "server/index.js": {
+      "memory": 1024,
+      "maxDuration": 30
     }
-  ],
-  "routes": [
-    { "src": "/(.*)", "dest": "server/index.js" }
+  },
+  "rewrites": [
+    { "source": "/api/(.*)",    "destination": "/server/index.js" },
+    { "source": "/product/:id", "destination": "/server/index.js" },
+    { "source": "/(.*)",        "destination": "/index.html" }
   ]
 }
