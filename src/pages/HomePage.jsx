@@ -212,7 +212,7 @@ const HomePage = ({ navigate }) => {
               alt="Apple devices"
               style={{
                 width: '100%',
-                maxWidth: isMobile ? 320 : 520,
+                maxWidth: isMobile ? 380 : 620,
                 height: 'auto',
                 objectFit: 'contain',
                 userSelect: 'none',
