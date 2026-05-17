@@ -205,59 +205,21 @@ const HomePage = ({ navigate }) => {
             </div>
           </div>
 
-          {/* Hero product showcase — hidden on small mobile, shown on tablet+ */}
-          {!isMobile && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-              {featured.map((p, i) => (
-                <div key={p.id}
-                  onClick={() => navigate('product', p.id)}
-                  style={{
-                    background: i === 0 ? 'var(--accent)' : 'var(--bg-alt)',
-                    borderRadius: 20, padding: isTablet ? 16 : 24, cursor: 'pointer',
-                    gridColumn: i === 0 ? 'span 2' : 'span 1',
-                    display: 'flex', alignItems: 'center', gap: 16,
-                    transition: 'transform 0.2s',
-                    border: i !== 0 ? '1px solid var(--border)' : 'none',
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
-                  onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
-                >
-                  <ProductIcon type={p.type.toLowerCase()} size={i === 0 ? 90 : 64} color={i === 0 ? 'white' : 'var(--accent)'} />
-                  <div>
-                    <div style={{ fontFamily: 'var(--font-body)', fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: i === 0 ? 'rgba(255,255,255,0.6)' : 'var(--text-muted)', marginBottom: 3 }}>{p.badge}</div>
-                    <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: i === 0 ? 19 : 15, color: i === 0 ? 'white' : 'var(--text)', lineHeight: 1.2, marginBottom: 3 }}>{p.name}</div>
-                    <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: i === 0 ? 'rgba(255,255,255,0.7)' : 'var(--text-muted)', marginBottom: 8 }}>{p.subtitle}</div>
-                    <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: i === 0 ? 18 : 15, color: i === 0 ? 'white' : 'var(--accent)' }}>{fmt(p.usdPrice)}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Mobile: compact featured cards */}
-          {isMobile && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {featured.slice(0, 2).map((p, i) => (
-                <div key={p.id}
-                  onClick={() => navigate('product', p.id)}
-                  style={{
-                    background: i === 0 ? 'var(--accent)' : 'var(--bg-alt)',
-                    borderRadius: 16, padding: '16px 20px', cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', gap: 14,
-                    border: i !== 0 ? '1px solid var(--border)' : 'none',
-                  }}
-                >
-                  <ProductIcon type={p.type.toLowerCase()} size={56} color={i === 0 ? 'white' : 'var(--accent)'} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 15, color: i === 0 ? 'white' : 'var(--text)', marginBottom: 2 }}>{p.name}</div>
-                    <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: i === 0 ? 'rgba(255,255,255,0.7)' : 'var(--text-muted)', marginBottom: 4 }}>{p.subtitle}</div>
-                    <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 15, color: i === 0 ? 'white' : 'var(--accent)' }}>{fmt(p.usdPrice)}</div>
-                  </div>
-                  <span style={{ color: i === 0 ? 'rgba(255,255,255,0.7)' : 'var(--accent)', fontSize: 18, flexShrink: 0 }}>→</span>
-                </div>
-              ))}
-            </div>
-          )}
+          {/* Hero image */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <img
+              src="/hero.png"
+              alt="Apple devices"
+              style={{
+                width: '100%',
+                maxWidth: isMobile ? 320 : 520,
+                height: 'auto',
+                objectFit: 'contain',
+                userSelect: 'none',
+                pointerEvents: 'none',
+              }}
+            />
+          </div>
         </div>
       </section>
 
