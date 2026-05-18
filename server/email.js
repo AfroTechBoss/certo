@@ -40,6 +40,10 @@ function orderConfirmationHtml(order) {
   const itemsHtml = allItems.map((item, i) => {
     const itemQty = item.qty && item.qty > 1 ? item.qty : 1;
     const lineTotal = Number(item.usd_price) * itemQty;
+    const variantPills = [
+      item.variant_color   ? `<span style="display:inline-flex;align-items:center;gap:4px;background:#f2f0ec;border:1px solid #e5e2db;border-radius:5px;padding:2px 8px;font-size:12px;color:#1a1714;margin-right:4px;">${item.variant_color_hex ? `<span style="width:8px;height:8px;border-radius:50%;background:${item.variant_color_hex};display:inline-block;border:1px solid rgba(0,0,0,0.12);"></span>` : ''}${item.variant_color}</span>` : '',
+      item.variant_storage ? `<span style="background:#f2f0ec;border:1px solid #e5e2db;border-radius:5px;padding:2px 8px;font-size:12px;color:#1a1714;">${item.variant_storage}</span>` : '',
+    ].filter(Boolean).join('');
     return `
     ${i > 0 ? '<tr><td colspan="2" style="padding:0;height:1px;background:#e5e2db;"></td></tr>' : ''}
     <tr>
@@ -47,6 +51,7 @@ function orderConfirmationHtml(order) {
         ${itemQty > 1 ? `<div style="display:inline-block;background:#f2f0ec;border:1px solid #e5e2db;border-radius:6px;padding:2px 8px;font-size:12px;font-weight:700;color:#706b60;margin-bottom:4px;">${itemQty}×</div>` : ''}
         <div style="font-size:${isMulti ? '15' : '18'}px;font-weight:700;color:#1a1714;">${item.name}</div>
         ${item.subtitle ? `<div style="font-size:13px;color:#706b60;margin-top:2px;">${item.subtitle}</div>` : ''}
+        ${variantPills ? `<div style="margin-top:5px;">${variantPills}</div>` : ''}
         ${item.applecare && item.applecare !== 'none' ? `<div style="font-size:12px;color:#d97757;margin-top:3px;">+ ${item.applecare}</div>` : ''}
       </td>
       ${isMulti ? `<td style="padding:${i > 0 ? '14px' : '0'} 0 4px;text-align:right;vertical-align:top;font-size:13px;color:#706b60;white-space:nowrap;">
@@ -210,7 +215,7 @@ async function sendOrderConfirmation(order) {
     to:      `${order.customer_name} <${order.customer_email}>`,
     subject: `Order Confirmed – ${order.id} | Certo`,
     html,
-    text: `Hi ${order.customer_name},\n\nYour Certo order ${order.id} has been confirmed.\n\n${Array.isArray(order.items) && order.items.length > 0 ? 'Items:\n' + order.items.map(it => `- ${it.qty && it.qty > 1 ? `${it.qty}× ` : ''}${it.name}${it.subtitle ? ' ' + it.subtitle : ''}${it.applecare && it.applecare !== 'none' ? ' + ' + it.applecare : ''} ($${(Number(it.usd_price) * (it.qty || 1)).toLocaleString()})`).join('\n') : `Product: ${order.product_name}`}\n\nTotal: ₦${Number(order.ngn_price).toLocaleString()}\n\nTrack your order: ${process.env.FRONTEND_URL}/track/${order.id}\n\nFor help: hello@certo.ng or WhatsApp: https://wa.me/${WA_NUM}\n\nThank you,\nCerto`,
+    text: `Hi ${order.customer_name},\n\nYour Certo order ${order.id} has been confirmed.\n\n${Array.isArray(order.items) && order.items.length > 0 ? 'Items:\n' + order.items.map(it => `- ${it.qty && it.qty > 1 ? `${it.qty}× ` : ''}${it.name}${it.subtitle ? ' ' + it.subtitle : ''}${it.variant_color ? ` | ${it.variant_color}` : ''}${it.variant_storage ? ` | ${it.variant_storage}` : ''}${it.applecare && it.applecare !== 'none' ? ' + ' + it.applecare : ''} ($${(Number(it.usd_price) * (it.qty || 1)).toLocaleString()})`).join('\n') : `Product: ${order.product_name}`}\n\nTotal: ₦${Number(order.ngn_price).toLocaleString()}\n\nTrack your order: ${process.env.FRONTEND_URL}/track/${order.id}\n\nFor help: hello@certo.ng or WhatsApp: https://wa.me/${WA_NUM}\n\nThank you,\nCerto`,
   });
 
   return info;

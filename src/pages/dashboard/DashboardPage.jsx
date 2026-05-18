@@ -75,6 +75,10 @@ function normaliseOrder(o) {
     notes:           o.notes || '',
     payment_method:  o.payment_method || 'Flutterwave',
     items:           Array.isArray(o.items) ? o.items : [],
+    // Top-level variant fields (populated for single-item orders)
+    variant_color:     o.variant_color     || null,
+    variant_storage:   o.variant_storage   || null,
+    variant_color_hex: o.variant_color_hex || null,
     raw:      o,
   };
 }
@@ -704,9 +708,24 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
             {(!selectedOrder.items || selectedOrder.items.length === 0) && (
               <div style={{ marginBottom: 20, padding: '16px', background: 'var(--bg-alt)', borderRadius: 12, border: '1px solid var(--border)' }}>
                 <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>Product</div>
-                <div style={{ fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>
+                <div style={{ fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
                   {selectedOrder.product || '—'}
                 </div>
+                {(selectedOrder.variant_color || selectedOrder.variant_storage) && (
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
+                    {selectedOrder.variant_color && (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontFamily: 'var(--font-body)', color: 'var(--text)' }}>
+                        {selectedOrder.variant_color_hex && <span style={{ width: 9, height: 9, borderRadius: '50%', background: selectedOrder.variant_color_hex, display: 'inline-block', border: '1px solid rgba(0,0,0,0.15)', flexShrink: 0 }} />}
+                        {selectedOrder.variant_color}
+                      </span>
+                    )}
+                    {selectedOrder.variant_storage && (
+                      <span style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontFamily: 'var(--font-body)', color: 'var(--text)' }}>
+                        {selectedOrder.variant_storage}
+                      </span>
+                    )}
+                  </div>
+                )}
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   {selectedOrder.apple_url && (
                     <a href={selectedOrder.apple_url} target="_blank" rel="noreferrer"
@@ -749,6 +768,21 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
                             {item.name}
                           </div>
                           {item.subtitle && <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginTop: 1 }}>{item.subtitle}</div>}
+                          {(item.variant_color || item.variant_storage) && (
+                            <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 3, flexWrap: 'wrap' }}>
+                              {item.variant_color && (
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontFamily: 'var(--font-body)', color: 'var(--text)' }}>
+                                  {item.variant_color_hex && <span style={{ width: 9, height: 9, borderRadius: '50%', background: item.variant_color_hex, display: 'inline-block', border: '1px solid rgba(0,0,0,0.15)', flexShrink: 0 }} />}
+                                  {item.variant_color}
+                                </span>
+                              )}
+                              {item.variant_storage && (
+                                <span style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontFamily: 'var(--font-body)', color: 'var(--text)' }}>
+                                  {item.variant_storage}
+                                </span>
+                              )}
+                            </div>
+                          )}
                           {item.applecare && item.applecare !== 'none' && (
                             <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--accent)', marginTop: 2 }}>+ {item.applecare}</div>
                           )}
