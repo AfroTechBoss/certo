@@ -192,21 +192,23 @@ app.get('/api/moonpay-sign', (req, res) => {
   res.json({ signature });
 });
 
-// Image proxy — Apple CDN requires apple.com Referer; we proxy to avoid hotlink blocks
-// In-memory cache: avoids re-fetching from Apple on every request / server restart
+// Image proxy — proxies any https:// image URL; adds Apple Referer for Apple CDN URLs
+// In-memory cache: avoids re-fetching on every request / server restart
 const imgCache = new Map(); // normalizedUrl → { buf, ct, ts }
 const IMG_CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 app.get('/api/img', async (req, res) => {
   const { url } = req.query;
-  if (!url || !url.startsWith('https://store.storeimages.cdn-apple.com')) {
+  if (!url || !url.startsWith('https://')) {
     return res.status(400).end();
   }
 
-  // Downscale to 400×400 — cards only need ~300px; product page uses 600px but still fine
-  const fetchUrl = url
-    .replace(/wid=\d+/, 'wid=400')
-    .replace(/hei=\d+/, 'hei=400');
+  const isAppleCDN = url.startsWith('https://store.storeimages.cdn-apple.com');
+
+  // For Apple CDN images, downscale to 400×400
+  const fetchUrl = isAppleCDN
+    ? url.replace(/wid=\d+/, 'wid=400').replace(/hei=\d+/, 'hei=400')
+    : url;
 
   const cached = imgCache.get(fetchUrl);
   if (cached && Date.now() - cached.ts < IMG_CACHE_TTL) {
@@ -216,13 +218,14 @@ app.get('/api/img', async (req, res) => {
   }
 
   try {
-    const upstream = await fetch(fetchUrl, {
-      headers: {
-        'Referer':    'https://www.apple.com/',
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
-        'Accept':     'image/webp,image/apng,image/*,*/*;q=0.8',
-      },
-    });
+    const headers = {
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+      'Accept':     'image/webp,image/apng,image/*,*/*;q=0.8',
+    };
+    // Apple CDN blocks hotlinks without a Referer from apple.com
+    if (isAppleCDN) headers['Referer'] = 'https://www.apple.com/';
+
+    const upstream = await fetch(fetchUrl, { headers });
     if (!upstream.ok) return res.status(upstream.status).end();
     const ct  = upstream.headers.get('content-type') || 'image/jpeg';
     const buf = Buffer.from(await upstream.arrayBuffer());

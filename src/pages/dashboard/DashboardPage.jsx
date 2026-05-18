@@ -1032,11 +1032,19 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
   };
 
   const saveEdit = () => {
+    // Strip blank / stub image URLs before saving
+    const cleanUrls = (arr) => (arr || []).filter(u => u && u.trim() && u.trim() !== 'https://' && u.trim().startsWith('http'));
     const updated = {
       ...editDraft,
-      usdPrice: Number(editDraft.usdPrice),
-      ngnPrice: Number(editDraft.usdPrice) * forexRate,
-      stock:    Number(editDraft.stock),
+      usdPrice:  Number(editDraft.usdPrice),
+      ngnPrice:  Number(editDraft.usdPrice) * forexRate,
+      stock:     Number(editDraft.stock),
+      rawImages: cleanUrls(editDraft.rawImages),
+      // Also clean color images
+      variants: editDraft.variants ? {
+        ...editDraft.variants,
+        colors: (editDraft.variants.colors || []).map(c => ({ ...c, images: cleanUrls(c.images) })),
+      } : { colors: [], storages: [] },
     };
 
     // Optimistic UI update
