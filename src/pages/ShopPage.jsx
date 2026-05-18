@@ -30,6 +30,7 @@ const normaliseProduct = (p) => ({
   features: p.features || [],
   techSpecs: p.tech_specs || [],
   apple_url: p.apple_url,
+  variants: (p.variants || []),
 });
 
 const ConditionBadge = ({ condition }) => (
@@ -409,14 +410,24 @@ const ProductDetailPage = ({ productId, navigate, addToCart }) => {
   const [added, setAdded] = React.useState(false);
   const [openSections, setOpenSections] = React.useState(new Set());
   const [selectedImg, setSelectedImg] = React.useState(0);
+  const [selectedColor,   setSelectedColor]   = React.useState(null);
+  const [selectedStorage, setSelectedStorage] = React.useState(null);
 
   React.useEffect(() => {
-    setProduct(null); setLoadErr(false); setSelectedImg(0);
+    setProduct(null); setLoadErr(false); setSelectedImg(0); setSelectedColor(null); setSelectedStorage(null);
     fetch(`/api/products/${encodeURIComponent(productId)}`)
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
       .then(data => {
         const p = normaliseProduct(data);
         setProduct(p);
+        // Auto-select first variant
+        if (p.variants && p.variants.length > 0) {
+          setSelectedColor(p.variants[0].color);
+          setSelectedStorage(p.variants[0].storage);
+        } else {
+          setSelectedColor(null);
+          setSelectedStorage(null);
+        }
         // Fetch a few related products from the same category
         fetch(`/api/products?category=${encodeURIComponent(p.type)}&limit=6`)
           .then(r => r.json())
@@ -446,6 +457,22 @@ const ProductDetailPage = ({ productId, navigate, addToCart }) => {
 
   const realImages = (product.images || []).filter(img => img && (img.startsWith('http') || img.startsWith('/')));
 
+  const hasVariants = (product.variants || []).length > 0;
+  const uniqueColors = hasVariants
+    ? [...new Map(product.variants.map(v => [v.color, v])).values()]
+    : [];
+  const availableStorages = hasVariants && selectedColor
+    ? product.variants.filter(v => v.color === selectedColor)
+    : (hasVariants ? product.variants : []);
+  const activeVariant = hasVariants
+    ? (product.variants.find(v => v.color === selectedColor && v.storage === selectedStorage) || null)
+    : null;
+  const displayImages = (activeVariant?.images?.length
+    ? activeVariant.images.map(url => url ? `/api/img?url=${encodeURIComponent(url.replace(/[&?]\.v=[^&]*/, ''))}` : null).filter(Boolean)
+    : realImages);
+  const displayPrice = activeVariant ? activeVariant.price_usd : product.usdPrice;
+  const variantInStock = activeVariant ? activeVariant.in_stock : product.inStock;
+
   const toggleSection = (key) => setOpenSections(prev => {
     const next = new Set(prev);
     next.has(key) ? next.delete(key) : next.add(key);
@@ -456,10 +483,11 @@ const ProductDetailPage = ({ productId, navigate, addToCart }) => {
   const careUsd = selectedCare === 'none' ? 0
     : careBilling === 'monthly' ? (care.monthlyUsd || 0)
     : (care.annualUsd || 0);
-  const totalUsd = product.usdPrice + careUsd;
+  const totalUsd = displayPrice + careUsd;
 
   const handleAdd = () => {
-    addToCart({ product, applecare: care, billing: selectedCare === 'none' ? null : careBilling });
+    if (hasVariants && !activeVariant) return; // must select a variant
+    addToCart({ product, variant: activeVariant, applecare: care, billing: selectedCare === 'none' ? null : careBilling });
     setAdded(true);
     setTimeout(() => setAdded(false), 2500);
   };
@@ -499,12 +527,12 @@ const ProductDetailPage = ({ productId, navigate, addToCart }) => {
           <div style={{
             height: isMobile ? 260 : 440, background: 'var(--bg-alt)', borderRadius: 24,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            border: '1px solid var(--border)', marginBottom: realImages.length > 1 ? 12 : 20,
+            border: '1px solid var(--border)', marginBottom: displayImages.length > 1 ? 12 : 20,
             overflow: 'hidden',
           }}>
-            {realImages.length > 0 ? (
+            {displayImages.length > 0 ? (
               <img
-                src={realImages[selectedImg] || realImages[0]}
+                src={displayImages[selectedImg] || displayImages[0]}
                 alt={product.name}
                 loading="eager"
                 style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 20 }}
@@ -516,9 +544,9 @@ const ProductDetailPage = ({ productId, navigate, addToCart }) => {
           </div>
 
           {/* Thumbnail strip — only when multiple images */}
-          {realImages.length > 1 && (
+          {displayImages.length > 1 && (
             <div style={{ display: 'flex', gap: 10, marginBottom: 20, overflowX: 'auto', paddingBottom: 4 }}>
-              {realImages.map((url, i) => (
+              {displayImages.map((url, i) => (
                 <button key={i} onClick={() => setSelectedImg(i)} style={{
                   width: 72, height: 72, flexShrink: 0, borderRadius: 12,
                   border: `2px solid ${selectedImg === i ? 'var(--accent)' : 'var(--border)'}`,
@@ -562,17 +590,87 @@ const ProductDetailPage = ({ productId, navigate, addToCart }) => {
             <div>
               <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Certo price</div>
               <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: isMobile ? 30 : 38, color: 'var(--text)', letterSpacing: '-0.02em' }}>
-                {fmt(product.usdPrice)}
+                {fmt(displayPrice)}
               </div>
             </div>
             <div style={{ paddingBottom: 8 }}>
               <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginBottom: 2 }}>US retail</div>
-              <div style={{ fontFamily: 'var(--font-body)', fontSize: 16, color: 'var(--text-muted)', textDecoration: 'line-through' }}>${product.usdPrice.toLocaleString()}</div>
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 16, color: 'var(--text-muted)', textDecoration: 'line-through' }}>${displayPrice.toLocaleString()}</div>
             </div>
           </div>
           <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginBottom: 28 }}>
             Rate: ₦{CERTO_RATE.toLocaleString()}/USD · <button onClick={() => navigate('faq')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', fontSize: 12, padding: 0, fontFamily: 'var(--font-body)' }}>Forex clause explained →</button>
           </div>
+
+          {/* Variant selector */}
+          {hasVariants && (
+            <div style={{ marginBottom: 28 }}>
+              {/* Color swatches */}
+              <div style={{ marginBottom: 18 }}>
+                <div style={{ fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 14, color: 'var(--text)', marginBottom: 10 }}>
+                  Color: <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>{selectedColor || '—'}</span>
+                </div>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  {uniqueColors.map(v => (
+                    <button
+                      key={v.color}
+                      title={v.color}
+                      onClick={() => {
+                        setSelectedColor(v.color);
+                        // Auto-pick first available storage for this color
+                        const firstStorage = product.variants.find(x => x.color === v.color);
+                        if (firstStorage) setSelectedStorage(firstStorage.storage);
+                        setSelectedImg(0);
+                      }}
+                      style={{
+                        width: 34, height: 34, borderRadius: '50%', cursor: 'pointer', flexShrink: 0,
+                        background: v.color_hex || '#888',
+                        border: selectedColor === v.color ? '3px solid var(--accent)' : '3px solid transparent',
+                        outline: selectedColor === v.color ? '2px solid var(--accent)' : '2px solid var(--border)',
+                        transition: 'all 0.15s',
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Storage size pills */}
+              <div>
+                <div style={{ fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 14, color: 'var(--text)', marginBottom: 10 }}>Storage</div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {availableStorages.map(v => (
+                    <button
+                      key={v.storage}
+                      onClick={() => { setSelectedStorage(v.storage); setSelectedImg(0); }}
+                      style={{
+                        padding: '8px 16px', borderRadius: 10, cursor: 'pointer',
+                        border: `2px solid ${selectedStorage === v.storage ? 'var(--accent)' : 'var(--border)'}`,
+                        background: selectedStorage === v.storage ? 'var(--accent-tint)' : 'var(--bg)',
+                        fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: selectedStorage === v.storage ? 700 : 400,
+                        color: selectedStorage === v.storage ? 'var(--accent)' : 'var(--text)',
+                        transition: 'all 0.15s',
+                        opacity: v.in_stock ? 1 : 0.45,
+                      }}
+                    >
+                      {v.storage}
+                      {!v.in_stock && <span style={{ fontSize: 11, marginLeft: 6, color: 'var(--text-muted)' }}>· Out</span>}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {activeVariant && !activeVariant.in_stock && (
+                <p style={{ marginTop: 10, fontFamily: 'var(--font-body)', fontSize: 13, color: 'oklch(50% 0.18 25)' }}>
+                  This variant is currently out of stock.
+                </p>
+              )}
+              {hasVariants && !activeVariant && (
+                <p style={{ marginTop: 10, fontFamily: 'var(--font-body)', fontSize: 13, color: 'oklch(50% 0.18 25)' }}>
+                  Please select a color and storage size.
+                </p>
+              )}
+            </div>
+          )}
 
           {/* AppleCare */}
           <div style={{ marginBottom: 28 }}>
@@ -684,7 +782,7 @@ const ProductDetailPage = ({ productId, navigate, addToCart }) => {
           <div style={{ padding: '20px 0', borderTop: '1px solid var(--border)', marginBottom: 20 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
               <span style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)' }}>Device</span>
-              <span style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text)' }}>{fmt(product.usdPrice)}</span>
+              <span style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text)' }}>{fmt(displayPrice)}</span>
             </div>
             {careUsd > 0 && (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
@@ -700,19 +798,21 @@ const ProductDetailPage = ({ productId, navigate, addToCart }) => {
 
           <button
             onClick={handleAdd}
-            disabled={!product.inStock}
+            disabled={!product.inStock && !(hasVariants && activeVariant?.in_stock)}
             style={{
               width: '100%', padding: '18px 0', borderRadius: 14, border: 'none',
-              background: added ? 'oklch(50% 0.18 145)' : product.inStock ? 'var(--accent)' : 'var(--border)',
-              color: product.inStock ? 'white' : 'var(--text-muted)',
-              cursor: product.inStock ? 'pointer' : 'not-allowed',
+              background: added ? 'oklch(50% 0.18 145)' : (hasVariants ? variantInStock : product.inStock) ? 'var(--accent)' : 'var(--border)',
+              color: (hasVariants ? variantInStock : product.inStock) ? 'white' : 'var(--text-muted)',
+              cursor: (hasVariants ? variantInStock : product.inStock) ? 'pointer' : 'not-allowed',
               fontFamily: 'var(--font-body)', fontSize: 17, fontWeight: 700,
               transition: 'all 0.2s',
             }}
           >
-            {!product.inStock
-              ? (product.listingStatus === 'coming_soon' ? 'Coming Soon' : 'Out of Stock')
-              : added ? '✓ Added to Order' : 'Add to Order →'}
+            {hasVariants && !activeVariant
+              ? 'Select Options'
+              : !(hasVariants ? variantInStock : product.inStock)
+                ? (product.listingStatus === 'coming_soon' ? 'Coming Soon' : 'Out of Stock')
+                : added ? '✓ Added to Order' : 'Add to Order →'}
           </button>
         </div>
       </div>

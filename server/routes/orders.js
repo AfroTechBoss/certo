@@ -26,6 +26,7 @@ router.post('/', async (req, res) => {
     payment_method,
     items,
     coupon_code, coupon_discount,
+    variant_id, variant_color, variant_storage, variant_color_hex,
   } = req.body;
 
   if (!customer_name || !customer_email || !customer_phone || !address || !product_name || !usd_price) {
@@ -44,13 +45,15 @@ router.post('/', async (req, res) => {
         address, state,
         product_id, product_name, product_subtitle, product_image_url, apple_url,
         applecare, qty, usd_price, ngn_price, forex_rate, status, payment_method, items,
-        coupon_code, coupon_discount
+        coupon_code, coupon_discount,
+        variant_id, variant_color, variant_storage, variant_color_hex
       ) VALUES (
         $1,$2,$3,$4,
         $5,$6,
         $7,$8,$9,$10,$11,
         $12,$13,$14,$15,$16,$17,$18,$19,
-        $20,$21
+        $20,$21,
+        $22,$23,$24,$25
       ) RETURNING *
     `, [
       id, customer_name, customer_email, customer_phone,
@@ -60,6 +63,7 @@ router.post('/', async (req, res) => {
       payment_method || 'Flutterwave',
       JSON.stringify(Array.isArray(items) ? items : []),
       coupon_code || null, coupon_discount || 0,
+      variant_id || null, variant_color || null, variant_storage || null, variant_color_hex || null,
     ]);
 
     const order = rows[0];

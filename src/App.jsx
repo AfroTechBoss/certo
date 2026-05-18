@@ -218,11 +218,11 @@ const App = () => {
 
   const addToCart = (item) => {
     setCart(prev => {
-      const key = `${item.product.id}_${item.applecare?.id || 'none'}`;
-      const exists = prev.find(i => `${i.product.id}_${i.applecare?.id || 'none'}` === key);
+      const key = `${item.product.id}_${item.variant?.id || 'none'}_${item.applecare?.id || 'none'}`;
+      const exists = prev.find(i => `${i.product.id}_${i.variant?.id || 'none'}_${i.applecare?.id || 'none'}` === key);
       if (exists) {
         return prev.map(i =>
-          `${i.product.id}_${i.applecare?.id || 'none'}` === key
+          `${i.product.id}_${i.variant?.id || 'none'}_${i.applecare?.id || 'none'}` === key
             ? { ...i, qty: (i.qty || 1) + 1 }
             : i
         );
@@ -231,11 +231,11 @@ const App = () => {
     });
   };
 
-  const updateCartItemQty = (productId, applecareid, delta) => {
+  const updateCartItemQty = (productId, variantId, applecareid, delta) => {
     setCart(prev =>
       prev
         .map(i =>
-          i.product.id === productId && (i.applecare?.id || 'none') === applecareid
+          i.product.id === productId && (i.variant?.id || 'none') === variantId && (i.applecare?.id || 'none') === applecareid
             ? { ...i, qty: (i.qty || 1) + delta }
             : i
         )

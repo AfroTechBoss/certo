@@ -8,7 +8,7 @@ const logAdminAction = require('../logAdminAction');
 router.get('/', async (req, res) => {
   try {
     const { category, condition, in_stock, featured, limit, page, search, sort } = req.query;
-    const CARD_COLS = 'id,name,subtitle,category,listing_type,apple_url,image_urls,usd_price,in_stock,featured,badge,delivery_days,condition,condition_note,stock_count,listing_status,created_at,updated_at';
+    const CARD_COLS = 'id,name,subtitle,category,listing_type,apple_url,image_urls,usd_price,in_stock,featured,badge,delivery_days,condition,condition_note,stock_count,listing_status,created_at,updated_at,variants';
     const isAdmin = req.query.admin === 'true';
     let where = isAdmin ? 'WHERE 1=1' : "WHERE listing_status != 'hidden'";
     const params = [];
@@ -73,7 +73,7 @@ router.patch('/:id', adminAuth, async (req, res) => {
       'name','subtitle','usd_price','in_stock','featured','badge',
       'delivery_days','condition','condition_note','stock_count',
       'overview','specs','includes','features','tech_specs','description',
-      'listing_status','weight_kg',
+      'listing_status','weight_kg','variants',
     ];
     const fields = Object.keys(req.body).filter(k => allowed.includes(k));
     if (!fields.length) return res.status(400).json({ error: 'Nothing to update' });
@@ -101,6 +101,7 @@ router.patch('/:id', adminAuth, async (req, res) => {
       if (f === 'badge')          return `Badge → "${val}"`;
       if (f === 'delivery_days')  return `Delivery days → "${val}"`;
       if (f === 'weight_kg')      return `Weight → ${val} kg`;
+      if (f === 'variants')       return 'Variants updated';
       return f;
     }).join(' | ');
 

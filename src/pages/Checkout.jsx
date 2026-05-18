@@ -200,6 +200,7 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
             const unitPrice = item.product.usdPrice + (item.applecare?.annualUsd || 0);
             const lineTotal = unitPrice * qty;
             const pid = item.product.id;
+            const vid = item.variant?.id || 'none';
             const acid = item.applecare?.id || 'none';
             return (
               <div key={i} style={{ padding: '20px 0', borderBottom: '1px solid var(--border)', display: 'flex', gap: 16, alignItems: 'center' }}>
@@ -221,6 +222,14 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
                 {/* Name + coverage + qty stepper */}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 16, color: 'var(--text)', marginBottom: 2 }}>{item.product.name}</div>
+                  {item.variant && (
+                    <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', display: 'flex', gap: 6, alignItems: 'center', marginTop: 2 }}>
+                      {item.variant.color_hex && (
+                        <span style={{ width: 10, height: 10, borderRadius: '50%', background: item.variant.color_hex, display: 'inline-block', border: '1px solid var(--border)' }} />
+                      )}
+                      <span>{item.variant.color}{item.variant.storage ? ` · ${item.variant.storage}` : ''}</span>
+                    </div>
+                  )}
                   <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)', marginBottom: 6 }}>{item.product.subtitle}</div>
                   <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: item.applecare?.id !== 'none' ? 'var(--accent)' : 'var(--text-muted)', marginBottom: 10 }}>
                     Coverage: {item.applecare?.name || 'None'}
@@ -228,12 +237,12 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
                   {/* Qty stepper */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 0, width: 'fit-content', border: '1.5px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
                     <button
-                      onClick={() => updateCartItemQty && updateCartItemQty(pid, acid, -1)}
+                      onClick={() => updateCartItemQty && updateCartItemQty(pid, vid, acid, -1)}
                       style={{ width: 32, height: 32, background: 'var(--bg-alt)', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 400, lineHeight: 1 }}
                     >−</button>
                     <span style={{ minWidth: 32, textAlign: 'center', fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 700, color: 'var(--text)', padding: '0 4px', lineHeight: '32px' }}>{qty}</span>
                     <button
-                      onClick={() => updateCartItemQty && updateCartItemQty(pid, acid, +1)}
+                      onClick={() => updateCartItemQty && updateCartItemQty(pid, vid, acid, +1)}
                       style={{ width: 32, height: 32, background: 'var(--bg-alt)', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 400, lineHeight: 1 }}
                     >+</button>
                   </div>
@@ -416,6 +425,10 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
           product_image_url: (firstItem?.product?.image_urls || firstItem?.product?.images || [])[0] || '',
           apple_url:         firstItem?.product?.apple_url || '',
           applecare:         firstItem?.applecare?.name || 'none',
+          variant_id:        firstItem?.variant?.id      || null,
+          variant_color:     firstItem?.variant?.color   || null,
+          variant_storage:   firstItem?.variant?.storage || null,
+          variant_color_hex: firstItem?.variant?.color_hex || null,
           qty:               cartItems.reduce((sum, item) => sum + (item.qty || 1), 0),
           usd_price:         totalUsd,
           ngn_price:         totalNgn,
@@ -427,14 +440,18 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
           coupon_discount: couponDiscount || 0,
           // All cart items stored so the full order is visible in the admin
           items: cartItems.map(item => ({
-            product_id: item.product.id || '',
-            name:       item.product.name || '',
-            subtitle:   item.product.subtitle || '',
-            usd_price:  item.product.usdPrice || 0,
-            image_url:  (item.product.image_urls || item.product.images || [])[0] || '',
-            apple_url:  item.product.apple_url || '',
-            applecare:  item.applecare?.name || 'none',
-            qty:        item.qty || 1,
+            product_id:    item.product.id || '',
+            name:          item.product.name || '',
+            subtitle:      item.product.subtitle || '',
+            usd_price:     item.product.usdPrice || 0,
+            image_url:     (item.product.image_urls || item.product.images || [])[0] || '',
+            apple_url:     item.product.apple_url || '',
+            applecare:     item.applecare?.name || 'none',
+            qty:           item.qty || 1,
+            variant_id:    item.variant?.id      || null,
+            variant_color: item.variant?.color   || null,
+            variant_storage: item.variant?.storage || null,
+            variant_color_hex: item.variant?.color_hex || null,
           })),
         }),
       });

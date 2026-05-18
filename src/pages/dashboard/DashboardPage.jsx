@@ -49,6 +49,7 @@ function normaliseDashProduct(p) {
     features:      p.features || [],
     techSpecs:     p.tech_specs || [],
     apple_url:     p.apple_url,
+    variants:      (p.variants || []),
   };
 }
 
@@ -148,6 +149,95 @@ const ConditionBadge = ({ condition }) => {
 };
 
 const WHATSAPP_NUMBER = '2348057575906';
+
+// ── VariantsEditor — standalone so identity is stable across renders ──────────
+const BLANK_VARIANT = () => ({ id: 'v_' + Math.random().toString(36).slice(2, 9), storage: '', color: '', color_hex: '#888888', price_usd: 0, images: [], in_stock: true });
+
+const VariantsEditor = ({ editDraft, setEditDraft, fld, lbl, focus, blur }) => {
+  const variants = editDraft.variants || [];
+  const [newV, setNewV] = React.useState(BLANK_VARIANT());
+
+  const setVariant = (i, key, val) =>
+    setEditDraft(d => ({ ...d, variants: d.variants.map((v, j) => j === i ? { ...v, [key]: val } : v) }));
+
+  const removeVariant = (i) =>
+    setEditDraft(d => ({ ...d, variants: d.variants.filter((_, j) => j !== i) }));
+
+  const addVariant = () => {
+    if (!newV.color.trim() || !newV.storage.trim()) return;
+    setEditDraft(d => ({ ...d, variants: [...(d.variants || []), { ...newV, id: 'v_' + Math.random().toString(36).slice(2, 9) }] }));
+    setNewV(BLANK_VARIANT());
+  };
+
+  return (
+    <div>
+      <p style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginBottom: 16, lineHeight: 1.6 }}>
+        Add variants (e.g. 256GB Desert Titanium) with individual prices, images, and stock status. Leave this empty for products with no variants.
+      </p>
+
+      {/* Existing variants */}
+      {variants.map((v, i) => (
+        <div key={v.id || i} style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 16, marginBottom: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <span style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, color: 'var(--text-muted)' }}>
+              Variant {i + 1}: {v.color} {v.storage}
+            </span>
+            <button onClick={() => removeVariant(i)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'oklch(50% 0.18 25)', fontSize: 13, fontFamily: 'var(--font-body)' }}>Remove</button>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+            <div><label style={lbl}>Color name</label><input value={v.color} onChange={e => setVariant(i, 'color', e.target.value)} onFocus={focus} onBlur={blur} style={fld} /></div>
+            <div><label style={lbl}>Storage</label><input value={v.storage} onChange={e => setVariant(i, 'storage', e.target.value)} onFocus={focus} onBlur={blur} style={fld} /></div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 80px', gap: 10, marginBottom: 10 }}>
+            <div><label style={lbl}>Price (USD)</label><input type="number" value={v.price_usd} onChange={e => setVariant(i, 'price_usd', Number(e.target.value))} onFocus={focus} onBlur={blur} style={fld} /></div>
+            <div><label style={lbl}>Color hex</label><input value={v.color_hex || ''} onChange={e => setVariant(i, 'color_hex', e.target.value)} onFocus={focus} onBlur={blur} style={fld} placeholder="#C4A882" /></div>
+            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', paddingBottom: 2 }}>
+              {v.color_hex && <div style={{ width: 32, height: 32, borderRadius: '50%', background: v.color_hex, border: '2px solid var(--border)', marginBottom: 4 }} />}
+            </div>
+          </div>
+          <div style={{ marginBottom: 10 }}>
+            <label style={lbl}>Images (one URL per line)</label>
+            <textarea value={(v.images || []).join('\n')} onChange={e => setVariant(i, 'images', e.target.value.split('\n').map(s => s.trim()).filter(Boolean))}
+              onFocus={focus} onBlur={blur} rows={3} style={{ ...fld, resize: 'vertical', lineHeight: 1.5 }} />
+          </div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text)' }}>
+            <input type="checkbox" checked={!!v.in_stock} onChange={e => setVariant(i, 'in_stock', e.target.checked)} style={{ width: 16, height: 16, accentColor: 'var(--accent)' }} />
+            In stock
+          </label>
+        </div>
+      ))}
+
+      {/* Add new variant form */}
+      <div style={{ border: '1.5px dashed var(--border)', borderRadius: 12, padding: 16, marginTop: 8 }}>
+        <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Add new variant</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+          <div><label style={lbl}>Color name</label><input value={newV.color} onChange={e => setNewV(v => ({ ...v, color: e.target.value }))} onFocus={focus} onBlur={blur} style={fld} placeholder="Desert Titanium" /></div>
+          <div><label style={lbl}>Storage</label><input value={newV.storage} onChange={e => setNewV(v => ({ ...v, storage: e.target.value }))} onFocus={focus} onBlur={blur} style={fld} placeholder="256GB" /></div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+          <div><label style={lbl}>Price (USD)</label><input type="number" value={newV.price_usd} onChange={e => setNewV(v => ({ ...v, price_usd: Number(e.target.value) }))} onFocus={focus} onBlur={blur} style={fld} /></div>
+          <div><label style={lbl}>Color hex</label><input value={newV.color_hex} onChange={e => setNewV(v => ({ ...v, color_hex: e.target.value }))} onFocus={focus} onBlur={blur} style={fld} placeholder="#C4A882" /></div>
+        </div>
+        <div style={{ marginBottom: 10 }}>
+          <label style={lbl}>Images (one URL per line)</label>
+          <textarea value={(newV.images || []).join('\n')} onChange={e => setNewV(v => ({ ...v, images: e.target.value.split('\n').map(s => s.trim()).filter(Boolean) }))}
+            onFocus={focus} onBlur={blur} rows={2} style={{ ...fld, resize: 'vertical', lineHeight: 1.5 }} placeholder="https://store.storeimages.cdn-apple.com/..." />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text)' }}>
+            <input type="checkbox" checked={!!newV.in_stock} onChange={e => setNewV(v => ({ ...v, in_stock: e.target.checked }))} style={{ width: 16, height: 16, accentColor: 'var(--accent)' }} />
+            In stock
+          </label>
+          <button onClick={addVariant} disabled={!newV.color.trim() || !newV.storage.trim()}
+            style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: (newV.color.trim() && newV.storage.trim()) ? 'var(--accent)' : 'var(--border)', color: 'white', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 700, cursor: (newV.color.trim() && newV.storage.trim()) ? 'pointer' : 'not-allowed' }}>
+            + Add Variant
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
   const { isMobile } = useResponsive();
@@ -878,7 +968,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
       usdPrice: 0, images: [], badge: '', deliveryDays: '10–18 business days',
       listingStatus: 'live', inStock: true, featured: false,
       overview: [], specs: [], includes: [], features: [], techSpecs: [],
-      stock: 0, ngnPrice: 0,
+      stock: 0, ngnPrice: 0, variants: [],
     };
     setEditDraft(blank);
     setEditSection('basic');
@@ -912,6 +1002,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
           overview: updated.overview, specs: updated.specs,
           includes: updated.includes, features: updated.features,
           tech_specs: updated.techSpecs,
+          variants: updated.variants || [],
         }),
       }).catch(err => console.error('Failed to save product:', err));
     } else {
@@ -945,6 +1036,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
       { key: 'basic',     label: 'Basic Info'     },
       { key: 'condition', label: 'Condition'       },
       { key: 'images',    label: 'Images'          },
+      { key: 'variants',  label: 'Variants'        },
       { key: 'overview',  label: 'Overview'        },
       { key: 'specs',     label: 'Quick Specs'     },
       { key: 'inbox',     label: "What's in the Box" },
@@ -1045,6 +1137,10 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
               + Add feature
             </button>
           </div>
+        );
+
+        case 'variants': return (
+          <VariantsEditor editDraft={editDraft} setEditDraft={setEditDraft} fld={fld} lbl={lbl} focus={focus} blur={blur} />
         );
 
         case 'techspecs': return (

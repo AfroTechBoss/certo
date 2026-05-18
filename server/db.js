@@ -40,4 +40,14 @@ async function query(sql, params) {
 }
 
 pool.queryR = query;
+
+// Auto-migrate: add variants column if it doesn't exist
+pool.queryR(`ALTER TABLE products ADD COLUMN IF NOT EXISTS variants JSONB DEFAULT '[]'`).catch(() => {});
+
+// Auto-migrate: add variant columns to orders if they don't exist
+pool.queryR(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS variant_id TEXT`).catch(() => {});
+pool.queryR(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS variant_color TEXT`).catch(() => {});
+pool.queryR(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS variant_storage TEXT`).catch(() => {});
+pool.queryR(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS variant_color_hex TEXT`).catch(() => {});
+
 module.exports = pool;
