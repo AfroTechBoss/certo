@@ -37,6 +37,7 @@ function normaliseDashProduct(p) {
     usdPrice,
     ngnPrice:      Math.round(usdPrice * rate),
     images:        (p.image_urls || []).map(u => u ? `/api/img?url=${encodeURIComponent(u.replace(/[&?]\.v=[^&]*/, ''))}` : null).filter(Boolean),
+    rawImages:     (p.image_urls || []),  // un-proxied originals — used for editing and saving
     badge:         p.badge || '',
     deliveryDays:  p.delivery_days || '10–18 business days',
     listingStatus,
@@ -1020,7 +1021,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
       id: 'product-' + Date.now(),
       name: 'New Product', subtitle: '', type: 'iPhone',
       condition: 'new', conditionNote: '',
-      usdPrice: 0, images: [], badge: '', deliveryDays: '10–18 business days',
+      usdPrice: 0, images: [], rawImages: [], badge: '', deliveryDays: '10–18 business days',
       listingStatus: 'live', inStock: true, featured: false,
       overview: [], specs: [], includes: [], features: [], techSpecs: [],
       stock: 0, ngnPrice: 0, variants: { colors: [], storages: [] },
@@ -1057,7 +1058,8 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
           overview: updated.overview, specs: updated.specs,
           includes: updated.includes, features: updated.features,
           tech_specs: updated.techSpecs,
-          variants: updated.variants || [],
+          image_urls: updated.rawImages || [],
+          variants: updated.variants || { colors: [], storages: [] },
         }),
       }).catch(err => console.error('Failed to save product:', err));
     } else {
@@ -1078,8 +1080,8 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
           overview: updated.overview, specs: updated.specs,
           includes: updated.includes, features: updated.features,
           tech_specs: updated.techSpecs,
-          image_urls: updated.images || [],
-          variants: updated.variants || [],
+          image_urls: updated.rawImages || [],
+          variants: updated.variants || { colors: [], storages: [] },
         }),
       })
       .then(r => r.json())
@@ -1177,10 +1179,10 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
 
         case 'images': return (
           <div>
-            <ListEditor label="Image URLs (one per line)" listKey="images" blank="https://" editDraft={editDraft} setListItem={setListItem} addListItem={addListItem} removeListItem={removeListItem} />
-            {(editDraft.images || []).filter(url => url.startsWith('http') || url.startsWith('/')).slice(0, 1).map((url, i) => (
+            <ListEditor label="Image URLs (one per line)" listKey="rawImages" blank="https://" editDraft={editDraft} setListItem={setListItem} addListItem={addListItem} removeListItem={removeListItem} />
+            {(editDraft.rawImages || []).filter(url => url && url.startsWith('http')).slice(0, 1).map((url, i) => (
               <div key={i} style={{ marginTop: 16, borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)', background: 'var(--bg-alt)', display: 'flex', alignItems: 'center', justifyContent: 'center', height: 180 }}>
-                <img src={url} alt="Preview" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} onError={e => { e.target.style.display = 'none'; }} />
+                <img src={`/api/img?url=${encodeURIComponent(url.replace(/[&?]\.v=[^&]*/, ''))}`} alt="Preview" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} onError={e => { e.target.style.display = 'none'; }} />
               </div>
             ))}
             <p style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginTop: 10, lineHeight: 1.6 }}>

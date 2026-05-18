@@ -115,7 +115,7 @@ router.patch('/:id', adminAuth, async (req, res) => {
       'name','subtitle','usd_price','in_stock','featured','badge',
       'delivery_days','condition','condition_note','stock_count',
       'overview','specs','includes','features','tech_specs','description',
-      'listing_status','weight_kg','variants',
+      'listing_status','weight_kg','variants','image_urls','apple_url',
     ];
     const fields = Object.keys(req.body).filter(k => allowed.includes(k));
     if (!fields.length) return res.status(400).json({ error: 'Nothing to update' });
