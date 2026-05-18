@@ -30,7 +30,11 @@ const normaliseProduct = (p) => ({
   features: p.features || [],
   techSpecs: p.tech_specs || [],
   apple_url: p.apple_url,
-  variants: (p.variants || []),
+  variants: (() => {
+    const v = p.variants;
+    if (!v || Array.isArray(v)) return { colors: [], storages: [] };
+    return { colors: v.colors || [], storages: v.storages || [] };
+  })(),
 });
 
 const ConditionBadge = ({ condition }) => (
@@ -420,14 +424,9 @@ const ProductDetailPage = ({ productId, navigate, addToCart }) => {
       .then(data => {
         const p = normaliseProduct(data);
         setProduct(p);
-        // Auto-select first variant
-        if (p.variants && p.variants.length > 0) {
-          setSelectedColor(p.variants[0].color);
-          setSelectedStorage(p.variants[0].storage);
-        } else {
-          setSelectedColor(null);
-          setSelectedStorage(null);
-        }
+        // Auto-select first color and first storage independently
+        setSelectedColor(p.variants?.colors?.[0]?.id || null);
+        setSelectedStorage(p.variants?.storages?.[0]?.id || null);
         // Fetch a few related products from the same category
         fetch(`/api/products?category=${encodeURIComponent(p.type)}&limit=6`)
           .then(r => r.json())
@@ -457,21 +456,16 @@ const ProductDetailPage = ({ productId, navigate, addToCart }) => {
 
   const realImages = (product.images || []).filter(img => img && (img.startsWith('http') || img.startsWith('/')));
 
-  const hasVariants = (product.variants || []).length > 0;
-  const uniqueColors = hasVariants
-    ? [...new Map(product.variants.map(v => [v.color, v])).values()]
-    : [];
-  const availableStorages = hasVariants && selectedColor
-    ? product.variants.filter(v => v.color === selectedColor)
-    : (hasVariants ? product.variants : []);
-  const activeVariant = hasVariants
-    ? (product.variants.find(v => v.color === selectedColor && v.storage === selectedStorage) || null)
-    : null;
-  const displayImages = (activeVariant?.images?.length
-    ? activeVariant.images.map(url => url ? `/api/img?url=${encodeURIComponent(url.replace(/[&?]\.v=[^&]*/, ''))}` : null).filter(Boolean)
+  const hasColors   = (product.variants?.colors   || []).length > 0;
+  const hasStorages = (product.variants?.storages || []).length > 0;
+  const hasVariants = hasColors || hasStorages;
+  const activeColor   = hasColors   ? (product.variants.colors.find(c => c.id === selectedColor)    || null) : null;
+  const activeStorage = hasStorages ? (product.variants.storages.find(s => s.id === selectedStorage) || null) : null;
+  const displayImages = (activeColor?.images?.length
+    ? activeColor.images.map(url => url ? `/api/img?url=${encodeURIComponent(url.replace(/[&?]\.v=[^&]*/, ''))}` : null).filter(Boolean)
     : realImages);
-  const displayPrice = activeVariant ? activeVariant.price_usd : product.usdPrice;
-  const variantInStock = activeVariant ? activeVariant.in_stock : product.inStock;
+  const displayPrice  = activeStorage ? activeStorage.price_usd : product.usdPrice;
+  const variantInStock = activeStorage ? (activeStorage.in_stock !== false) : product.inStock;
 
   const toggleSection = (key) => setOpenSections(prev => {
     const next = new Set(prev);
@@ -486,8 +480,18 @@ const ProductDetailPage = ({ productId, navigate, addToCart }) => {
   const totalUsd = displayPrice + careUsd;
 
   const handleAdd = () => {
-    if (hasVariants && !activeVariant) return; // must select a variant
-    addToCart({ product, variant: activeVariant, applecare: care, billing: selectedCare === 'none' ? null : careBilling });
+    if (hasColors && !activeColor) return;
+    if (hasStorages && !activeStorage) return;
+    const variant = hasVariants ? {
+      id:        `${activeColor?.id || 'nc'}_${activeStorage?.id || 'ns'}`,
+      colorId:   activeColor?.id   || null,
+      storageId: activeStorage?.id || null,
+      color:     activeColor?.name || null,
+      color_hex: activeColor?.hex  || null,
+      storage:   activeStorage?.size      || null,
+      price_usd: activeStorage?.price_usd || null,
+    } : null;
+    addToCart({ product, variant, applecare: care, billing: selectedCare === 'none' ? null : careBilling });
     setAdded(true);
     setTimeout(() => setAdded(false), 2500);
   };
@@ -602,71 +606,71 @@ const ProductDetailPage = ({ productId, navigate, addToCart }) => {
             Rate: ₦{CERTO_RATE.toLocaleString()}/USD · <button onClick={() => navigate('faq')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', fontSize: 12, padding: 0, fontFamily: 'var(--font-body)' }}>Forex clause explained →</button>
           </div>
 
-          {/* Variant selector */}
+          {/* Variant selector — color and storage are independent */}
           {hasVariants && (
             <div style={{ marginBottom: 28 }}>
+
               {/* Color swatches */}
-              <div style={{ marginBottom: 18 }}>
-                <div style={{ fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 14, color: 'var(--text)', marginBottom: 10 }}>
-                  Color: <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>{selectedColor || '—'}</span>
+              {hasColors && (
+                <div style={{ marginBottom: 20 }}>
+                  <div style={{ fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 14, color: 'var(--text)', marginBottom: 10 }}>
+                    Color: <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>{activeColor?.name || '—'}</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                    {product.variants.colors.map(c => (
+                      <button
+                        key={c.id}
+                        title={c.name}
+                        onClick={() => { setSelectedColor(c.id); setSelectedImg(0); }}
+                        style={{
+                          width: 36, height: 36, borderRadius: '50%', cursor: 'pointer', flexShrink: 0,
+                          background: c.hex || '#888',
+                          border: selectedColor === c.id ? '3px solid var(--accent)' : '3px solid transparent',
+                          outline: selectedColor === c.id ? '2px solid var(--accent)' : '2px solid var(--border)',
+                          transition: 'all 0.15s',
+                        }}
+                      />
+                    ))}
+                  </div>
                 </div>
-                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                  {uniqueColors.map(v => (
-                    <button
-                      key={v.color}
-                      title={v.color}
-                      onClick={() => {
-                        setSelectedColor(v.color);
-                        // Auto-pick first available storage for this color
-                        const firstStorage = product.variants.find(x => x.color === v.color);
-                        if (firstStorage) setSelectedStorage(firstStorage.storage);
-                        setSelectedImg(0);
-                      }}
-                      style={{
-                        width: 34, height: 34, borderRadius: '50%', cursor: 'pointer', flexShrink: 0,
-                        background: v.color_hex || '#888',
-                        border: selectedColor === v.color ? '3px solid var(--accent)' : '3px solid transparent',
-                        outline: selectedColor === v.color ? '2px solid var(--accent)' : '2px solid var(--border)',
-                        transition: 'all 0.15s',
-                      }}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              {/* Storage size pills */}
-              <div>
-                <div style={{ fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 14, color: 'var(--text)', marginBottom: 10 }}>Storage</div>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {availableStorages.map(v => (
-                    <button
-                      key={v.storage}
-                      onClick={() => { setSelectedStorage(v.storage); setSelectedImg(0); }}
-                      style={{
-                        padding: '8px 16px', borderRadius: 10, cursor: 'pointer',
-                        border: `2px solid ${selectedStorage === v.storage ? 'var(--accent)' : 'var(--border)'}`,
-                        background: selectedStorage === v.storage ? 'var(--accent-tint)' : 'var(--bg)',
-                        fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: selectedStorage === v.storage ? 700 : 400,
-                        color: selectedStorage === v.storage ? 'var(--accent)' : 'var(--text)',
-                        transition: 'all 0.15s',
-                        opacity: v.in_stock ? 1 : 0.45,
-                      }}
-                    >
-                      {v.storage}
-                      {!v.in_stock && <span style={{ fontSize: 11, marginLeft: 6, color: 'var(--text-muted)' }}>· Out</span>}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {activeVariant && !activeVariant.in_stock && (
-                <p style={{ marginTop: 10, fontFamily: 'var(--font-body)', fontSize: 13, color: 'oklch(50% 0.18 25)' }}>
-                  This variant is currently out of stock.
-                </p>
               )}
-              {hasVariants && !activeVariant && (
+
+              {/* Storage size pills — each shows its own price */}
+              {hasStorages && (
+                <div>
+                  <div style={{ fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 14, color: 'var(--text)', marginBottom: 10 }}>Storage</div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {product.variants.storages.map(s => {
+                      const isSelected = selectedStorage === s.id;
+                      return (
+                        <button
+                          key={s.id}
+                          onClick={() => setSelectedStorage(s.id)}
+                          disabled={s.in_stock === false}
+                          style={{
+                            padding: '9px 16px', borderRadius: 10, cursor: s.in_stock !== false ? 'pointer' : 'not-allowed',
+                            border: `2px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}`,
+                            background: isSelected ? 'var(--accent-tint)' : 'var(--bg)',
+                            fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: isSelected ? 700 : 400,
+                            color: isSelected ? 'var(--accent)' : s.in_stock !== false ? 'var(--text)' : 'var(--text-muted)',
+                            opacity: s.in_stock !== false ? 1 : 0.5,
+                            transition: 'all 0.15s', textAlign: 'left',
+                          }}
+                        >
+                          <div>{s.size}</div>
+                          <div style={{ fontSize: 11, marginTop: 1, fontWeight: 400, color: isSelected ? 'var(--accent)' : 'var(--text-muted)' }}>
+                            {s.in_stock !== false ? `$${Number(s.price_usd).toLocaleString()}` : 'Out of stock'}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {activeStorage && activeStorage.in_stock === false && (
                 <p style={{ marginTop: 10, fontFamily: 'var(--font-body)', fontSize: 13, color: 'oklch(50% 0.18 25)' }}>
-                  Please select a color and storage size.
+                  This storage option is currently out of stock.
                 </p>
               )}
             </div>
@@ -798,19 +802,19 @@ const ProductDetailPage = ({ productId, navigate, addToCart }) => {
 
           <button
             onClick={handleAdd}
-            disabled={!product.inStock && !(hasVariants && activeVariant?.in_stock)}
+            disabled={(hasColors && !activeColor) || (hasStorages && !activeStorage) || !variantInStock}
             style={{
               width: '100%', padding: '18px 0', borderRadius: 14, border: 'none',
-              background: added ? 'oklch(50% 0.18 145)' : (hasVariants ? variantInStock : product.inStock) ? 'var(--accent)' : 'var(--border)',
-              color: (hasVariants ? variantInStock : product.inStock) ? 'white' : 'var(--text-muted)',
-              cursor: (hasVariants ? variantInStock : product.inStock) ? 'pointer' : 'not-allowed',
+              background: added ? 'oklch(50% 0.18 145)' : variantInStock ? 'var(--accent)' : 'var(--border)',
+              color: variantInStock ? 'white' : 'var(--text-muted)',
+              cursor: variantInStock && !(hasColors && !activeColor) && !(hasStorages && !activeStorage) ? 'pointer' : 'not-allowed',
               fontFamily: 'var(--font-body)', fontSize: 17, fontWeight: 700,
               transition: 'all 0.2s',
             }}
           >
-            {hasVariants && !activeVariant
+            {(hasColors && !activeColor) || (hasStorages && !activeStorage)
               ? 'Select Options'
-              : !(hasVariants ? variantInStock : product.inStock)
+              : !variantInStock
                 ? (product.listingStatus === 'coming_soon' ? 'Coming Soon' : 'Out of Stock')
                 : added ? '✓ Added to Order' : 'Add to Order →'}
           </button>
