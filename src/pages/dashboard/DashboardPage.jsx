@@ -198,7 +198,7 @@ const VariantsEditor = ({ editDraft, setEditDraft, fld, lbl, focus, blur }) => {
           </div>
           <div style={{ marginBottom: 10 }}>
             <label style={lbl}>Images (one URL per line)</label>
-            <textarea value={(v.images || []).join('\n')} onChange={e => setVariant(i, 'images', e.target.value.split('\n').map(s => s.trim()).filter(Boolean))}
+            <textarea value={(v.images || []).join('\n')} onChange={e => setVariant(i, 'images', e.target.value.split('\n').map(s => s.trimEnd()))}
               onFocus={focus} onBlur={blur} rows={3} style={{ ...fld, resize: 'vertical', lineHeight: 1.5 }} />
           </div>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text)' }}>
@@ -221,7 +221,7 @@ const VariantsEditor = ({ editDraft, setEditDraft, fld, lbl, focus, blur }) => {
         </div>
         <div style={{ marginBottom: 10 }}>
           <label style={lbl}>Images (one URL per line)</label>
-          <textarea value={(newV.images || []).join('\n')} onChange={e => setNewV(v => ({ ...v, images: e.target.value.split('\n').map(s => s.trim()).filter(Boolean) }))}
+          <textarea value={(newV.images || []).join('\n')} onChange={e => setNewV(v => ({ ...v, images: e.target.value.split('\n').map(s => s.trimEnd()) }))}
             onFocus={focus} onBlur={blur} rows={2} style={{ ...fld, resize: 'vertical', lineHeight: 1.5 }} placeholder="https://store.storeimages.cdn-apple.com/..." />
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
