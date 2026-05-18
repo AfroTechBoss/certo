@@ -170,7 +170,8 @@ router.get('/:id', async (req, res) => {
   try {
     const { rows } = await pool.queryR(
       `SELECT id, customer_name, product_name, product_subtitle, product_image_url,
-              status, created_at, updated_at, applecare, qty, items
+              status, created_at, updated_at, applecare, qty, items,
+              variant_color, variant_storage, variant_color_hex
        FROM orders WHERE id = $1`,
       [req.params.id],
     );

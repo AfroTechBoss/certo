@@ -202,15 +202,50 @@ const TrackOrderPage = ({ initialOrderId }) => {
               {Array.isArray(order.items) && order.items.length > 0 ? (
                 <div style={{ marginTop: 4 }}>
                   {order.items.map((item, i) => (
-                    <div key={i} style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-                      {item.name}{item.subtitle ? ` · ${item.subtitle}` : ''}{item.applecare && item.applecare !== 'none' ? ` + ${item.applecare}` : ''}
+                    <div key={i} style={{ marginBottom: i < order.items.length - 1 ? 8 : 0 }}>
+                      <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                        {item.name}{item.subtitle ? ` · ${item.subtitle}` : ''}{item.applecare && item.applecare !== 'none' ? ` + ${item.applecare}` : ''}
+                      </div>
+                      {(item.variant_color || item.variant_storage) && (
+                        <div style={{ display: 'flex', gap: 5, marginTop: 3, flexWrap: 'wrap' }}>
+                          {item.variant_color && (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 5, padding: '2px 7px', fontSize: 12, fontFamily: 'var(--font-body)', color: 'var(--text)' }}>
+                              {item.variant_color_hex && <span style={{ width: 8, height: 8, borderRadius: '50%', background: item.variant_color_hex, display: 'inline-block', border: '1px solid rgba(0,0,0,0.12)', flexShrink: 0 }} />}
+                              {item.variant_color}
+                            </span>
+                          )}
+                          {item.variant_storage && (
+                            <span style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 5, padding: '2px 7px', fontSize: 12, fontFamily: 'var(--font-body)', color: 'var(--text)' }}>
+                              {item.variant_storage}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ))}
-                  <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)', marginTop: 4, opacity: 0.7 }}>{order.customer_name}</div>
+                  <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)', marginTop: 6, opacity: 0.7 }}>{order.customer_name}</div>
                 </div>
               ) : (
-                <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)' }}>
-                  {order.product_name}{order.product_subtitle ? ` · ${order.product_subtitle}` : ''} · {order.customer_name}
+                <div>
+                  <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)' }}>
+                    {order.product_name}{order.product_subtitle ? ` · ${order.product_subtitle}` : ''}{order.applecare && order.applecare !== 'none' ? ` + ${order.applecare}` : ''}
+                  </div>
+                  {(order.variant_color || order.variant_storage) && (
+                    <div style={{ display: 'flex', gap: 5, marginTop: 3, flexWrap: 'wrap' }}>
+                      {order.variant_color && (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 5, padding: '2px 7px', fontSize: 12, fontFamily: 'var(--font-body)', color: 'var(--text)' }}>
+                          {order.variant_color_hex && <span style={{ width: 8, height: 8, borderRadius: '50%', background: order.variant_color_hex, display: 'inline-block', border: '1px solid rgba(0,0,0,0.12)', flexShrink: 0 }} />}
+                          {order.variant_color}
+                        </span>
+                      )}
+                      {order.variant_storage && (
+                        <span style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 5, padding: '2px 7px', fontSize: 12, fontFamily: 'var(--font-body)', color: 'var(--text)' }}>
+                          {order.variant_storage}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)', marginTop: 4, opacity: 0.7 }}>{order.customer_name}</div>
                 </div>
               )}
             </div>
