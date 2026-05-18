@@ -205,10 +205,23 @@ app.get('/api/img', async (req, res) => {
 
   const isAppleCDN = url.startsWith('https://store.storeimages.cdn-apple.com');
 
-  // For Apple CDN images, downscale to 400×400
-  const fetchUrl = isAppleCDN
-    ? url.replace(/wid=\d+/, 'wid=400').replace(/hei=\d+/, 'hei=400')
-    : url;
+  // For Apple CDN images: strip ALL query params (fmt=webp / traceId cause 404s)
+  // and request a clean 800px JPEG — works reliably across all Apple Scene7 URLs
+  let fetchUrl;
+  if (isAppleCDN) {
+    try {
+      const u = new URL(url);
+      u.search = '';
+      u.searchParams.set('wid', '800');
+      u.searchParams.set('hei', '800');
+      u.searchParams.set('fmt', 'jpeg');
+      fetchUrl = u.toString();
+    } catch (_) {
+      fetchUrl = url;
+    }
+  } else {
+    fetchUrl = url;
+  }
 
   const cached = imgCache.get(fetchUrl);
   if (cached && Date.now() - cached.ts < IMG_CACHE_TTL) {

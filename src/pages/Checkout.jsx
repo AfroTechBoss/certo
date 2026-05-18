@@ -142,8 +142,11 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
 
   const removeCoupon = () => { setCouponData(null); setCouponInput(''); setCouponError(''); };
 
+  // Use variant price if customer selected a storage tier, otherwise base product price
+  const itemDevicePrice = (item) => item.variant?.price_usd ?? item.product.usdPrice;
+
   const itemsSubtotal = cartItems.reduce((sum, item) => {
-    return sum + (item.product.usdPrice + (item.applecare?.annualUsd || 0)) * (item.qty || 1);
+    return sum + (itemDevicePrice(item) + (item.applecare?.annualUsd || 0)) * (item.qty || 1);
   }, 0);
   const totalQty = cartItems.reduce((sum, item) => sum + (item.qty || 1), 0);
   const dangerousFee = totalQty * DANGEROUS_FEE_UNIT;
@@ -197,7 +200,7 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
         <>
           {cartItems.map((item, i) => {
             const qty = item.qty || 1;
-            const unitPrice = item.product.usdPrice + (item.applecare?.annualUsd || 0);
+            const unitPrice = itemDevicePrice(item) + (item.applecare?.annualUsd || 0);
             const lineTotal = unitPrice * qty;
             const pid = item.product.id;
             const vid = item.variant?.id || 'none';
@@ -443,7 +446,7 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
             product_id:    item.product.id || '',
             name:          item.product.name || '',
             subtitle:      item.product.subtitle || '',
-            usd_price:     item.product.usdPrice || 0,
+            usd_price:     itemDevicePrice(item) || 0,
             image_url:     (item.product.image_urls || item.product.images || [])[0] || '',
             apple_url:     item.product.apple_url || '',
             applecare:     item.applecare?.name || 'none',
@@ -628,7 +631,8 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
             </div>
             {confirmedItems.map((item, i) => {
               const qty = item.qty || 1;
-              const unitPrice = item.product.usdPrice + (item.applecare?.annualUsd || 0);
+              const itemDevicePriceConf = item.variant?.price_usd ?? item.product.usdPrice;
+              const unitPrice = itemDevicePriceConf + (item.applecare?.annualUsd || 0);
               return (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, paddingBottom: i < confirmedItems.length - 1 ? 12 : 0, marginBottom: i < confirmedItems.length - 1 ? 12 : 0, borderBottom: i < confirmedItems.length - 1 ? '1px solid var(--border)' : 'none' }}>
                   <div style={{ width: 48, height: 48, background: 'var(--bg)', borderRadius: 8, border: '1px solid var(--border)', flexShrink: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
