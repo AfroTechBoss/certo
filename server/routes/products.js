@@ -54,6 +54,48 @@ router.get('/', async (req, res) => {
   }
 });
 
+// POST /api/products  (admin — create new product)
+router.post('/', adminAuth, async (req, res) => {
+  try {
+    const {
+      name, subtitle, category, usd_price, in_stock, featured, badge,
+      delivery_days, condition, condition_note, stock_count, listing_status,
+      overview, specs, includes, features, tech_specs, image_urls, variants,
+    } = req.body;
+
+    if (!name) return res.status(400).json({ error: 'Name required' });
+
+    const id = 'prod-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6);
+
+    const { rows } = await pool.queryR(`
+      INSERT INTO products (
+        id, name, subtitle, category, usd_price, in_stock, featured, badge,
+        delivery_days, condition, condition_note, stock_count, listing_status,
+        overview, specs, includes, features, tech_specs, image_urls, variants
+      ) VALUES (
+        $1,$2,$3,$4,$5,$6,$7,$8,
+        $9,$10,$11,$12,$13,
+        $14,$15,$16,$17,$18,$19,$20
+      ) RETURNING *
+    `, [
+      id,
+      name, subtitle || '', category || 'iPhone',
+      usd_price || 0, in_stock !== false, featured || false, badge || '',
+      delivery_days || '10–18 business days',
+      condition || 'New', condition_note || '', stock_count || 0,
+      listing_status || 'live',
+      overview || [], specs || [], includes || [], features || [],
+      tech_specs || [], image_urls || [], variants || [],
+    ]);
+
+    logAdminAction(req.adminName, 'Created product', `"${name}" — $${usd_price}`).catch(() => {});
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error('POST /products:', err);
+    res.status(500).json({ error: 'Failed to create product' });
+  }
+});
+
 // GET /api/products/:id
 router.get('/:id', async (req, res) => {
   try {

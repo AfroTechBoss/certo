@@ -305,7 +305,7 @@ const App = () => {
   return (
     <div>
       <NavComponent page={page} navigate={navigate} cartCount={cartCount} />
-      {renderPage()}
+      <main>{renderPage()}</main>
       {!isDashboard && <FooterComponent navigate={navigate} />}
     </div>
   );

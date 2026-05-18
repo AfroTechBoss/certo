@@ -1006,7 +1006,33 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
         }),
       }).catch(err => console.error('Failed to save product:', err));
     } else {
-      setProducts(prev => [...prev, updated]);
+      // New product — POST to API to persist in DB
+      setProducts(prev => [...prev, updated]); // optimistic
+      authFetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: updated.name, subtitle: updated.subtitle,
+          category: updated.type,
+          usd_price: updated.usdPrice,
+          listing_status: updated.listingStatus || 'live',
+          in_stock: (updated.listingStatus || 'live') === 'live',
+          featured: updated.featured, badge: updated.badge,
+          delivery_days: updated.deliveryDays, condition: updated.condition,
+          condition_note: updated.conditionNote, stock_count: updated.stock,
+          overview: updated.overview, specs: updated.specs,
+          includes: updated.includes, features: updated.features,
+          tech_specs: updated.techSpecs,
+          image_urls: updated.images || [],
+          variants: updated.variants || [],
+        }),
+      })
+      .then(r => r.json())
+      .then(saved => {
+        // Replace the temp local entry with the real DB record (correct server-generated id)
+        setProducts(prev => prev.map(p => p.id === updated.id ? normaliseDashProduct(saved) : p));
+      })
+      .catch(err => console.error('Failed to create product:', err));
     }
     setEditingProduct(null);
   };
