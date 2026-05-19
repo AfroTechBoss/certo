@@ -391,7 +391,9 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
   const [orders,          setOrders]          = React.useState([]);
   const [ordersLoading,   setOrdersLoading]   = React.useState(true);
   const [selectedOrder,   setSelectedOrder]   = React.useState(null);
-  const [flagReason,      setFlagReason]       = React.useState('');
+  const [flagReason,          setFlagReason]          = React.useState('');
+  const [editingFlagReason,   setEditingFlagReason]   = React.useState(false);
+  const [editFlagReasonText,  setEditFlagReasonText]  = React.useState('');
   const [resendState,     setResendState]      = React.useState({}); // { [orderId]: 'loading'|'ok'|'error:msg' }
   const [orderTimeFilter, setOrderTimeFilter]  = React.useState('all');
   const [customFrom,      setCustomFrom]       = React.useState('');
@@ -608,6 +610,24 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
     } catch(e) {}
   };
 
+  // Save an updated flag reason on an already-flagged order
+  const saveFlagReason = async (orderId, reason) => {
+    try {
+      const res = await authFetch(`/api/orders/${orderId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ flag_reason: reason.trim() }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setOrders(prev => prev.map(o => o.id === orderId ? normaliseOrder(updated) : o));
+        if (selectedOrder?.id === orderId) setSelectedOrder(normaliseOrder(updated));
+        setEditingFlagReason(false);
+        setEditFlagReasonText('');
+      }
+    } catch(e) {}
+  };
+
   // Update order status
   const updateStatus = async (orderId, newStatus) => {
     try {
@@ -665,7 +685,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
 
       {selectedOrder ? (
         <div>
-          <button onClick={() => { setSelectedOrder(null); setFlagReason(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--accent)', marginBottom: 20, padding: 0 }}>
+          <button onClick={() => { setSelectedOrder(null); setFlagReason(''); setEditingFlagReason(false); setEditFlagReasonText(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--accent)', marginBottom: 20, padding: 0 }}>
             ← Back to orders
           </button>
           <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 20, padding: isMobile ? 20 : 32 }}>
@@ -866,19 +886,68 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
               </button>
             </div>
 
-            {/* Flag reason input (shown when flagging) */}
-            {!selectedOrder.flag && (
-              <div style={{ marginBottom: 16 }}>
-                <input value={flagReason} onChange={e => setFlagReason(e.target.value)} placeholder="Flag reason (optional)"
-                  style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1.5px solid var(--border)', background: 'var(--bg)', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text)', outline: 'none', boxSizing: 'border-box' }}
-                  onFocus={e => e.target.style.borderColor = 'var(--accent)'}
+            {/* ── Flag section ─────────────────────────────────────────── */}
+            {!selectedOrder.flag ? (
+              /* Not yet flagged — show reason textarea above the Flag button */
+              <div style={{ marginBottom: 4, padding: '16px', background: 'var(--bg-alt)', borderRadius: 12, border: '1px solid var(--border)' }}>
+                <label style={{ display: 'block', fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+                  Reason for flagging
+                </label>
+                <textarea
+                  value={flagReason}
+                  onChange={e => setFlagReason(e.target.value)}
+                  placeholder="e.g. Can't reach customer · Suspicious payment · Wrong address confirmed · Hold pending investigation…"
+                  rows={3}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg)', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text)', outline: 'none', resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.6 }}
+                  onFocus={e => e.target.style.borderColor = 'oklch(65% 0.18 25)'}
                   onBlur={e => e.target.style.borderColor = 'var(--border)'}
                 />
+                <p style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
+                  This is visible to all admins so anyone can follow up on the case.
+                </p>
               </div>
-            )}
-            {selectedOrder.flag && selectedOrder.flag_reason && (
-              <div style={{ padding: '10px 14px', borderRadius: 9, background: 'oklch(96% 0.07 25)', border: '1px solid oklch(85% 0.1 25)', fontFamily: 'var(--font-body)', fontSize: 13, color: 'oklch(40% 0.18 25)', marginBottom: 16 }}>
-                🚩 Flag reason: {selectedOrder.flag_reason}
+            ) : (
+              /* Already flagged — show reason card with edit capability */
+              <div style={{ marginBottom: 16, padding: '16px', background: 'oklch(97% 0.03 25)', border: '1.5px solid oklch(85% 0.1 25)', borderRadius: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: editingFlagReason ? 10 : 0 }}>
+                  <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700, color: 'oklch(45% 0.18 25)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    🚩 Flag reason
+                  </div>
+                  {!editingFlagReason && (
+                    <button
+                      onClick={() => { setEditingFlagReason(true); setEditFlagReasonText(selectedOrder.flag_reason || ''); }}
+                      style={{ background: 'none', border: '1px solid oklch(75% 0.12 25)', borderRadius: 6, padding: '3px 10px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, color: 'oklch(45% 0.18 25)', flexShrink: 0 }}>
+                      Edit
+                    </button>
+                  )}
+                </div>
+                {editingFlagReason ? (
+                  <div>
+                    <textarea
+                      value={editFlagReasonText}
+                      onChange={e => setEditFlagReasonText(e.target.value)}
+                      rows={3}
+                      autoFocus
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1.5px solid oklch(65% 0.18 25)', background: 'white', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text)', outline: 'none', resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.6 }}
+                    />
+                    <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                      <button
+                        onClick={() => saveFlagReason(selectedOrder.id, editFlagReasonText)}
+                        style={{ padding: '7px 16px', borderRadius: 8, border: 'none', background: 'oklch(42% 0.18 25)', color: 'white', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                        Save reason
+                      </button>
+                      <button
+                        onClick={() => { setEditingFlagReason(false); setEditFlagReasonText(''); }}
+                        style={{ padding: '7px 16px', borderRadius: 8, border: '1px solid var(--border)', background: 'none', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)', cursor: 'pointer' }}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'oklch(35% 0.15 25)', lineHeight: 1.65, marginTop: 6, whiteSpace: 'pre-wrap' }}>
+                    {selectedOrder.flag_reason || <span style={{ opacity: 0.5, fontStyle: 'italic' }}>No reason given — click Edit to add one.</span>}
+                  </div>
+                )}
               </div>
             )}
           </div>
