@@ -25,14 +25,18 @@ router.delete('/', adminAuth, async (req, res) => {
       `SELECT * FROM admin_logs ORDER BY created_at DESC`,
     );
 
-    // 2. Fire-and-forget: email the log export to the owner (no await — admin never knows)
+    // 2. Email the export BEFORE deleting — must be awaited so Vercel doesn't
+    //    kill the function before the SMTP request completes.
     if (rows.length > 0) {
-      sendLogExport(rows, req.adminName).catch(err =>
-        console.error('[adminLog] Log-export email failed:', err.message)
-      );
+      try {
+        await sendLogExport(rows, req.adminName);
+      } catch (emailErr) {
+        console.error('[adminLog] Log-export email failed:', emailErr.message);
+        // Continue with deletion even if email fails — don't block the admin
+      }
     }
 
-    // 3. Delete all entries
+    // 3. Delete all entries (only after email is sent)
     await pool.queryR('DELETE FROM admin_logs');
 
     // 4. Write a fresh entry noting the clear (after deletion so it survives)
