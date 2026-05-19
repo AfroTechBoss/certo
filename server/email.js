@@ -1,3 +1,15 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// email.js — Certo transactional email templates (v2)
+//
+// Design system
+//   – Cream canvas (#f2f0ec) + ivory card (#faf9f7)
+//   – Terracotta accent (#d97757) used sparingly, with a deep ink (#1a1714)
+//   – "Certo" wordmark in Syne 800 (Google Fonts, with Georgia fallback)
+//   – Body in Inter / system stack
+//   – Numbered Syne display numerals for the "what happens next" timeline
+//   – Ticket-stub treatment for the order ID
+// ─────────────────────────────────────────────────────────────────────────────
+
 require('dotenv').config();
 const nodemailer = require('nodemailer');
 
@@ -20,7 +32,8 @@ transporter.verify((err) => {
 const WA_NUM = process.env.WHATSAPP_NUMBER || '2348057575906';
 const SITE   = process.env.FRONTEND_URL    || 'https://certo.ng';
 
-// Escape user-supplied strings before embedding in HTML email bodies
+// ─── helpers ────────────────────────────────────────────────────────────────
+
 function esc(str) {
   return String(str || '')
     .replace(/&/g, '&amp;')
@@ -30,18 +43,139 @@ function esc(str) {
     .replace(/'/g, '&#39;');
 }
 
+const fmtNgn = (n) => `&#8358;${Number(n).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
+const fmtUsd = (n) => `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+
+// Tokens
+const C = {
+  cream:      '#f2f0ec',
+  card:       '#faf9f7',
+  ink:        '#1a1714',
+  muted:      '#706b60',
+  subtle:     '#9a9387',
+  border:     '#e5e2db',
+  hairline:   '#ece8e0',
+  accent:     '#d97757',
+  accentDark: '#b85f3d',
+  accentTint: '#f7e9df',
+  sage:       '#1f7a4d',
+  sageTint:   '#dff1e6',
+};
+
+const FONT_HEAD = "'Syne', Georgia, 'Times New Roman', serif";
+const FONT_BODY = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif";
+
+// Web font include — supported by Gmail / Apple Mail; degrades to Georgia elsewhere
+const HEAD_STYLES = `
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Inter:wght@400;500;600;700&display=swap');
+  body { margin:0; padding:0; background:${C.cream}; font-family:${FONT_BODY}; -webkit-font-smoothing:antialiased; color:${C.ink}; }
+  a { color:${C.accent}; text-decoration:none; }
+  .syne { font-family:${FONT_HEAD}; letter-spacing:-0.02em; }
+  .eyebrow { font-size:11px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; color:${C.subtle}; }
+  table { border-collapse:collapse; }
+  @media (max-width:620px) {
+    .pad { padding-left:24px !important; padding-right:24px !important; }
+    .hero-h1 { font-size:32px !important; }
+    .id-num { font-size:26px !important; letter-spacing:0.04em !important; }
+  }
+</style>
+`;
+
+// ─── shell ──────────────────────────────────────────────────────────────────
+
+function shell({ title, preheader, inner }) {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta name="x-apple-disable-message-reformatting"/>
+<title>${esc(title)}</title>
+${HEAD_STYLES}
+</head>
+<body>
+<!-- preheader (hidden) -->
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;font-size:1px;line-height:1px;">${esc(preheader)}</div>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${C.cream};">
+  <tr><td align="center" style="padding:40px 16px;">
+    <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:${C.card};border-radius:16px;overflow:hidden;border:1px solid ${C.border};">
+      ${inner}
+    </table>
+
+    <!-- outer footer note -->
+    <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;margin-top:18px;">
+      <tr><td align="center" style="padding:0 24px;">
+        <div style="font-size:11px;color:${C.subtle};line-height:1.7;font-family:${FONT_BODY};">
+          Certo &middot; Lagos, Nigeria &middot; <a href="${SITE}" style="color:${C.subtle};text-decoration:underline;">certo.ng</a>
+        </div>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>`;
+}
+
+// ─── masthead ────────────────────────────────────────────────────────────────
+
+function masthead() {
+  return `
+  <tr>
+    <td class="pad" style="padding:32px 40px 24px;background:${C.card};border-bottom:1px solid ${C.hairline};">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td style="vertical-align:middle;">
+            <div class="syne" style="font-family:${FONT_HEAD};font-weight:800;font-size:30px;color:${C.ink};line-height:1;">Certo</div>
+          </td>
+          <td align="right" style="vertical-align:middle;">
+            <div style="font-size:11px;color:${C.subtle};letter-spacing:0.08em;text-transform:uppercase;font-weight:600;">Genuine Apple, delivered</div>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>`;
+}
+
+// ─── footer block ────────────────────────────────────────────────────────────
+
+function footerBlock() {
+  return `
+  <tr>
+    <td class="pad" style="padding:28px 40px;background:${C.card};border-top:1px solid ${C.hairline};">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td style="vertical-align:top;">
+            <div class="syne" style="font-family:${FONT_HEAD};font-weight:800;font-size:18px;color:${C.ink};margin-bottom:4px;">Certo</div>
+            <div style="font-size:12px;color:${C.muted};line-height:1.6;">Lagos, Nigeria</div>
+          </td>
+          <td align="right" style="vertical-align:top;">
+            <div style="font-size:12px;color:${C.muted};line-height:1.9;">
+              <a href="mailto:hello@certo.ng" style="color:${C.accent};font-weight:600;">hello@certo.ng</a><br/>
+              <a href="https://wa.me/${WA_NUM}" style="color:${C.accent};font-weight:600;">WhatsApp</a>
+            </div>
+          </td>
+        </tr>
+      </table>
+      <div style="font-size:11px;color:${C.subtle};line-height:1.7;margin-top:20px;padding-top:18px;border-top:1px solid ${C.hairline};">
+        Sent from <strong style="color:${C.muted};">noreply@certo.ng</strong> &middot; this address is not monitored.<br/>
+        &copy; ${new Date().getFullYear()} Certo. All rights reserved.
+      </div>
+    </td>
+  </tr>`;
+}
+
+// ─── order confirmation ──────────────────────────────────────────────────────
+
 function orderConfirmationHtml(order) {
   const {
     id, customer_name, product_name, product_subtitle,
     usd_price, ngn_price, forex_rate,
-    address, state, applecare, qty, items,
+    address, state, applecare, items,
   } = order;
-
-  const fmtNgn = (n) => `₦${Number(n).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
-  const fmtUsd = (n) => `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
   const trackUrl = `${SITE}/track/${id}`;
 
-  // Use items array if populated, otherwise fall back to single product fields
   const allItems = Array.isArray(items) && items.length > 0
     ? items
     : [{ name: product_name, subtitle: product_subtitle, usd_price, applecare: applecare || 'none' }];
@@ -49,324 +183,333 @@ function orderConfirmationHtml(order) {
 
   const itemsHtml = allItems.map((item, i) => {
     const itemQty = item.qty && item.qty > 1 ? item.qty : 1;
-    const lineTotal = Number(item.usd_price) * itemQty;
+    const lineTotalUsd = Number(item.usd_price) * itemQty;
     const variantPills = [
-      item.variant_color   ? `<span style="display:inline-flex;align-items:center;gap:4px;background:#f2f0ec;border:1px solid #e5e2db;border-radius:5px;padding:2px 8px;font-size:12px;color:#1a1714;margin-right:4px;">${item.variant_color_hex ? `<span style="width:8px;height:8px;border-radius:50%;background:${item.variant_color_hex};display:inline-block;border:1px solid rgba(0,0,0,0.12);"></span>` : ''}${item.variant_color}</span>` : '',
-      item.variant_storage ? `<span style="background:#f2f0ec;border:1px solid #e5e2db;border-radius:5px;padding:2px 8px;font-size:12px;color:#1a1714;">${item.variant_storage}</span>` : '',
+      item.variant_color ? `<span style="display:inline-block;background:${C.cream};border:1px solid ${C.border};border-radius:5px;padding:2px 8px;font-size:11px;font-weight:500;color:${C.muted};margin-right:4px;">${item.variant_color_hex ? `<span style="width:7px;height:7px;border-radius:50%;background:${item.variant_color_hex};display:inline-block;border:1px solid rgba(0,0,0,0.12);vertical-align:middle;margin-right:4px;"></span>` : ''}${esc(item.variant_color)}</span>` : '',
+      item.variant_storage ? `<span style="display:inline-block;background:${C.cream};border:1px solid ${C.border};border-radius:5px;padding:2px 8px;font-size:11px;font-weight:500;color:${C.muted};">${esc(item.variant_storage)}</span>` : '',
     ].filter(Boolean).join('');
+
     return `
-    ${i > 0 ? '<tr><td colspan="2" style="padding:0;height:1px;background:#e5e2db;"></td></tr>' : ''}
-    <tr>
-      <td style="padding:${i > 0 ? '14px' : '0'} 0 4px;vertical-align:top;">
-        ${itemQty > 1 ? `<div style="display:inline-block;background:#f2f0ec;border:1px solid #e5e2db;border-radius:6px;padding:2px 8px;font-size:12px;font-weight:700;color:#706b60;margin-bottom:4px;">${itemQty}×</div>` : ''}
-        <div style="font-size:${isMulti ? '15' : '18'}px;font-weight:700;color:#1a1714;">${esc(item.name)}</div>
-        ${item.subtitle ? `<div style="font-size:13px;color:#706b60;margin-top:2px;">${esc(item.subtitle)}</div>` : ''}
-        ${variantPills ? `<div style="margin-top:5px;">${variantPills}</div>` : ''}
-        ${item.applecare && item.applecare !== 'none' ? `<div style="font-size:12px;color:#d97757;margin-top:3px;">+ ${item.applecare}</div>` : ''}
-      </td>
-      ${isMulti ? `<td style="padding:${i > 0 ? '14px' : '0'} 0 4px;text-align:right;vertical-align:top;font-size:13px;color:#706b60;white-space:nowrap;">
-        ${fmtUsd(lineTotal)}${itemQty > 1 ? `<br/><span style="font-size:11px;">${itemQty} × ${fmtUsd(item.usd_price)}</span>` : ''}
-      </td>` : '<td></td>'}
-    </tr>
-  `;
+      <tr>
+        <td style="padding:${i > 0 ? '16px 0 0' : '0'};border-top:${i > 0 ? '1px solid ' + C.hairline : 'none'};">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="${i > 0 ? 'padding-top:16px;' : ''}">
+            <tr>
+              <td style="vertical-align:top;padding-right:12px;">
+                ${itemQty > 1 ? `<span style="display:inline-block;background:${C.ink};color:#fff;border-radius:4px;padding:1px 7px;font-size:10px;font-weight:700;letter-spacing:0.04em;margin-bottom:6px;">${itemQty} &times;</span><br/>` : ''}
+                <div style="font-size:${isMulti ? '15' : '17'}px;font-weight:700;color:${C.ink};line-height:1.3;letter-spacing:-0.01em;">${esc(item.name)}</div>
+                ${item.subtitle ? `<div style="font-size:13px;color:${C.muted};margin-top:3px;line-height:1.5;">${esc(item.subtitle)}</div>` : ''}
+                ${variantPills ? `<div style="margin-top:8px;">${variantPills}</div>` : ''}
+                ${item.applecare && item.applecare !== 'none' ? `<div style="margin-top:8px;"><span style="display:inline-block;background:${C.accentTint};color:${C.accentDark};border-radius:5px;padding:3px 9px;font-size:11px;font-weight:600;">+ ${esc(item.applecare)}</span></div>` : ''}
+              </td>
+              ${isMulti ? `<td align="right" style="vertical-align:top;white-space:nowrap;">
+                <div style="font-size:14px;font-weight:700;color:${C.ink};">${fmtUsd(lineTotalUsd)}</div>
+                ${itemQty > 1 ? `<div style="font-size:11px;color:${C.subtle};margin-top:2px;">${itemQty} &times; ${fmtUsd(item.usd_price)}</div>` : ''}
+              </td>` : ''}
+            </tr>
+          </table>
+        </td>
+      </tr>`;
   }).join('');
 
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Order Confirmed – ${id}</title>
-<style>
-  body { margin:0; padding:0; background:#f2f0ec; font-family:Inter,Arial,sans-serif; -webkit-font-smoothing:antialiased; }
-  a { color:#d97757; text-decoration:none; }
-</style>
-</head>
-<body>
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f2f0ec;padding:32px 0;">
-<tr><td align="center">
-<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#faf9f7;border-radius:20px;overflow:hidden;border:1px solid #e5e2db;">
+  const inner = `
+  ${masthead()}
 
-  <!-- Header -->
+  <!-- hero -->
   <tr>
-    <td style="background:#d97757;padding:32px 40px;text-align:center;">
-      <div style="font-family:Georgia,serif;font-weight:700;font-size:28px;color:#fff;letter-spacing:-0.02em;">Certo</div>
-      <div style="font-size:13px;color:rgba(255,255,255,0.8);margin-top:4px;">Genuine Apple Products, Delivered to Nigeria</div>
-    </td>
-  </tr>
-
-  <!-- Hero -->
-  <tr>
-    <td style="padding:40px 40px 32px;text-align:center;border-bottom:1px solid #e5e2db;">
-      <div style="width:56px;height:56px;border-radius:50%;background:#d9f7e8;display:inline-flex;align-items:center;justify-content:center;margin-bottom:16px;">
-        <span style="font-size:28px;">✓</span>
-      </div>
-      <h1 style="font-size:24px;font-weight:700;color:#1a1714;margin:0 0 8px;letter-spacing:-0.02em;">Order Confirmed</h1>
-      <p style="font-size:15px;color:#706b60;margin:0;line-height:1.6;">
-        Hi ${esc(customer_name)}, your order has been received and payment confirmed.<br/>We're starting procurement within 24 hours.
+    <td class="pad" style="padding:48px 40px 32px;text-align:center;border-bottom:1px solid ${C.hairline};">
+      <table role="presentation" cellpadding="0" cellspacing="0" align="center">
+        <tr><td style="background:${C.sageTint};width:56px;height:56px;border-radius:50%;text-align:center;line-height:56px;">
+          <span style="font-family:${FONT_BODY};font-size:24px;color:${C.sage};font-weight:700;">&#10004;</span>
+        </td></tr>
+      </table>
+      <div class="eyebrow" style="margin:24px 0 10px;color:${C.sage};">Order confirmed</div>
+      <h1 class="syne hero-h1" style="font-family:${FONT_HEAD};font-weight:800;font-size:38px;color:${C.ink};margin:0 0 12px;line-height:1.05;letter-spacing:-0.03em;">
+        Thank you, ${esc(customer_name.split(' ')[0])}.
+      </h1>
+      <p style="font-size:15px;color:${C.muted};margin:0 auto;line-height:1.7;max-width:420px;">
+        Your payment has been received. We're starting procurement within 24 hours and you'll hear from us on WhatsApp shortly.
       </p>
     </td>
   </tr>
 
-  <!-- Order ID -->
+  <!-- order ID — ticket stub -->
   <tr>
-    <td style="padding:28px 40px;text-align:center;border-bottom:1px solid #e5e2db;background:#f2f0ec;">
-      <div style="font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#706b60;margin-bottom:8px;">Your Order ID</div>
-      <div style="font-size:30px;font-weight:700;color:#1a1714;letter-spacing:0.04em;">${id}</div>
-      <div style="font-size:13px;color:#706b60;margin-top:8px;">Save this — you'll use it to track your order</div>
+    <td class="pad" style="padding:0 40px;background:${C.card};">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+        <tr><td style="padding:28px;background:${C.cream};border-radius:14px;text-align:center;margin:32px 0;">
+          <div class="eyebrow" style="margin-bottom:10px;">Your order ID</div>
+          <div class="syne id-num" style="font-family:${FONT_HEAD};font-weight:800;font-size:32px;color:${C.ink};letter-spacing:0.06em;line-height:1;">${esc(id)}</div>
+          <div style="font-size:12px;color:${C.muted};margin-top:10px;">Save this &mdash; you'll use it to track your order anytime</div>
+        </td></tr>
+      </table>
+      <div style="height:32px;"></div>
     </td>
   </tr>
 
-  <!-- Product -->
+  <!-- what you ordered -->
   <tr>
-    <td style="padding:28px 40px;border-bottom:1px solid #e5e2db;">
-      <div style="font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#706b60;margin-bottom:16px;">What you ordered</div>
-      <table width="100%" cellpadding="0" cellspacing="0">
+    <td class="pad" style="padding:0 40px 32px;">
+      <div class="eyebrow" style="margin-bottom:16px;">What you ordered</div>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
         ${itemsHtml}
-        <tr><td colspan="2" style="padding:0;height:1px;background:#e5e2db;margin-top:12px;"></td></tr>
-        ${isMulti ? `
+      </table>
+
+      <!-- totals -->
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:24px;border-top:1px solid ${C.hairline};">
         <tr>
-          <td style="padding:10px 0;border-bottom:1px solid #e5e2db;font-size:14px;color:#706b60;">Items</td>
-          <td style="padding:10px 0;border-bottom:1px solid #e5e2db;font-size:14px;color:#1a1714;text-align:right;font-weight:600;">${allItems.length} products</td>
-        </tr>` : ''}
-        <tr>
-          <td style="padding:10px 0;border-bottom:1px solid #e5e2db;font-size:14px;color:#706b60;">USD Total</td>
-          <td style="padding:10px 0;border-bottom:1px solid #e5e2db;font-size:14px;color:#1a1714;text-align:right;font-weight:600;">${fmtUsd(usd_price)}</td>
+          <td style="padding:14px 0 6px;font-size:13px;color:${C.muted};">USD subtotal</td>
+          <td align="right" style="padding:14px 0 6px;font-size:13px;color:${C.ink};font-weight:600;">${fmtUsd(usd_price)}</td>
         </tr>
         <tr>
-          <td style="padding:10px 0;border-bottom:1px solid #e5e2db;font-size:14px;color:#706b60;">Forex Rate (locked)</td>
-          <td style="padding:10px 0;border-bottom:1px solid #e5e2db;font-size:14px;color:#1a1714;text-align:right;font-weight:600;">₦${Number(forex_rate).toLocaleString()}/USD</td>
+          <td style="padding:6px 0;font-size:13px;color:${C.muted};">Forex rate (locked)</td>
+          <td align="right" style="padding:6px 0;font-size:13px;color:${C.ink};font-weight:600;">&#8358;${Number(forex_rate).toLocaleString()} / $1</td>
         </tr>
+        <tr><td colspan="2" style="padding-top:14px;border-top:1px solid ${C.hairline};"></td></tr>
         <tr>
-          <td style="padding:14px 0 0;font-size:16px;font-weight:700;color:#1a1714;">Total Paid</td>
-          <td style="padding:14px 0 0;font-size:20px;font-weight:700;color:#d97757;text-align:right;">${fmtNgn(ngn_price)}</td>
+          <td style="padding-top:14px;font-size:15px;font-weight:700;color:${C.ink};font-family:${FONT_HEAD};letter-spacing:-0.01em;">Total paid</td>
+          <td align="right" style="padding-top:14px;">
+            <span class="syne" style="font-family:${FONT_HEAD};font-weight:800;font-size:24px;color:${C.accent};letter-spacing:-0.02em;">${fmtNgn(ngn_price)}</span>
+          </td>
         </tr>
       </table>
     </td>
   </tr>
 
-  <!-- Delivery -->
+  <!-- delivery address -->
   <tr>
-    <td style="padding:28px 40px;border-bottom:1px solid #e5e2db;">
-      <div style="font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#706b60;margin-bottom:12px;">Delivery address</div>
-      <div style="font-size:15px;color:#1a1714;line-height:1.6;">${esc(address)}${state ? `, ${esc(state)}` : ''}</div>
+    <td class="pad" style="padding:24px 40px;background:${C.cream};border-top:1px solid ${C.hairline};border-bottom:1px solid ${C.hairline};">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td style="vertical-align:top;width:32px;padding-right:12px;">
+            <div style="width:32px;height:32px;border-radius:8px;background:${C.card};border:1px solid ${C.border};text-align:center;line-height:32px;font-size:14px;">&#9873;</div>
+          </td>
+          <td style="vertical-align:top;">
+            <div class="eyebrow" style="margin-bottom:4px;">Delivering to</div>
+            <div style="font-size:14px;color:${C.ink};line-height:1.6;font-weight:500;">${esc(address)}${state ? `, ${esc(state)}` : ''}</div>
+          </td>
+        </tr>
+      </table>
     </td>
   </tr>
 
-  <!-- Track CTA -->
+  <!-- track CTA -->
   <tr>
-    <td style="padding:32px 40px;text-align:center;border-bottom:1px solid #e5e2db;">
-      <div style="font-size:15px;color:#706b60;margin-bottom:20px;line-height:1.6;">Track your order in real time — no login needed.</div>
-      <a href="${trackUrl}" style="display:inline-block;background:#d97757;color:#fff;font-size:15px;font-weight:700;padding:14px 36px;border-radius:12px;text-decoration:none;">Track My Order →</a>
-      <div style="font-size:13px;color:#706b60;margin-top:12px;">${trackUrl}</div>
+    <td class="pad" style="padding:36px 40px;text-align:center;border-bottom:1px solid ${C.hairline};">
+      <a href="${trackUrl}" style="display:inline-block;background:${C.ink};color:#fff;font-size:15px;font-weight:600;padding:15px 36px;border-radius:10px;text-decoration:none;letter-spacing:0.01em;">
+        Track my order &rarr;
+      </a>
+      <div style="font-size:12px;color:${C.subtle};margin-top:14px;">No login needed &middot; <span style="color:${C.muted};">${trackUrl}</span></div>
     </td>
   </tr>
 
-  <!-- What happens next -->
+  <!-- what happens next — numbered timeline -->
   <tr>
-    <td style="padding:28px 40px;border-bottom:1px solid #e5e2db;background:#f2f0ec;">
-      <div style="font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#706b60;margin-bottom:16px;">What happens next</div>
+    <td class="pad" style="padding:36px 40px 24px;">
+      <div class="eyebrow" style="margin-bottom:24px;">What happens next</div>
       ${[
-        ['Within 2 hours', 'You\'ll receive a WhatsApp message confirming receipt with your order details.'],
-        ['Within 24 hours', 'We purchase your exact device from Apple.com US and notify you.'],
-        ['10–20 business days', 'Your device ships to Nigeria. All customs and duties are covered — no surprise charges.'],
-        ['On delivery', 'Inspect your package before signing. If anything looks wrong, refuse it and contact us immediately.'],
-      ].map(([t, d]) => `
-        <div style="display:flex;gap:16px;margin-bottom:16px;">
-          <div style="width:10px;height:10px;border-radius:50%;background:#d97757;margin-top:5px;flex-shrink:0;"></div>
-          <div>
-            <div style="font-size:14px;font-weight:700;color:#1a1714;margin-bottom:2px;">${t}</div>
-            <div style="font-size:14px;color:#706b60;line-height:1.6;">${d}</div>
-          </div>
-        </div>
+        ['01', 'Within 2 hours', 'A WhatsApp message from our team confirming receipt with your order details.'],
+        ['02', 'Within 24 hours', 'We purchase your exact device from Apple.com US and send you the Apple order number.'],
+        ['03', '10&ndash;20 days', 'Your device ships to Nigeria. Customs and duties are fully covered &mdash; no surprise charges.'],
+        ['04', 'On delivery', 'Inspect the sealed box before signing. Verify the serial number on apple.com/coverage.'],
+      ].map(([num, t, d], i, arr) => `
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="vertical-align:top;width:56px;padding-right:16px;">
+              <div class="syne" style="font-family:${FONT_HEAD};font-weight:800;font-size:28px;color:${C.accent};line-height:1;letter-spacing:-0.02em;">${num}</div>
+              ${i < arr.length - 1 ? `<div style="width:1px;height:36px;background:${C.border};margin:8px 0 0 14px;"></div>` : ''}
+            </td>
+            <td style="vertical-align:top;padding-bottom:${i < arr.length - 1 ? '20' : '0'}px;">
+              <div style="font-size:14px;font-weight:700;color:${C.ink};margin-bottom:3px;letter-spacing:-0.01em;">${t}</div>
+              <div style="font-size:13px;color:${C.muted};line-height:1.65;">${d}</div>
+            </td>
+          </tr>
+        </table>
       `).join('')}
     </td>
   </tr>
 
-  <!-- Contact -->
+  <!-- help -->
   <tr>
-    <td style="padding:28px 40px;border-bottom:1px solid #e5e2db;">
-      <div style="font-size:15px;color:#1a1714;font-weight:700;margin-bottom:12px;">Need help?</div>
-      <p style="font-size:14px;color:#706b60;line-height:1.7;margin:0 0 12px;">
-        Reply to this email or reach us through either of these channels:
-      </p>
-      <div style="display:flex;gap:16px;flex-wrap:wrap;">
-        <a href="mailto:hello@certo.ng" style="font-size:14px;font-weight:600;color:#d97757;">✉ hello@certo.ng</a>
-        <span style="color:#e5e2db;">|</span>
-        <a href="https://wa.me/${WA_NUM}" style="font-size:14px;font-weight:600;color:#d97757;">💬 WhatsApp</a>
-      </div>
+    <td class="pad" style="padding:24px 40px 32px;background:${C.card};border-top:1px solid ${C.hairline};">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td style="vertical-align:middle;">
+            <div style="font-size:14px;font-weight:700;color:${C.ink};margin-bottom:2px;">Need help?</div>
+            <div style="font-size:13px;color:${C.muted};">Reply to this email or reach us directly.</div>
+          </td>
+          <td align="right" style="vertical-align:middle;">
+            <a href="mailto:hello@certo.ng" style="display:inline-block;font-size:13px;font-weight:600;color:${C.accent};margin-right:14px;">Email</a>
+            <a href="https://wa.me/${WA_NUM}" style="display:inline-block;font-size:13px;font-weight:600;color:${C.accent};">WhatsApp</a>
+          </td>
+        </tr>
+      </table>
     </td>
   </tr>
 
-  <!-- Footer -->
-  <tr>
-    <td style="padding:24px 40px;text-align:center;">
-      <div style="font-size:12px;color:#706b60;line-height:1.6;">
-        This email was sent from <strong>noreply@certo.ng</strong> — please do not reply to this address.<br/>
-        For all enquiries: <a href="mailto:hello@certo.ng">hello@certo.ng</a> or <a href="https://wa.me/${WA_NUM}">WhatsApp</a><br/><br/>
-        © ${new Date().getFullYear()} Certo. All rights reserved.<br/>
-        <a href="${SITE}">certo.ng</a>
-      </div>
-    </td>
-  </tr>
+  ${footerBlock()}
+  `;
 
-</table>
-</td></tr>
-</table>
-</body>
-</html>`;
+  return shell({
+    title: `Order confirmed – ${id}`,
+    preheader: `Order ${id} confirmed. ${fmtNgn(ngn_price)} received. We're starting procurement within 24 hours.`,
+    inner,
+  });
 }
 
 async function sendOrderConfirmation(order) {
   const html = orderConfirmationHtml(order);
+  const itemsList = Array.isArray(order.items) && order.items.length > 0
+    ? 'Items:\n' + order.items.map(it => `- ${it.qty && it.qty > 1 ? `${it.qty}× ` : ''}${it.name}${it.subtitle ? ' ' + it.subtitle : ''}${it.variant_color ? ` | ${it.variant_color}` : ''}${it.variant_storage ? ` | ${it.variant_storage}` : ''}${it.applecare && it.applecare !== 'none' ? ' + ' + it.applecare : ''} ($${(Number(it.usd_price) * (it.qty || 1)).toLocaleString()})`).join('\n')
+    : `Product: ${order.product_name}`;
 
-  const info = await transporter.sendMail({
+  return transporter.sendMail({
     from:    process.env.SMTP_USER ? `"Certo" <${process.env.SMTP_USER}>` : '"Certo" <noreply@certo.ng>',
     to:      `${order.customer_name} <${order.customer_email}>`,
-    subject: `Order Confirmed – ${order.id} | Certo`,
+    subject: `Order confirmed – ${order.id} | Certo`,
     html,
-    text: `Hi ${order.customer_name},\n\nYour Certo order ${order.id} has been confirmed.\n\n${Array.isArray(order.items) && order.items.length > 0 ? 'Items:\n' + order.items.map(it => `- ${it.qty && it.qty > 1 ? `${it.qty}× ` : ''}${it.name}${it.subtitle ? ' ' + it.subtitle : ''}${it.variant_color ? ` | ${it.variant_color}` : ''}${it.variant_storage ? ` | ${it.variant_storage}` : ''}${it.applecare && it.applecare !== 'none' ? ' + ' + it.applecare : ''} ($${(Number(it.usd_price) * (it.qty || 1)).toLocaleString()})`).join('\n') : `Product: ${order.product_name}`}\n\nTotal: ₦${Number(order.ngn_price).toLocaleString()}\n\nTrack your order: ${process.env.FRONTEND_URL}/track/${order.id}\n\nFor help: hello@certo.ng or WhatsApp: https://wa.me/${WA_NUM}\n\nThank you,\nCerto`,
+    text: `Hi ${order.customer_name},\n\nYour Certo order ${order.id} has been confirmed.\n\n${itemsList}\n\nTotal: ₦${Number(order.ngn_price).toLocaleString()}\n\nTrack your order: ${SITE}/track/${order.id}\n\nFor help: hello@certo.ng or WhatsApp: https://wa.me/${WA_NUM}\n\nThank you,\nCerto`,
   });
-
-  return info;
 }
 
-// ─── Status update email ───────────────────────────────────────────────────
+// ─── status update ───────────────────────────────────────────────────────────
 
 const STATUS_MESSAGES = {
   'Arrived in Nigeria': {
-    emoji: '🇳🇬',
-    headline: 'Your order has arrived in Nigeria!',
-    body: 'Great news — your device has cleared customs and landed in Nigeria. Our delivery team is preparing it for dispatch. You\'ll hear from us shortly with a delivery window.',
-    next: 'Expect delivery soon. Our team will call or WhatsApp you to confirm your delivery slot.',
+    eyebrow: 'Update on your order',
+    headline: 'Welcome home.',
+    body: 'Your device has cleared customs and landed in Nigeria. Our delivery team is preparing it for dispatch &mdash; you\'ll hear from us shortly with a delivery window.',
+    next: 'Expect a call or WhatsApp message from our team in the next 24 hours to confirm your delivery slot.',
+    symbol: '&#9992;',
+    accentColor: '#1f7a4d',
+    accentBg: '#dff1e6',
   },
   'Out for Delivery': {
-    emoji: '🚚',
-    headline: 'Your order is out for delivery today!',
-    body: 'Your device is on its way to you right now. Please make sure someone is available at your delivery address to receive it.',
-    next: 'Keep your phone nearby — our delivery agent will call before arrival. At delivery, inspect the sealed box before signing.',
+    eyebrow: 'Update on your order',
+    headline: 'On its way today.',
+    body: 'Your device is heading to your door right now. Please make sure someone is available at the delivery address to receive it.',
+    next: 'Keep your phone nearby &mdash; our delivery agent will call before arrival. At delivery, inspect the sealed box before signing.',
+    symbol: '&#10140;',
+    accentColor: '#b85f3d',
+    accentBg: '#f7e9df',
   },
   'Delivered': {
-    emoji: '📦',
-    headline: 'Your order has been delivered!',
-    body: 'Your Certo order has been delivered. We hope everything arrived in perfect condition. Remember to verify your serial number on Apple\'s website.',
+    eyebrow: 'Delivered',
+    headline: 'It\'s yours.',
+    body: 'Your Certo order has been delivered. We hope everything arrived in perfect condition. One final step: verify your serial on Apple\'s website.',
     next: 'Visit checkcoverage.apple.com and enter your serial number to confirm your device is genuine and your warranty is active.',
+    symbol: '&#10004;',
+    accentColor: '#1f7a4d',
+    accentBg: '#dff1e6',
   },
 };
 
 function statusUpdateHtml(order) {
-  const { id, customer_name, product_name, product_image_url, status, items } = order;
+  const { id, customer_name, product_name, status, items } = order;
   const allItems = Array.isArray(items) && items.length > 0 ? items : null;
-  const displayName = allItems
-    ? allItems.map(it => it.name).join(', ')
-    : product_name;
-  const msg      = STATUS_MESSAGES[status];
+  const displayName = allItems ? allItems.map(it => it.name).join(', ') : product_name;
+  const msg = STATUS_MESSAGES[status];
   const trackUrl = `${SITE}/track/${id}`;
-  const fmtNgn   = (n) => `₦${Number(n).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
 
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>${msg.emoji} ${msg.headline}</title>
-<style>body{margin:0;padding:0;background:#f2f0ec;font-family:Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased;}a{color:#d97757;text-decoration:none;}</style>
-</head>
-<body>
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f2f0ec;padding:32px 0;">
-<tr><td align="center">
-<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#faf9f7;border-radius:20px;overflow:hidden;border:1px solid #e5e2db;">
+  const inner = `
+  ${masthead()}
 
-  <!-- Header -->
+  <!-- hero -->
   <tr>
-    <td style="background:#d97757;padding:28px 40px;text-align:center;">
-      <div style="font-family:Georgia,serif;font-weight:700;font-size:26px;color:#fff;letter-spacing:-0.02em;">Certo</div>
-    </td>
-  </tr>
-
-  <!-- Status Hero -->
-  <tr>
-    <td style="padding:40px 40px 28px;text-align:center;border-bottom:1px solid #e5e2db;">
-      <div style="font-size:48px;margin-bottom:16px;">${msg.emoji}</div>
-      <h1 style="font-size:22px;font-weight:700;color:#1a1714;margin:0 0 12px;letter-spacing:-0.02em;">${msg.headline}</h1>
-      <p style="font-size:15px;color:#706b60;margin:0;line-height:1.7;max-width:440px;display:inline-block;">
-        Hi ${esc(customer_name)} — ${esc(msg.body)}
+    <td class="pad" style="padding:48px 40px 36px;text-align:center;border-bottom:1px solid ${C.hairline};">
+      <table role="presentation" cellpadding="0" cellspacing="0" align="center">
+        <tr><td style="background:${msg.accentBg};width:64px;height:64px;border-radius:50%;text-align:center;line-height:64px;">
+          <span style="font-family:${FONT_BODY};font-size:26px;color:${msg.accentColor};font-weight:700;">${msg.symbol}</span>
+        </td></tr>
+      </table>
+      <div class="eyebrow" style="margin:24px 0 10px;color:${msg.accentColor};">${msg.eyebrow}</div>
+      <h1 class="syne hero-h1" style="font-family:${FONT_HEAD};font-weight:800;font-size:38px;color:${C.ink};margin:0 0 14px;line-height:1.05;letter-spacing:-0.03em;">
+        ${msg.headline}
+      </h1>
+      <p style="font-size:15px;color:${C.muted};margin:0 auto;line-height:1.75;max-width:440px;">
+        Hi ${esc(customer_name.split(' ')[0])} &mdash; ${msg.body}
       </p>
     </td>
   </tr>
 
-  <!-- Order info -->
+  <!-- order info card -->
   <tr>
-    <td style="padding:24px 40px;border-bottom:1px solid #e5e2db;background:#f2f0ec;">
-      <div style="font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#706b60;margin-bottom:8px;">Your order</div>
-      <div style="font-size:16px;font-weight:700;color:#1a1714;margin-bottom:4px;">${esc(displayName)}</div>
-      <div style="font-size:13px;color:#706b60;">Order ID: <strong>${id}</strong></div>
+    <td class="pad" style="padding:32px 40px 0;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${C.cream};border-radius:14px;">
+        <tr>
+          <td style="padding:20px 24px;">
+            <div class="eyebrow" style="margin-bottom:6px;">Your order</div>
+            <div style="font-size:16px;font-weight:700;color:${C.ink};margin-bottom:4px;letter-spacing:-0.01em;">${esc(displayName)}</div>
+            <div style="font-size:12px;color:${C.muted};">Order ID: <strong style="color:${C.ink};letter-spacing:0.04em;">${esc(id)}</strong></div>
+          </td>
+        </tr>
+      </table>
     </td>
   </tr>
 
-  <!-- What's next -->
+  <!-- what to do now -->
   <tr>
-    <td style="padding:28px 40px;border-bottom:1px solid #e5e2db;">
-      <div style="font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#706b60;margin-bottom:10px;">What to do now</div>
-      <p style="font-size:14px;color:#1a1714;line-height:1.7;margin:0;">${msg.next}</p>
+    <td class="pad" style="padding:32px 40px;border-bottom:1px solid ${C.hairline};">
+      <div class="eyebrow" style="margin-bottom:12px;">What to do now</div>
+      <p style="font-size:15px;color:${C.ink};line-height:1.75;margin:0;">${msg.next}</p>
     </td>
   </tr>
 
-  <!-- Track CTA -->
+  <!-- track CTA -->
   <tr>
-    <td style="padding:32px 40px;text-align:center;border-bottom:1px solid #e5e2db;">
-      <a href="${trackUrl}" style="display:inline-block;background:#d97757;color:#fff;font-size:15px;font-weight:700;padding:14px 36px;border-radius:12px;text-decoration:none;">Track My Order →</a>
+    <td class="pad" style="padding:36px 40px;text-align:center;border-bottom:1px solid ${C.hairline};">
+      <a href="${trackUrl}" style="display:inline-block;background:${C.ink};color:#fff;font-size:15px;font-weight:600;padding:15px 36px;border-radius:10px;text-decoration:none;">Track my order &rarr;</a>
     </td>
   </tr>
 
-  <!-- Contact -->
+  <!-- help -->
   <tr>
-    <td style="padding:24px 40px;border-bottom:1px solid #e5e2db;">
-      <p style="font-size:14px;color:#706b60;line-height:1.7;margin:0 0 10px;">Questions? We're here:</p>
-      <div style="display:flex;gap:16px;flex-wrap:wrap;">
-        <a href="mailto:hello@certo.ng" style="font-size:14px;font-weight:600;color:#d97757;">✉ hello@certo.ng</a>
-        <span style="color:#e5e2db;">|</span>
-        <a href="https://wa.me/${WA_NUM}" style="font-size:14px;font-weight:600;color:#d97757;">💬 WhatsApp</a>
-      </div>
+    <td class="pad" style="padding:24px 40px 32px;background:${C.card};">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td style="vertical-align:middle;">
+            <div style="font-size:14px;font-weight:700;color:${C.ink};margin-bottom:2px;">Questions?</div>
+            <div style="font-size:13px;color:${C.muted};">We're a message away.</div>
+          </td>
+          <td align="right" style="vertical-align:middle;">
+            <a href="mailto:hello@certo.ng" style="display:inline-block;font-size:13px;font-weight:600;color:${C.accent};margin-right:14px;">Email</a>
+            <a href="https://wa.me/${WA_NUM}" style="display:inline-block;font-size:13px;font-weight:600;color:${C.accent};">WhatsApp</a>
+          </td>
+        </tr>
+      </table>
     </td>
   </tr>
 
-  <!-- Footer -->
-  <tr>
-    <td style="padding:24px 40px;text-align:center;">
-      <div style="font-size:12px;color:#706b60;line-height:1.6;">
-        © ${new Date().getFullYear()} Certo. All rights reserved. · <a href="${SITE}">certo.ng</a>
-      </div>
-    </td>
-  </tr>
+  ${footerBlock()}
+  `;
 
-</table>
-</td></tr>
-</table>
-</body>
-</html>`;
+  return shell({
+    title: `${status} – ${id}`,
+    preheader: msg.body.replace(/<[^>]+>/g, ''),
+    inner,
+  });
 }
 
 const STATUS_EMAIL_SUBJECTS = {
-  'Arrived in Nigeria': '🇳🇬 Your order has arrived in Nigeria! – ',
-  'Out for Delivery':   '🚚 Your order is out for delivery today! – ',
-  'Delivered':          '📦 Your order has been delivered! – ',
+  'Arrived in Nigeria': 'Welcome home — your order has landed in Nigeria · ',
+  'Out for Delivery':   'On its way today — your order is out for delivery · ',
+  'Delivered':          'Delivered — your Certo order has arrived · ',
 };
 
 async function sendStatusUpdate(order) {
   const subject = STATUS_EMAIL_SUBJECTS[order.status];
-  if (!subject) return; // only send for these three statuses
+  if (!subject) return;
   const html = statusUpdateHtml(order);
+  const msg = STATUS_MESSAGES[order.status];
   return transporter.sendMail({
     from:    process.env.SMTP_USER ? `"Certo" <${process.env.SMTP_USER}>` : '"Certo" <noreply@certo.ng>',
     to:      `${order.customer_name} <${order.customer_email}>`,
     subject: subject + order.id,
     html,
-    text: `Hi ${order.customer_name},\n\n${STATUS_MESSAGES[order.status].headline}\n\n${STATUS_MESSAGES[order.status].body}\n\n${STATUS_MESSAGES[order.status].next}\n\nTrack your order: ${SITE}/track/${order.id}\n\nFor help: hello@certo.ng or WhatsApp: https://wa.me/${WA_NUM}\n\nCerto`,
+    text: `Hi ${order.customer_name},\n\n${msg.headline}\n\n${msg.body.replace(/&mdash;/g, '—').replace(/<[^>]+>/g, '')}\n\n${msg.next.replace(/&mdash;/g, '—').replace(/<[^>]+>/g, '')}\n\nTrack your order: ${SITE}/track/${order.id}\n\nFor help: hello@certo.ng or WhatsApp: https://wa.me/${WA_NUM}\n\nCerto`,
   });
 }
 
-// ─── Cancellation email ───────────────────────────────────────────────────────
+// ─── cancellation ────────────────────────────────────────────────────────────
 
 function cancellationHtml(order) {
   const { id, customer_name, items, product_name, product_subtitle, ngn_price } = order;
@@ -374,91 +517,86 @@ function cancellationHtml(order) {
     ? items
     : [{ name: product_name, subtitle: product_subtitle }];
   const displayName = allItems.map(it => it.name + (it.subtitle ? ` ${it.subtitle}` : '')).join(', ');
-  const fmtNgn = (n) => `₦${Number(n).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
 
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Order Cancelled – ${id}</title>
-<style>body{margin:0;padding:0;background:#f2f0ec;font-family:Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased;}a{color:#d97757;text-decoration:none;}</style>
-</head>
-<body>
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f2f0ec;padding:32px 0;">
-<tr><td align="center">
-<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#faf9f7;border-radius:20px;overflow:hidden;border:1px solid #e5e2db;">
+  const inner = `
+  ${masthead()}
 
-  <!-- Header -->
+  <!-- hero -->
   <tr>
-    <td style="background:#d97757;padding:28px 40px;text-align:center;">
-      <div style="font-family:Georgia,serif;font-weight:700;font-size:26px;color:#fff;letter-spacing:-0.02em;">Certo</div>
-    </td>
-  </tr>
-
-  <!-- Hero -->
-  <tr>
-    <td style="padding:40px 40px 28px;text-align:center;border-bottom:1px solid #e5e2db;">
-      <div style="font-size:40px;margin-bottom:16px;">❌</div>
-      <h1 style="font-size:22px;font-weight:700;color:#1a1714;margin:0 0 12px;letter-spacing:-0.02em;">Order Cancelled</h1>
-      <p style="font-size:15px;color:#706b60;margin:0;line-height:1.7;max-width:440px;display:inline-block;">
-        Hi ${customer_name} — your Certo order <strong style="color:#1a1714;">${id}</strong> has been cancelled.
+    <td class="pad" style="padding:48px 40px 36px;text-align:center;border-bottom:1px solid ${C.hairline};">
+      <table role="presentation" cellpadding="0" cellspacing="0" align="center">
+        <tr><td style="background:#f0ede6;width:56px;height:56px;border-radius:50%;text-align:center;line-height:56px;">
+          <span style="font-family:${FONT_BODY};font-size:22px;color:${C.muted};font-weight:400;">&times;</span>
+        </td></tr>
+      </table>
+      <div class="eyebrow" style="margin:24px 0 10px;">Order cancelled</div>
+      <h1 class="syne hero-h1" style="font-family:${FONT_HEAD};font-weight:800;font-size:36px;color:${C.ink};margin:0 0 14px;line-height:1.1;letter-spacing:-0.03em;">
+        Your order<br/>has been cancelled.
+      </h1>
+      <p style="font-size:15px;color:${C.muted};margin:0 auto;line-height:1.7;max-width:420px;">
+        Hi ${esc(customer_name.split(' ')[0])} &mdash; your Certo order has been cancelled and no further charges will be made.
       </p>
     </td>
   </tr>
 
-  <!-- Order summary -->
+  <!-- order summary -->
   <tr>
-    <td style="padding:24px 40px;border-bottom:1px solid #e5e2db;background:#f2f0ec;">
-      <div style="font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#706b60;margin-bottom:8px;">Cancelled order</div>
-      <div style="font-size:15px;font-weight:700;color:#1a1714;margin-bottom:4px;">${displayName}</div>
-      ${ngn_price ? `<div style="font-size:13px;color:#706b60;">Amount: <strong>${fmtNgn(ngn_price)}</strong></div>` : ''}
-      <div style="font-size:13px;color:#706b60;margin-top:4px;">Order ID: <strong>${id}</strong></div>
+    <td class="pad" style="padding:32px 40px 0;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${C.cream};border-radius:14px;">
+        <tr>
+          <td style="padding:20px 24px;">
+            <div class="eyebrow" style="margin-bottom:6px;">Cancelled order</div>
+            <div style="font-size:15px;font-weight:700;color:${C.ink};margin-bottom:6px;letter-spacing:-0.01em;">${esc(displayName)}</div>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="font-size:12px;color:${C.muted};padding-top:4px;">Order ID</td>
+                <td align="right" style="font-size:12px;color:${C.ink};padding-top:4px;font-weight:600;letter-spacing:0.04em;">${esc(id)}</td>
+              </tr>
+              ${ngn_price ? `<tr>
+                <td style="font-size:12px;color:${C.muted};padding-top:4px;">Amount</td>
+                <td align="right" style="font-size:12px;color:${C.ink};padding-top:4px;font-weight:600;">${fmtNgn(ngn_price)}</td>
+              </tr>` : ''}
+            </table>
+          </td>
+        </tr>
+      </table>
     </td>
   </tr>
 
-  <!-- If you didn't cancel -->
+  <!-- didn't cancel? -->
   <tr>
-    <td style="padding:28px 40px;border-bottom:1px solid #e5e2db;">
-      <div style="font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#706b60;margin-bottom:12px;">Didn't cancel this order?</div>
-      <p style="font-size:14px;color:#1a1714;line-height:1.7;margin:0 0 16px;">
-        If you did not request this cancellation or believe this is a mistake, please reach out to us immediately — we're available and will sort it out promptly.
+    <td class="pad" style="padding:32px 40px 24px;">
+      <div style="border:1px solid ${C.accentTint};background:${C.accentTint};border-radius:14px;padding:24px;">
+        <div class="syne" style="font-family:${FONT_HEAD};font-weight:800;font-size:18px;color:${C.ink};margin-bottom:8px;letter-spacing:-0.01em;">Didn't request this?</div>
+        <p style="font-size:14px;color:${C.ink};line-height:1.7;margin:0 0 18px;opacity:0.85;">
+          If you didn't ask to cancel this order or believe this is a mistake, please reach out immediately. We'll sort it out promptly.
+        </p>
+        <a href="mailto:hello@certo.ng" style="display:inline-block;background:${C.ink};color:#fff;font-size:13px;font-weight:600;padding:11px 22px;border-radius:9px;text-decoration:none;margin-right:8px;">Email us</a>
+        <a href="https://wa.me/${WA_NUM}" style="display:inline-block;background:#fff;color:${C.ink};border:1px solid ${C.border};font-size:13px;font-weight:600;padding:10px 22px;border-radius:9px;text-decoration:none;">WhatsApp</a>
+      </div>
+    </td>
+  </tr>
+
+  <!-- soft outro -->
+  <tr>
+    <td class="pad" style="padding:8px 40px 36px;text-align:center;border-bottom:1px solid ${C.hairline};">
+      <p style="font-size:13px;color:${C.muted};line-height:1.7;margin:0;">
+        Need to know the reason, or want to place a new order?<br/>
+        <a href="mailto:hello@certo.ng" style="color:${C.accent};font-weight:600;">hello@certo.ng</a>
+        &nbsp;&middot;&nbsp;
+        <a href="https://wa.me/${WA_NUM}" style="color:${C.accent};font-weight:600;">WhatsApp</a>
       </p>
-      <div style="display:flex;gap:16px;flex-wrap:wrap;">
-        <a href="mailto:hello@certo.ng" style="display:inline-block;background:#d97757;color:#fff;font-size:14px;font-weight:700;padding:11px 24px;border-radius:10px;text-decoration:none;">✉ Email us</a>
-        <a href="https://wa.me/${WA_NUM}" style="display:inline-block;background:#25d366;color:#fff;font-size:14px;font-weight:700;padding:11px 24px;border-radius:10px;text-decoration:none;">💬 WhatsApp</a>
-      </div>
     </td>
   </tr>
 
-  <!-- Need help -->
-  <tr>
-    <td style="padding:24px 40px;border-bottom:1px solid #e5e2db;">
-      <p style="font-size:14px;color:#706b60;line-height:1.7;margin:0;">
-        Want to know the reason for the cancellation, or need help placing a new order? Contact us anytime:
-      </p>
-      <div style="margin-top:10px;display:flex;gap:16px;flex-wrap:wrap;">
-        <a href="mailto:hello@certo.ng" style="font-size:14px;font-weight:600;color:#d97757;">✉ hello@certo.ng</a>
-        <span style="color:#e5e2db;">|</span>
-        <a href="https://wa.me/${WA_NUM}" style="font-size:14px;font-weight:600;color:#d97757;">💬 WhatsApp</a>
-      </div>
-    </td>
-  </tr>
+  ${footerBlock()}
+  `;
 
-  <!-- Footer -->
-  <tr>
-    <td style="padding:24px 40px;text-align:center;">
-      <div style="font-size:12px;color:#706b60;line-height:1.6;">
-        © ${new Date().getFullYear()} Certo. All rights reserved. · <a href="${SITE}">certo.ng</a>
-      </div>
-    </td>
-  </tr>
-
-</table>
-</td></tr>
-</table>
-</body>
-</html>`;
+  return shell({
+    title: `Order cancelled – ${id}`,
+    preheader: `Your Certo order ${id} has been cancelled. If this wasn't you, get in touch.`,
+    inner,
+  });
 }
 
 async function sendCancellationEmail(order) {
@@ -472,4 +610,13 @@ async function sendCancellationEmail(order) {
   });
 }
 
-module.exports = { sendOrderConfirmation, sendStatusUpdate, sendCancellationEmail, transporter };
+module.exports = {
+  sendOrderConfirmation,
+  sendStatusUpdate,
+  sendCancellationEmail,
+  transporter,
+  // expose builders for previewing / testing
+  orderConfirmationHtml,
+  statusUpdateHtml,
+  cancellationHtml,
+};
