@@ -127,8 +127,8 @@ const ListEditor = ({ label, listKey, blank = '', editDraft, setListItem, addLis
         <input value={item} onChange={e => setListItem(listKey, i, e.target.value)}
           onFocus={modalFocus} onBlur={modalBlur}
           style={{ ...MODAL_FLD, flex: 1 }} />
-        <button onClick={() => removeListItem(listKey, i)}
-          style={{ padding: '0 10px', border: '1px solid var(--border)', borderRadius: 7, background: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 16, flexShrink: 0 }}>×</button>
+        <button onClick={() => removeListItem(listKey, i)} aria-label="Remove"
+          style={{ padding: '0 10px', border: '1px solid var(--border)', borderRadius: 7, background: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 16, flexShrink: 0 }} aria-hidden="false">×</button>
       </div>
     ))}
     <button onClick={() => addListItem(listKey, blank)}
@@ -1352,7 +1352,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
                   <div key={ii} style={{ display: 'flex', gap: 8, marginBottom: 7 }}>
                     <input value={item} onChange={e => setSpecItem(si, ii, e.target.value)} onFocus={focus} onBlur={blur}
                       style={{ ...fld, flex: 1 }} />
-                    <button onClick={() => removeSpecItem(si, ii)}
+                    <button onClick={() => removeSpecItem(si, ii)} aria-label="Remove"
                       style={{ padding: '0 9px', border: '1px solid var(--border)', borderRadius: 7, background: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 15, flexShrink: 0 }}>×</button>
                   </div>
                 ))}
@@ -1384,7 +1384,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
               <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 16, color: 'var(--text)' }}>{isNew ? 'Add Product' : 'Edit Product'}</div>
               <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{editDraft.name}</div>
             </div>
-            <button onClick={() => setEditingProduct(null)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: 'var(--text-muted)', lineHeight: 1 }}>×</button>
+            <button onClick={() => setEditingProduct(null)} aria-label="Close" style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: 'var(--text-muted)', lineHeight: 1 }}>×</button>
           </div>
 
           {/* Body: sidebar + content */}
@@ -1485,7 +1485,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
           onBlur={e => e.target.style.borderColor = 'var(--border)'}
         />
         {q && (
-          <button onClick={() => setProductSearch('')}
+          <button onClick={() => setProductSearch('')} aria-label="Clear search"
             style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: 'var(--text-muted)', lineHeight: 1, padding: 0 }}>
             ×
           </button>

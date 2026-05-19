@@ -25,7 +25,7 @@ const FooterComponent = ({ navigate }) => {
   );
 
   const ColHead = ({ children }) => (
-    <div style={{ fontFamily: 'var(--font-body)', fontSize: isMobile ? 9 : 11, fontWeight: 700, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: isMobile ? 10 : 14 }}>{children}</div>
+    <div style={{ fontFamily: 'var(--font-body)', fontSize: isMobile ? 9 : 11, fontWeight: 700, color: 'rgba(255,255,255,0.55)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: isMobile ? 10 : 14 }}>{children}</div>
   );
 
   return (
@@ -94,16 +94,16 @@ const FooterComponent = ({ navigate }) => {
 
         {/* Bottom bar */}
         <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 24, display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', gap: 12 }}>
-          <span style={{ fontFamily: 'var(--font-body)', fontSize: isMobile ? 11 : 13, color: 'rgba(255,255,255,0.3)' }}>© 2026 Certo Technologies. All rights reserved.</span>
+          <span style={{ fontFamily: 'var(--font-body)', fontSize: isMobile ? 11 : 13, color: 'rgba(255,255,255,0.55)' }}>© 2026 Certo Technologies. All rights reserved.</span>
           <div style={{ display: 'flex', gap: isMobile ? 14 : 20 }}>
             {[
               { label: 'Privacy Policy',   target: 'privacy' },
               { label: 'Terms of Service', target: 'terms'   },
               { label: 'Refund Policy',    target: 'refund'  },
             ].map(({ label, target }) => (
-              <button key={label} onClick={() => navigate(target)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--font-body)', fontSize: isMobile ? 10 : 12, color: 'rgba(255,255,255,0.3)' }}
-                onMouseEnter={e => e.target.style.color = 'rgba(255,255,255,0.65)'}
-                onMouseLeave={e => e.target.style.color = 'rgba(255,255,255,0.3)'}
+              <button key={label} onClick={() => navigate(target)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--font-body)', fontSize: isMobile ? 10 : 12, color: 'rgba(255,255,255,0.55)' }}
+                onMouseEnter={e => e.target.style.color = 'white'}
+                onMouseLeave={e => e.target.style.color = 'rgba(255,255,255,0.55)'}
               >{label}</button>
             ))}
           </div>

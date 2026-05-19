@@ -87,17 +87,17 @@ const NavComponent = ({ page, navigate, cartCount = 0 }) => {
                 fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 500,
                 color: 'var(--text-muted)', padding: '8px 4px',
               }}>Track Order</button>
-              <button onClick={() => goTo('cart')} style={{
+              <button onClick={() => goTo('cart')} aria-label={cartCount > 0 ? `Cart, ${cartCount} item${cartCount !== 1 ? 's' : ''}` : 'Cart'} style={{
                 position: 'relative', background: 'none', border: 'none', cursor: 'pointer',
                 padding: 8, borderRadius: 8, color: 'var(--text)',
               }}>
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
                   <path d="M3 3h1.5L6 12h9l1.5-7H6.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                   <circle cx="8.5" cy="15.5" r="1" fill="currentColor"/>
                   <circle cx="13.5" cy="15.5" r="1" fill="currentColor"/>
                 </svg>
                 {cartCount > 0 && (
-                  <span style={{
+                  <span aria-hidden="true" style={{
                     position: 'absolute', top: 4, right: 4,
                     background: 'var(--accent)', color: 'white',
                     borderRadius: '50%', width: 16, height: 16,
@@ -117,17 +117,17 @@ const NavComponent = ({ page, navigate, cartCount = 0 }) => {
           {/* Mobile: cart icon + hamburger */}
           {!isDashboard && isMobile && (
             <>
-              <button onClick={() => goTo('cart')} style={{
+              <button onClick={() => goTo('cart')} aria-label={cartCount > 0 ? `Cart, ${cartCount} item${cartCount !== 1 ? 's' : ''}` : 'Cart'} style={{
                 position: 'relative', background: 'none', border: 'none', cursor: 'pointer',
                 padding: 8, borderRadius: 8, color: 'var(--text)',
               }}>
-                <svg width="22" height="22" viewBox="0 0 20 20" fill="none">
+                <svg width="22" height="22" viewBox="0 0 20 20" fill="none" aria-hidden="true">
                   <path d="M3 3h1.5L6 12h9l1.5-7H6.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                   <circle cx="8.5" cy="15.5" r="1" fill="currentColor"/>
                   <circle cx="13.5" cy="15.5" r="1" fill="currentColor"/>
                 </svg>
                 {cartCount > 0 && (
-                  <span style={{
+                  <span aria-hidden="true" style={{
                     position: 'absolute', top: 4, right: 4,
                     background: 'var(--accent)', color: 'white',
                     borderRadius: '50%', width: 16, height: 16,
@@ -136,7 +136,7 @@ const NavComponent = ({ page, navigate, cartCount = 0 }) => {
                   }}>{cartCount}</span>
                 )}
               </button>
-              <button onClick={() => setMenuOpen(m => !m)} style={{
+              <button onClick={() => setMenuOpen(m => !m)} aria-label={menuOpen ? 'Close menu' : 'Open menu'} aria-expanded={menuOpen} style={{
                 background: 'none', border: 'none', cursor: 'pointer',
                 padding: '8px 4px', color: 'var(--text)', display: 'flex', flexDirection: 'column',
                 gap: 5, alignItems: 'center', justifyContent: 'center',

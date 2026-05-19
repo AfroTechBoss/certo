@@ -68,16 +68,21 @@ router.post('/', async (req, res) => {
 
     const order = rows[0];
 
+    // Await coupon increment before responding so it isn't dropped by Vercel on function exit
     if (coupon_code) {
-      pool.queryR('UPDATE coupons SET used_count = used_count + 1 WHERE UPPER(code) = UPPER($1)', [coupon_code])
+      await pool.queryR('UPDATE coupons SET used_count = used_count + 1 WHERE UPPER(code) = UPPER($1)', [coupon_code])
         .catch(err => console.error('Coupon increment failed:', err.message));
     }
 
-    // Only send confirmation email for confirmed orders — pending orders get it after payment
+    // Await confirmation email before responding — fire-and-forget is killed by Vercel on function exit
     if (orderStatus !== 'Payment Pending') {
-      sendOrderConfirmation(order)
-        .then(() => pool.queryR('UPDATE orders SET email_sent = true WHERE id = $1', [id]))
-        .catch(err => console.error('Email send failed for', id, ':', err.message));
+      try {
+        await sendOrderConfirmation(order);
+        await pool.queryR('UPDATE orders SET email_sent = true WHERE id = $1', [id]);
+      } catch (emailErr) {
+        console.error('Email send failed for', id, ':', emailErr.message);
+        // Don't fail the order — email error is non-fatal
+      }
     }
 
     // Log new order (System actor so it stands out from admin actions)

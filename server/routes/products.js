@@ -9,7 +9,13 @@ router.get('/', async (req, res) => {
   try {
     const { category, condition, in_stock, featured, limit, page, search, sort } = req.query;
     const CARD_COLS = 'id,name,subtitle,category,listing_type,apple_url,image_urls,usd_price,in_stock,featured,badge,delivery_days,condition,condition_note,stock_count,listing_status,created_at,updated_at,variants';
-    const isAdmin = req.query.admin === 'true';
+    // admin=true only honoured when a valid admin token is present
+    const authHeader = req.headers['authorization'] || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    let isAdmin = false;
+    if (req.query.admin === 'true' && token) {
+      try { require('../adminAuth').verifyToken(token); isAdmin = true; } catch(_) {}
+    }
     let where = isAdmin ? 'WHERE 1=1' : "WHERE listing_status != 'hidden'";
     const params = [];
 

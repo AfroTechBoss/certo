@@ -5,10 +5,13 @@ import { CERTO_RATE, useResponsive } from '../data.js';
 import { ProductIcon, fmt } from './HomePage.jsx';
 
 // Defined outside CheckoutFlow so the component identity stays stable across re-renders
-const CheckoutInput = ({ label, value, onChange, placeholder, type = 'text' }) => (
+const CheckoutInput = ({ label, value, onChange, placeholder, type = 'text', inputId }) => {
+  const id = inputId || `checkout-${label.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`;
+  return (
   <div style={{ marginBottom: 18 }}>
-    <label style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, color: 'var(--text)', display: 'block', marginBottom: 6 }}>{label}</label>
+    <label htmlFor={id} style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, color: 'var(--text)', display: 'block', marginBottom: 6 }}>{label}</label>
     <input
+      id={id}
       type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
       style={{
         width: '100%', padding: '12px 16px', borderRadius: 10, border: '1.5px solid var(--border)',
@@ -20,7 +23,33 @@ const CheckoutInput = ({ label, value, onChange, placeholder, type = 'text' }) =
       onBlur={e => e.target.style.borderColor = 'var(--border)'}
     />
   </div>
-);
+  );
+};
+
+// ── Delivery fee table (NGN) — from courier pricing sheet, keyed by max weight (kg) ──
+const DELIVERY_TABLE = [
+  [0.5,74246.11],[1,74480.82],[1.5,74715.51],[2,74950.22],[2.5,101344.14],
+  [3,125504.95],[3.5,149665.75],[4,180673.26],[4.5,197441.06],[5,202486.39],
+  [6,236540.20],[7,265464.82],[8,294389.47],[9,323314.10],[10,358036.42],
+  [11,376021.10],[12,399803.47],[13,423585.84],[14,447368.19],[15,498279.05],
+  [16,523428.70],[17,548578.37],[18,573728.06],[19,598877.73],[20,628879.52],
+  [21,632462.58],[22,662579.85],[23,692697.13],[24,722814.37],[25,689534.51],
+  [26,787171.32],[27,814752.70],[28,842334.07],[29,869915.46],[30,897496.84],
+  [31,1051285.60],[32,1082938.19],[33,1114590.78],[34,1146243.36],[35,1177895.96],
+  [36,1209548.53],[37,1241201.13],[38,1272853.71],[39,1304506.27],[40,1336158.89],
+  [41,1367811.47],[42,1399464.05],[43,1431116.64],[44,1462769.23],[45,1494421.81],
+  [46,1526074.38],[47,1557726.99],[48,1589379.57],[49,1621032.16],[50,1518879.78],
+  [51,1547884.90],[52,1576890.00],[53,1605895.12],[54,1634900.25],[55,1663905.36],
+  [56,1692910.48],[57,1721915.61],[58,1750920.70],[59,1779925.84],[60,1808930.95],
+  [61,1837936.06],[62,1866941.20],[63,1895946.30],[64,1924951.44],[65,1953956.56],
+  [66,1982961.66],[67,2011966.77],[68,2040971.89],[69,2069977.00],[70,2098982.13],
+];
+
+// Category fallback weights (kg) for products that have no weight_kg stored yet
+const CATEGORY_WEIGHT_KG = {
+  iPhone: 0.25, iPad: 0.65, Mac: 3.0, AirPods: 0.1,
+  Watch: 0.1, 'Apple TV': 0.5, HomePod: 1.4, Accessories: 0.35,
+};
 
 const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
   const { isMobile } = useResponsive();
@@ -69,31 +98,6 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
   const cartItems = cart || [];
   const SERVICE_FEE        = 35;
   const DANGEROUS_FEE_UNIT = 40;
-
-  // ── Delivery fee table (NGN) — from courier pricing sheet, keyed by max weight (kg) ──
-  const DELIVERY_TABLE = [
-    [0.5,74246.11],[1,74480.82],[1.5,74715.51],[2,74950.22],[2.5,101344.14],
-    [3,125504.95],[3.5,149665.75],[4,180673.26],[4.5,197441.06],[5,202486.39],
-    [6,236540.20],[7,265464.82],[8,294389.47],[9,323314.10],[10,358036.42],
-    [11,376021.10],[12,399803.47],[13,423585.84],[14,447368.19],[15,498279.05],
-    [16,523428.70],[17,548578.37],[18,573728.06],[19,598877.73],[20,628879.52],
-    [21,632462.58],[22,662579.85],[23,692697.13],[24,722814.37],[25,689534.51],
-    [26,787171.32],[27,814752.70],[28,842334.07],[29,869915.46],[30,897496.84],
-    [31,1051285.60],[32,1082938.19],[33,1114590.78],[34,1146243.36],[35,1177895.96],
-    [36,1209548.53],[37,1241201.13],[38,1272853.71],[39,1304506.27],[40,1336158.89],
-    [41,1367811.47],[42,1399464.05],[43,1431116.64],[44,1462769.23],[45,1494421.81],
-    [46,1526074.38],[47,1557726.99],[48,1589379.57],[49,1621032.16],[50,1518879.78],
-    [51,1547884.90],[52,1576890.00],[53,1605895.12],[54,1634900.25],[55,1663905.36],
-    [56,1692910.48],[57,1721915.61],[58,1750920.70],[59,1779925.84],[60,1808930.95],
-    [61,1837936.06],[62,1866941.20],[63,1895946.30],[64,1924951.44],[65,1953956.56],
-    [66,1982961.66],[67,2011966.77],[68,2040971.89],[69,2069977.00],[70,2098982.13],
-  ];
-
-  // Category fallback weights (kg) for products that have no weight_kg stored yet
-  const CATEGORY_WEIGHT_KG = {
-    iPhone: 0.25, iPad: 0.65, Mac: 3.0, AirPods: 0.1,
-    Watch: 0.1, 'Apple TV': 0.5, HomePod: 1.4, Accessories: 0.35,
-  };
 
   const getItemWeightKg = (product) => {
     if (product.weight_kg) return Number(product.weight_kg);

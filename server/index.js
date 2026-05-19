@@ -1,21 +1,54 @@
 require('dotenv').config();
-const express  = require('express');
-const cors     = require('cors');
-const path     = require('path');
-const fs       = require('fs');
-const crypto   = require('crypto');
-const pool     = require('./db');
+const express   = require('express');
+const cors      = require('cors');
+const rateLimit = require('express-rate-limit');
+const path      = require('path');
+const fs        = require('fs');
+const crypto    = require('crypto');
+const pool      = require('./db');
 const { generateToken, parseAccounts } = require('./adminAuth');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
+// CORS — only accept requests from the live site and local dev
+const allowedOrigins = [
+  'https://certo.ng',
+  'https://www.certo.ng',
+  'http://localhost:3000',
+  'http://localhost:5173',
+];
+app.use(cors({
+  origin: (origin, cb) => {
+    // Allow server-to-server (no origin) and known origins
+    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    cb(new Error('CORS: origin not allowed'));
+  },
+}));
+
 app.use(express.json());
+
+// ── Rate limiting ────────────────────────────────────────────────────────────
+// Login: 10 attempts per 15 min per IP — brute-force protection
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many login attempts. Try again in 15 minutes.' },
+});
+// General public endpoints: 60 req/min per IP
+const publicLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests. Slow down.' },
+});
 
 // Admin login — validates password against ADMIN_ACCOUNTS (format: "Name:pass,Name2:pass2")
 // Returns a signed 30-day token (name embedded) + the admin's display name
-app.post('/api/admin/login', (req, res) => {
+app.post('/api/admin/login', loginLimiter, (req, res) => {
   const { password } = req.body;
   if (!password) return res.status(400).json({ error: 'Password required' });
 
@@ -51,11 +84,11 @@ app.post('/api/admin/login', (req, res) => {
 const distPath = path.join(__dirname, '..', 'dist');
 app.use(express.static(distPath));
 
-// API routes
-app.use('/api/products',    require('./routes/products'));
-app.use('/api/orders',      require('./routes/orders'));
-app.use('/api/coupons',     require('./routes/coupons'));
-app.use('/api/contact',     require('./routes/contact'));
+// API routes — public routes get the general rate limiter
+app.use('/api/products',    publicLimiter, require('./routes/products'));
+app.use('/api/orders',      publicLimiter, require('./routes/orders'));
+app.use('/api/coupons',     publicLimiter, require('./routes/coupons'));
+app.use('/api/contact',     publicLimiter, require('./routes/contact'));
 app.use('/api/admin/logs',  require('./routes/adminLog'));
 
 // POST /api/admin/event  — lightweight client-side event logger
@@ -142,8 +175,9 @@ app.post('/api/flutterwave/webhook', express.json(), async (req, res) => {
   // Validate the secret hash sent in the verif-hash header
   const hash       = req.headers['verif-hash'];
   const secretHash = process.env.FLW_SECRET_HASH;
-  if (secretHash && hash !== secretHash) {
-    console.warn('[flutterwave] Webhook hash mismatch — ignoring');
+  // Reject if secret is not configured OR hash doesn't match — never accept unsigned webhooks
+  if (!secretHash || hash !== secretHash) {
+    console.warn('[flutterwave] Webhook rejected — hash missing or mismatch');
     return res.status(400).json({ error: 'Invalid signature' });
   }
 
@@ -238,7 +272,7 @@ app.get('/api/img', async (req, res) => {
     // Apple CDN blocks hotlinks without a Referer from apple.com
     if (isAppleCDN) headers['Referer'] = 'https://www.apple.com/';
 
-    const upstream = await fetch(fetchUrl, { headers });
+    const upstream = await fetch(fetchUrl, { headers, signal: AbortSignal.timeout(10000) });
     if (!upstream.ok) return res.status(upstream.status).end();
     const ct  = upstream.headers.get('content-type') || 'image/jpeg';
     const buf = Buffer.from(await upstream.arrayBuffer());
@@ -254,7 +288,7 @@ app.get('/api/img', async (req, res) => {
 // Forex proxy — avoid CORS issues from client
 app.get('/api/forex', async (req, res) => {
   try {
-    const resp = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+    const resp = await fetch('https://api.exchangerate-api.com/v4/latest/USD', { signal: AbortSignal.timeout(8000) });
     const data = await resp.json();
     const ngn  = data?.rates?.NGN;
     if (!ngn) throw new Error('No NGN rate');

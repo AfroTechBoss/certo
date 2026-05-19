@@ -226,6 +226,7 @@ const ShopPage = ({ navigate, addToCart, initialType }) => {
               <input
                 type="text" value={searchInput} onChange={e => setSearchInput(e.target.value)}
                 placeholder="Search products…"
+                aria-label="Search products"
                 style={{
                   width: '100%', paddingLeft: 38, paddingRight: searchInput ? 36 : 14, paddingTop: 10, paddingBottom: 10,
                   borderRadius: 10, border: '1.5px solid var(--border)', background: 'var(--bg)',
@@ -500,7 +501,7 @@ const ProductDetailPage = ({ productId, navigate, addToCart }) => {
     const isOpen = openSections.has(sectionKey);
     return (
       <div style={{ borderTop: '1px solid var(--border)' }}>
-        <button onClick={() => toggleSection(sectionKey)} style={{
+        <button onClick={() => toggleSection(sectionKey)} aria-expanded={isOpen} style={{
           width: '100%', background: 'none', border: 'none', cursor: 'pointer',
           padding: isMobile ? '18px 0' : '22px 0',
           display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16,
@@ -556,7 +557,7 @@ const ProductDetailPage = ({ productId, navigate, addToCart }) => {
                   border: `2px solid ${selectedImg === i ? 'var(--accent)' : 'var(--border)'}`,
                   background: 'var(--bg-alt)', overflow: 'hidden', cursor: 'pointer', padding: 4,
                 }}>
-                  <img src={url} alt={`View ${i + 1}`} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                  <img src={url} alt={`${product.name} – view ${i + 1}`} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                 </button>
               ))}
             </div>
@@ -621,6 +622,8 @@ const ProductDetailPage = ({ productId, navigate, addToCart }) => {
                       <button
                         key={c.id}
                         title={c.name}
+                        aria-label={c.name}
+                        aria-pressed={selectedColor === c.id}
                         onClick={() => { setSelectedColor(c.id); setSelectedImg(0); }}
                         style={{
                           width: 36, height: 36, borderRadius: '50%', cursor: 'pointer', flexShrink: 0,

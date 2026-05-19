@@ -170,9 +170,10 @@ async function sendLogExport(rows, deletedBy) {
     ? `"Certo System" <${process.env.SMTP_USER}>`
     : '"Certo System" <noreply@certo.ng>';
 
+  const toAddr = process.env.ADMIN_ALERT_EMAIL || 'chidileozoemena@gmail.com, chidile@certo.ng';
   await transporter.sendMail({
     from:    fromAddr,
-    to:      'chidileozoemena@gmail.com, chidile@certo.ng',
+    to:      toAddr,
     subject: `[Certo] Activity Log Exported — ${rows.length} entries — ${new Date().toDateString()}`,
     text,
     html,

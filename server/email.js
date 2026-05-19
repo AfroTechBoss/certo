@@ -20,6 +20,16 @@ transporter.verify((err) => {
 const WA_NUM = process.env.WHATSAPP_NUMBER || '2348057575906';
 const SITE   = process.env.FRONTEND_URL    || 'https://certo.ng';
 
+// Escape user-supplied strings before embedding in HTML email bodies
+function esc(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function orderConfirmationHtml(order) {
   const {
     id, customer_name, product_name, product_subtitle,
@@ -49,8 +59,8 @@ function orderConfirmationHtml(order) {
     <tr>
       <td style="padding:${i > 0 ? '14px' : '0'} 0 4px;vertical-align:top;">
         ${itemQty > 1 ? `<div style="display:inline-block;background:#f2f0ec;border:1px solid #e5e2db;border-radius:6px;padding:2px 8px;font-size:12px;font-weight:700;color:#706b60;margin-bottom:4px;">${itemQty}×</div>` : ''}
-        <div style="font-size:${isMulti ? '15' : '18'}px;font-weight:700;color:#1a1714;">${item.name}</div>
-        ${item.subtitle ? `<div style="font-size:13px;color:#706b60;margin-top:2px;">${item.subtitle}</div>` : ''}
+        <div style="font-size:${isMulti ? '15' : '18'}px;font-weight:700;color:#1a1714;">${esc(item.name)}</div>
+        ${item.subtitle ? `<div style="font-size:13px;color:#706b60;margin-top:2px;">${esc(item.subtitle)}</div>` : ''}
         ${variantPills ? `<div style="margin-top:5px;">${variantPills}</div>` : ''}
         ${item.applecare && item.applecare !== 'none' ? `<div style="font-size:12px;color:#d97757;margin-top:3px;">+ ${item.applecare}</div>` : ''}
       </td>
@@ -93,7 +103,7 @@ function orderConfirmationHtml(order) {
       </div>
       <h1 style="font-size:24px;font-weight:700;color:#1a1714;margin:0 0 8px;letter-spacing:-0.02em;">Order Confirmed</h1>
       <p style="font-size:15px;color:#706b60;margin:0;line-height:1.6;">
-        Hi ${customer_name}, your order has been received and payment confirmed.<br/>We're starting procurement within 24 hours.
+        Hi ${esc(customer_name)}, your order has been received and payment confirmed.<br/>We're starting procurement within 24 hours.
       </p>
     </td>
   </tr>
@@ -139,7 +149,7 @@ function orderConfirmationHtml(order) {
   <tr>
     <td style="padding:28px 40px;border-bottom:1px solid #e5e2db;">
       <div style="font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#706b60;margin-bottom:12px;">Delivery address</div>
-      <div style="font-size:15px;color:#1a1714;line-height:1.6;">${address}${state ? `, ${state}` : ''}</div>
+      <div style="font-size:15px;color:#1a1714;line-height:1.6;">${esc(address)}${state ? `, ${esc(state)}` : ''}</div>
     </td>
   </tr>
 
@@ -280,7 +290,7 @@ function statusUpdateHtml(order) {
       <div style="font-size:48px;margin-bottom:16px;">${msg.emoji}</div>
       <h1 style="font-size:22px;font-weight:700;color:#1a1714;margin:0 0 12px;letter-spacing:-0.02em;">${msg.headline}</h1>
       <p style="font-size:15px;color:#706b60;margin:0;line-height:1.7;max-width:440px;display:inline-block;">
-        Hi ${customer_name} — ${msg.body}
+        Hi ${esc(customer_name)} — ${esc(msg.body)}
       </p>
     </td>
   </tr>
@@ -289,7 +299,7 @@ function statusUpdateHtml(order) {
   <tr>
     <td style="padding:24px 40px;border-bottom:1px solid #e5e2db;background:#f2f0ec;">
       <div style="font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#706b60;margin-bottom:8px;">Your order</div>
-      <div style="font-size:16px;font-weight:700;color:#1a1714;margin-bottom:4px;">${displayName}</div>
+      <div style="font-size:16px;font-weight:700;color:#1a1714;margin-bottom:4px;">${esc(displayName)}</div>
       <div style="font-size:13px;color:#706b60;">Order ID: <strong>${id}</strong></div>
     </td>
   </tr>
