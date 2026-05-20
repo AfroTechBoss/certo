@@ -353,7 +353,8 @@ const VerifyPage = ({ navigate, initialOrderId }) => {
             placeholder="e.g. CRT-220426-8841"
             aria-label="Order ID"
             style={{
-              flex: '1 1 220px', padding: '14px 18px', borderRadius: 12,
+              flex: isMobile ? 'none' : '1 1 220px',
+              padding: '14px 18px', borderRadius: 12,
               border: '1.5px solid #e5e2db', background: 'white',
               fontFamily: 'var(--font-body)', fontSize: 15, color: '#1a1714',
               outline: 'none', letterSpacing: '0.02em',
