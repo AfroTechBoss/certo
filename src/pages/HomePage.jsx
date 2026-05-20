@@ -533,12 +533,15 @@ function ProductIcon({ type }) {
 }
 
 function SectionCatalog({ navigate }) {
-  const PRODUCTS = [
-    { name: 'iPhone 15 Pro',  sub: '256GB · Natural Titanium', usd: 999,  ngn: 1588410, type: 'iphone', tag: 'Most popular' },
-    { name: 'MacBook Air M3', sub: '13-inch · 8GB · 256GB',    usd: 1099, ngn: 1747410, type: 'laptop', tag: '' },
-    { name: 'AirPods Pro',    sub: '2nd generation · USB-C',   usd: 249,  ngn: 395910,  type: 'pods',   tag: '' },
-    { name: 'iPad Pro · M4',  sub: '11-inch · 256GB · Wi-Fi',  usd: 999,  ngn: 1588410, type: 'ipad',   tag: 'New' },
-  ];
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading]   = useState(true);
+
+  useEffect(() => {
+    fetch('/api/products?in_stock=true&limit=4')
+      .then(r => r.ok ? r.json() : [])
+      .then(rows => { setProducts(Array.isArray(rows) ? rows.slice(0, 4) : []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
 
   return (
     <section style={{ background: 'var(--cream)', padding: '120px 80px', borderTop: '1px solid var(--hairline)' }}>
@@ -569,48 +572,74 @@ function SectionCatalog({ navigate }) {
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 20 }}>
-          {PRODUCTS.map(p => (
-            <article key={p.name} onClick={() => navigate('shop')} style={{
-              background: 'var(--card)', border: '1px solid var(--border)',
-              borderRadius: 18, overflow: 'hidden', cursor: 'pointer',
-            }}>
-              <div style={{
-                height: 220, background: 'var(--cream)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                borderBottom: '1px solid var(--hairline)', position: 'relative',
-              }}>
-                <ProductIcon type={p.type} />
-                {p.tag && (
-                  <span style={{
-                    position: 'absolute', top: 14, left: 14,
-                    fontSize: 10, fontWeight: 700, letterSpacing: '0.12em',
-                    color: 'var(--accent)', textTransform: 'uppercase',
-                    background: 'var(--accent-tint)', padding: '4px 10px',
-                    borderRadius: 100,
-                  }}>{p.tag}</span>
-                )}
-              </div>
-              <div style={{ padding: '20px 22px 22px' }}>
-                <div style={{
-                  fontFamily: 'var(--font-head)', fontWeight: 700,
-                  fontSize: 18, color: 'var(--ink)', letterSpacing: '-0.02em', marginBottom: 4,
-                }}>{p.name}</div>
-                <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 18, minHeight: 18 }}>{p.sub}</div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                  <div>
+          {loading
+            ? Array(4).fill(0).map((_, i) => (
+                <div key={i} style={{
+                  background: 'var(--card)', border: '1px solid var(--border)',
+                  borderRadius: 18, height: 320, opacity: 0.4,
+                  animation: 'certoPulse 1.4s ease-in-out infinite',
+                }} />
+              ))
+            : products.map(p => {
+                const usd = parseFloat(p.usd_price) || 0;
+                const ngn = Math.round(usd * CERTO_RATE);
+                const img = p.image_urls?.[0];
+                return (
+                <article key={p.id} onClick={() => navigate('product', p.id)} style={{
+                  background: 'var(--card)', border: '1px solid var(--border)',
+                  borderRadius: 18, overflow: 'hidden', cursor: 'pointer',
+                }}>
+                  <div style={{
+                    height: 220, background: 'var(--cream)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    borderBottom: '1px solid var(--hairline)', position: 'relative',
+                  }}>
+                    {img
+                      ? <img
+                          src={`/api/img?url=${encodeURIComponent(img.replace(/[&?]\.v=[^&]*/,''))}`}
+                          alt={p.name}
+                          style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 24 }}
+                        />
+                      : <ProductIcon type={
+                          /macbook|mac/i.test(p.name) ? 'laptop'
+                          : /ipad/i.test(p.name)     ? 'ipad'
+                          : /airpods/i.test(p.name)  ? 'pods'
+                          : 'iphone'
+                        } />
+                    }
+                    {p.badge && (
+                      <span style={{
+                        position: 'absolute', top: 14, left: 14,
+                        fontSize: 10, fontWeight: 700, letterSpacing: '0.12em',
+                        color: 'var(--accent)', textTransform: 'uppercase',
+                        background: 'var(--accent-tint)', padding: '4px 10px',
+                        borderRadius: 100,
+                      }}>{p.badge}</span>
+                    )}
+                  </div>
+                  <div style={{ padding: '20px 22px 22px' }}>
                     <div style={{
-                      fontFamily: 'var(--font-head)', fontWeight: 800,
-                      fontSize: 22, color: 'var(--ink)', letterSpacing: '-0.02em', lineHeight: 1,
-                    }}>₦{p.ngn.toLocaleString()}</div>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--subtle)', marginTop: 4 }}>
-                      ≈ ${p.usd.toLocaleString()} USD
+                      fontFamily: 'var(--font-head)', fontWeight: 700,
+                      fontSize: 18, color: 'var(--ink)', letterSpacing: '-0.02em', marginBottom: 4,
+                    }}>{p.name}</div>
+                    <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 18, minHeight: 18 }}>{p.subtitle || ''}</div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                      <div>
+                        <div style={{
+                          fontFamily: 'var(--font-head)', fontWeight: 800,
+                          fontSize: 22, color: 'var(--ink)', letterSpacing: '-0.02em', lineHeight: 1,
+                        }}>₦{ngn.toLocaleString()}</div>
+                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--subtle)', marginTop: 4 }}>
+                          ≈ ${usd.toLocaleString()} USD
+                        </div>
+                      </div>
+                      <span style={{ color: 'var(--accent)', fontSize: 22 }}>→</span>
                     </div>
                   </div>
-                  <span style={{ color: 'var(--accent)', fontSize: 22 }}>→</span>
-                </div>
-              </div>
-            </article>
-          ))}
+                </article>
+                );
+              })
+          }
         </div>
       </div>
     </section>
@@ -1072,6 +1101,10 @@ const HomePage = ({ navigate }) => {
       @keyframes certoLiveBlink {
         0%, 100% { opacity: 0.4; transform: scale(0.85); }
         50%      { opacity: 1;   transform: scale(1); }
+      }
+      @keyframes certoPulse {
+        0%, 100% { opacity: 0.4; }
+        50%      { opacity: 0.2; }
       }
     `;
     document.head.appendChild(style);
