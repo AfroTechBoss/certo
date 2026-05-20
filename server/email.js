@@ -415,7 +415,9 @@ function statusUpdateHtml(order) {
   const allItems = Array.isArray(items) && items.length > 0 ? items : null;
   const displayName = allItems ? allItems.map(it => it.name).join(', ') : product_name;
   const msg = STATUS_MESSAGES[status];
-  const trackUrl = `${SITE}/track/${id}`;
+  const trackUrl   = `${SITE}/track/${id}`;
+  const verifyUrl  = `${SITE}/verify/${id}`;
+  const isDelivered = status === 'Delivered';
 
   const inner = `
   ${masthead()}
@@ -461,12 +463,49 @@ function statusUpdateHtml(order) {
     </td>
   </tr>
 
+  ${isDelivered ? `
+  <!-- verification certificate CTA — only shown on Delivered email -->
+  <tr>
+    <td class="pad" style="padding:36px 40px;background:${C.cream};border-bottom:1px solid ${C.hairline};">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td style="vertical-align:middle;padding-right:20px;">
+            <!-- document icon -->
+            <table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:14px;">
+              <tr><td style="background:${C.card};border:1px solid ${C.border};width:44px;height:44px;border-radius:10px;text-align:center;line-height:44px;">
+                <span style="font-size:20px;">&#128196;</span>
+              </td></tr>
+            </table>
+            <div class="syne" style="${SYNE800}font-size:20px;color:${C.ink};margin-bottom:8px;line-height:1.15;">Your verification<br/>certificate is ready.</div>
+            <p style="font-size:14px;color:${C.muted};line-height:1.7;margin:0 0 22px;">
+              Your Certo certificate of authenticity is available online — it confirms your device&rsquo;s serial number, Apple order reference, and full chain of custody from the US to your door.
+            </p>
+            <table role="presentation" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="padding-right:12px;">
+                  <a href="${verifyUrl}" style="display:inline-block;background:${C.ink};color:#fff;font-size:14px;font-weight:700;padding:13px 28px;border-radius:10px;text-decoration:none;letter-spacing:0.01em;">View Certificate &rarr;</a>
+                </td>
+                <td>
+                  <a href="${trackUrl}" style="display:inline-block;background:${C.card};color:${C.ink};border:1px solid ${C.border};font-size:14px;font-weight:600;padding:12px 24px;border-radius:10px;text-decoration:none;">Track Order</a>
+                </td>
+              </tr>
+            </table>
+            <div style="font-size:11px;color:${C.subtle};margin-top:12px;">
+              ${verifyUrl}
+            </div>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+  ` : `
   <!-- track CTA -->
   <tr>
     <td class="pad" style="padding:36px 40px;text-align:center;border-bottom:1px solid ${C.hairline};">
       <a href="${trackUrl}" style="display:inline-block;background:${C.ink};color:#fff;font-size:15px;font-weight:600;padding:15px 36px;border-radius:10px;text-decoration:none;">Track my order &rarr;</a>
     </td>
   </tr>
+  `}
 
   <!-- help -->
   <tr>
@@ -512,7 +551,7 @@ async function sendStatusUpdate(order) {
     to:      `${order.customer_name} <${order.customer_email}>`,
     subject: subject + order.id,
     html,
-    text: `Hi ${order.customer_name},\n\n${msg.headline}\n\n${msg.body.replace(/&mdash;/g, '—').replace(/<[^>]+>/g, '')}\n\n${msg.next.replace(/&mdash;/g, '—').replace(/<[^>]+>/g, '')}\n\nTrack your order: ${SITE}/track/${order.id}\n\nFor help: hello@certo.ng or WhatsApp: https://wa.me/${WA_NUM}\n\nCerto`,
+    text: `Hi ${order.customer_name},\n\n${msg.headline}\n\n${msg.body.replace(/&mdash;/g, '—').replace(/<[^>]+>/g, '')}\n\n${msg.next.replace(/&mdash;/g, '—').replace(/<[^>]+>/g, '')}${order.status === 'Delivered' ? `\n\n— Your verification certificate —\nYour certificate of authenticity is ready. It confirms your device's serial number, Apple order reference, and chain of custody.\nView it here: ${SITE}/verify/${order.id}` : ''}\n\nTrack your order: ${SITE}/track/${order.id}\n\nFor help: hello@certo.ng or WhatsApp: https://wa.me/${WA_NUM}\n\nCerto`,
   });
 }
 

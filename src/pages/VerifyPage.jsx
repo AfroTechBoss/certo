@@ -52,8 +52,7 @@ const CertificateCard = ({ cert, orderId, isMobile }) => {
       {/* Header */}
       <div style={{ position: 'relative', zIndex: 1, display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr auto', gap: 24, alignItems: 'flex-end', paddingBottom: 24, marginBottom: 24, borderBottom: '2px solid #1a1714' }}>
         <div>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-            <div style={{ width: 28, height: 28, borderRadius: 8, background: '#1a1714', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', ...HEAD, fontWeight: 800, fontSize: 14, letterSpacing: '-0.04em' }}>C</div>
+          <div style={{ display: 'inline-flex', alignItems: 'center', marginBottom: 14 }}>
             <span style={{ ...HEAD, fontWeight: 800, fontSize: 18, color: '#1a1714', letterSpacing: '-0.02em' }}>Certo</span>
           </div>
           <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#d97757', marginBottom: 8 }}>Verification Certificate</div>
