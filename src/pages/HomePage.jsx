@@ -4,6 +4,20 @@
 import React, { useEffect, useState } from 'react';
 import { CERTO_RATE } from '../data.js';
 
+// ─── Mobile hook (via matchMedia — works with CSS viewport emulation) ─────────
+
+function useIsMobile() {
+  const mq = typeof window !== 'undefined' ? window.matchMedia('(max-width: 767px)') : null;
+  const [mobile, setMobile] = useState(() => mq ? mq.matches : false);
+  useEffect(() => {
+    if (!mq) return;
+    const handler = (e) => setMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+  return mobile;
+}
+
 // ─── Shared data ─────────────────────────────────────────────────────────────
 
 const PROOF_DATA = {
@@ -46,7 +60,7 @@ function PrimaryCTA({ label, dark = true, onClick }) {
 
 // ─── Certificate component ────────────────────────────────────────────────────
 
-function Certificate() {
+function Certificate({ isMobile }) {
   const D = PROOF_DATA;
   const Row = ({ label, value, mono }) => (
     <div style={{
@@ -70,7 +84,8 @@ function Certificate() {
     <div style={{
       position: 'relative', background: 'var(--card)',
       border: '1px solid var(--border)', borderRadius: 16,
-      padding: '36px 40px 40px', transform: 'rotate(-1deg)',
+      padding: isMobile ? '28px 24px 28px' : '36px 40px 40px',
+      transform: isMobile ? 'none' : 'rotate(-1deg)',
       boxShadow: '0 40px 100px -30px rgba(26,23,20,0.25), 0 12px 32px -12px rgba(26,23,20,0.1)',
     }}>
       {/* Watermark */}
@@ -81,7 +96,7 @@ function Certificate() {
       }}>
         <div style={{
           fontFamily: 'var(--font-head)', fontWeight: 800,
-          fontSize: 220, color: 'var(--ink)', opacity: 0.025,
+          fontSize: isMobile ? 120 : 220, color: 'var(--ink)', opacity: 0.025,
           letterSpacing: '-0.04em', transform: 'rotate(-10deg)',
           whiteSpace: 'nowrap', userSelect: 'none',
         }}>CERTO</div>
@@ -100,7 +115,7 @@ function Certificate() {
           }}>Verification Certificate</div>
           <div style={{
             fontFamily: 'var(--font-head)', fontWeight: 800,
-            fontSize: 28, color: 'var(--ink)', letterSpacing: '-0.02em', lineHeight: 1,
+            fontSize: isMobile ? 20 : 28, color: 'var(--ink)', letterSpacing: '-0.02em', lineHeight: 1,
           }}>{D.id}</div>
         </div>
         <div style={{ textAlign: 'right' }}>
@@ -149,6 +164,7 @@ function Certificate() {
           marginTop: 20, padding: '16px 18px',
           background: 'var(--cream)', borderRadius: 10,
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          flexWrap: 'wrap', gap: 12,
         }}>
           <div>
             <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--subtle)', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 4 }}>Rate locked at checkout</div>
@@ -163,12 +179,13 @@ function Certificate() {
 
       {/* DELIVERED stamp */}
       <div style={{
-        position: 'absolute', top: 20, right: -30,
+        position: 'absolute', top: 20,
+        right: isMobile ? 12 : -30,
         transform: 'rotate(10deg)',
         background: 'var(--sage)', color: 'white',
-        padding: '12px 24px', borderRadius: 6,
+        padding: isMobile ? '8px 14px' : '12px 24px', borderRadius: 6,
         fontFamily: 'var(--font-head)', fontWeight: 800,
-        fontSize: 14, letterSpacing: '0.16em',
+        fontSize: isMobile ? 11 : 14, letterSpacing: '0.16em',
         boxShadow: '0 0 0 2px var(--sage), 0 8px 24px -6px rgba(31,122,77,0.5)',
       }}>
         ✓ DELIVERED
@@ -180,6 +197,7 @@ function Certificate() {
 // ─── 1. HERO · Manifesto ─────────────────────────────────────────────────────
 
 function SectionHero({ navigate }) {
+  const isMobile = useIsMobile();
   const PRINCIPLES = [
     { num: 'I',   title: 'We buy direct from Apple US.',        body: 'Every device begins as an order placed on apple.com.' },
     { num: 'II',  title: 'We verify every serial.',             body: "Checked against Apple's coverage database before it ships." },
@@ -191,7 +209,8 @@ function SectionHero({ navigate }) {
     <section style={{ minHeight: '100vh', background: 'var(--cream)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
       <div style={{
         flex: 1, maxWidth: 1440, width: '100%', margin: '0 auto',
-        padding: '64px 80px', display: 'flex', flexDirection: 'column',
+        padding: isMobile ? '40px 20px 64px' : '64px 80px',
+        display: 'flex', flexDirection: 'column',
       }}>
         <div style={{
           fontSize: 11, fontWeight: 700, letterSpacing: '0.18em',
@@ -202,9 +221,10 @@ function SectionHero({ navigate }) {
 
         <h1 style={{
           fontFamily: 'var(--font-head)', fontWeight: 800,
-          fontSize: 'clamp(64px, 9vw, 132px)', lineHeight: 0.9,
+          fontSize: isMobile ? 'clamp(48px, 13vw, 72px)' : 'clamp(64px, 9vw, 132px)',
+          lineHeight: 0.9,
           letterSpacing: '-0.045em', color: 'var(--ink)',
-          margin: '0 0 48px',
+          margin: '0 0 40px',
         }}>
           We import Apple.<br />
           <span style={{ display: 'inline-block', position: 'relative' }}>
@@ -221,29 +241,36 @@ function SectionHero({ navigate }) {
         </h1>
 
         <div style={{
-          borderTop: '1px solid var(--hairline)', paddingTop: 36,
-          display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 36, marginBottom: 40,
+          borderTop: '1px solid var(--hairline)', paddingTop: 32,
+          display: 'grid',
+          gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
+          gap: isMobile ? 24 : 36,
+          marginBottom: 36,
         }}>
           {PRINCIPLES.map(p => (
             <div key={p.num}>
               <div style={{
                 fontFamily: 'var(--font-head)', fontWeight: 800,
-                fontSize: 44, color: 'var(--accent)',
-                letterSpacing: '-0.02em', lineHeight: 1, marginBottom: 14,
+                fontSize: isMobile ? 36 : 44, color: 'var(--accent)',
+                letterSpacing: '-0.02em', lineHeight: 1, marginBottom: 10,
               }}>{p.num}</div>
               <div style={{
                 fontFamily: 'var(--font-head)', fontWeight: 700,
-                fontSize: 17, color: 'var(--ink)',
-                letterSpacing: '-0.01em', lineHeight: 1.25, marginBottom: 10,
+                fontSize: isMobile ? 14 : 17, color: 'var(--ink)',
+                letterSpacing: '-0.01em', lineHeight: 1.25, marginBottom: 8,
               }}>{p.title}</div>
-              <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6 }}>{p.body}</div>
+              <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6 }}>{p.body}</div>
             </div>
           ))}
         </div>
 
         <div style={{
           marginTop: 'auto', paddingTop: 24, borderTop: '1px solid var(--hairline)',
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          display: 'flex',
+          flexDirection: isMobile ? 'column' : 'row',
+          justifyContent: 'space-between',
+          alignItems: isMobile ? 'flex-start' : 'center',
+          gap: isMobile ? 20 : 0,
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 13, color: 'var(--muted)' }}>
             <span style={{
@@ -285,9 +312,11 @@ function SectionHero({ navigate }) {
 // ─── 2. CERTIFICATE · Proof on paper ─────────────────────────────────────────
 
 function SectionCertificate({ navigate }) {
+  const isMobile = useIsMobile();
   return (
     <section id="certificate" style={{
-      background: 'var(--cream)', padding: '120px 80px',
+      background: 'var(--cream)',
+      padding: isMobile ? '64px 20px' : '120px 80px',
       borderTop: '1px solid var(--hairline)', position: 'relative', overflow: 'hidden',
     }}>
       <div style={{
@@ -299,7 +328,10 @@ function SectionCertificate({ navigate }) {
 
       <div style={{
         maxWidth: 1440, margin: '0 auto', position: 'relative',
-        display: 'grid', gridTemplateColumns: '0.85fr 1.15fr', gap: 80, alignItems: 'center',
+        display: 'grid',
+        gridTemplateColumns: isMobile ? '1fr' : '0.85fr 1.15fr',
+        gap: isMobile ? 48 : 80,
+        alignItems: 'center',
       }}>
         <div>
           <div style={{
@@ -309,19 +341,19 @@ function SectionCertificate({ navigate }) {
 
           <h2 style={{
             fontFamily: 'var(--font-head)', fontWeight: 800,
-            fontSize: 'clamp(40px, 5vw, 64px)', lineHeight: 0.95,
+            fontSize: 'clamp(36px, 5vw, 64px)', lineHeight: 0.95,
             letterSpacing: '-0.04em', color: 'var(--ink)', margin: '0 0 28px',
           }}>
             And here's<br />
             the <span style={{ color: 'var(--accent)' }}>paperwork</span>.
           </h2>
 
-          <p style={{ fontSize: 17, lineHeight: 1.75, color: 'var(--muted)', margin: '0 0 24px', maxWidth: 440 }}>
+          <p style={{ fontSize: 16, lineHeight: 1.75, color: 'var(--muted)', margin: '0 0 24px' }}>
             Every device ships with a printed certificate that lists the serial number,
             the chain of custody from Cupertino to your door, and the exchange rate locked at checkout.
           </p>
 
-          <p style={{ fontSize: 17, lineHeight: 1.75, color: 'var(--muted)', margin: '0 0 36px', maxWidth: 440 }}>
+          <p style={{ fontSize: 16, lineHeight: 1.75, color: 'var(--muted)', margin: '0 0 36px' }}>
             You can independently verify the serial on{' '}
             <span style={{ color: 'var(--ink)', fontWeight: 600, borderBottom: '1.5px solid var(--accent)' }}>
               apple.com/coverage
@@ -361,7 +393,7 @@ function SectionCertificate({ navigate }) {
         </div>
 
         <div style={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
-          <Certificate />
+          <Certificate isMobile={isMobile} />
         </div>
       </div>
     </section>
@@ -371,6 +403,7 @@ function SectionCertificate({ navigate }) {
 // ─── 3. CHAIN OF CUSTODY · Dark ──────────────────────────────────────────────
 
 function SectionChainOfCustody() {
+  const isMobile = useIsMobile();
   const STEPS = [
     { day: 'Day 0',  city: 'Cupertino',  country: 'USA',       label: 'Order placed on apple.com',   desc: 'Within 24 hours of your payment, we purchase your exact device.' },
     { day: 'Day 3',  city: 'Apple HQ',   country: 'CA, USA',   label: 'Device ships to US partner',  desc: 'Apple ships directly to our logistics partner for inspection.' },
@@ -381,7 +414,11 @@ function SectionChainOfCustody() {
   ];
 
   return (
-    <section style={{ background: 'var(--ink)', color: 'white', padding: '120px 80px', position: 'relative', overflow: 'hidden' }}>
+    <section style={{
+      background: 'var(--ink)', color: 'white',
+      padding: isMobile ? '64px 20px' : '120px 80px',
+      position: 'relative', overflow: 'hidden',
+    }}>
       {/* Grid overlay */}
       <div style={{
         position: 'absolute', inset: 0, opacity: 0.06, pointerEvents: 'none',
@@ -390,9 +427,13 @@ function SectionChainOfCustody() {
       }} />
 
       <div style={{ maxWidth: 1440, margin: '0 auto', position: 'relative' }}>
+        {/* Section header */}
         <div style={{
-          display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'flex-end',
-          gap: 40, marginBottom: 80,
+          display: 'grid',
+          gridTemplateColumns: isMobile ? '1fr' : '1fr auto',
+          alignItems: 'flex-end',
+          gap: isMobile ? 20 : 40,
+          marginBottom: isMobile ? 48 : 80,
         }}>
           <div>
             <div style={{
@@ -401,7 +442,7 @@ function SectionChainOfCustody() {
             }}>Chapter III · Chain of Custody</div>
             <h2 style={{
               fontFamily: 'var(--font-head)', fontWeight: 800,
-              fontSize: 'clamp(40px, 5vw, 64px)', lineHeight: 0.95,
+              fontSize: 'clamp(32px, 5vw, 64px)', lineHeight: 0.95,
               letterSpacing: '-0.04em', color: 'white', margin: 0, maxWidth: 800,
             }}>
               From Cupertino to your couch.<br />
@@ -409,7 +450,8 @@ function SectionChainOfCustody() {
             </h2>
           </div>
           <div style={{
-            display: 'flex', alignItems: 'center', gap: 10,
+            display: 'inline-flex', alignSelf: isMobile ? 'flex-start' : 'flex-end',
+            alignItems: 'center', gap: 10,
             padding: '7px 14px', borderRadius: 100,
             border: '1px solid rgba(255,255,255,0.15)',
             fontSize: 11, fontWeight: 700, letterSpacing: '0.12em',
@@ -424,60 +466,109 @@ function SectionChainOfCustody() {
           </div>
         </div>
 
-        <div style={{ position: 'relative' }}>
-          {/* Progress line */}
-          <div style={{
-            position: 'absolute', top: 28, left: 28, right: 28, height: 2,
-            background: 'linear-gradient(90deg, rgba(255,255,255,0.2) 0%, var(--accent) 100%)',
-            zIndex: 0,
-          }} />
-
-          <div style={{
-            display: 'grid', gridTemplateColumns: `repeat(${STEPS.length}, 1fr)`,
-            gap: 16, position: 'relative', zIndex: 1,
-          }}>
+        {/* Steps — horizontal on desktop, vertical on mobile */}
+        {isMobile ? (
+          /* Mobile: vertical list */
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
             {STEPS.map((s, i) => {
               const isLast = i === STEPS.length - 1;
               return (
-                <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-                  <div style={{
-                    width: 56, height: 56, borderRadius: '50%',
-                    background: isLast ? 'var(--accent)' : 'rgba(255,255,255,0.08)',
-                    border: `2px solid ${isLast ? 'var(--accent)' : 'rgba(255,255,255,0.2)'}`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    backdropFilter: 'blur(4px)',
-                    boxShadow: isLast ? '0 0 0 8px rgba(217,119,87,0.15), 0 0 0 16px rgba(217,119,87,0.07)' : 'none',
-                  }}>
-                    <span style={{
-                      fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 700,
-                      color: isLast ? 'white' : 'var(--accent)',
-                    }}>{String(i + 1).padStart(2, '0')}</span>
+                <div key={i} style={{ display: 'flex', gap: 20, paddingBottom: isLast ? 0 : 28 }}>
+                  {/* Left: dot + connector */}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+                    <div style={{
+                      width: 44, height: 44, borderRadius: '50%', flexShrink: 0,
+                      background: isLast ? 'var(--accent)' : 'rgba(255,255,255,0.08)',
+                      border: `2px solid ${isLast ? 'var(--accent)' : 'rgba(255,255,255,0.2)'}`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      boxShadow: isLast ? '0 0 0 8px rgba(217,119,87,0.15)' : 'none',
+                    }}>
+                      <span style={{
+                        fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 700,
+                        color: isLast ? 'white' : 'var(--accent)',
+                      }}>{String(i + 1).padStart(2, '0')}</span>
+                    </div>
+                    {!isLast && (
+                      <div style={{ width: 2, flex: 1, minHeight: 24, background: 'rgba(255,255,255,0.15)', marginTop: 4 }} />
+                    )}
                   </div>
-                  <div>
+                  {/* Right: content */}
+                  <div style={{ paddingBottom: 4 }}>
                     <div style={{
                       fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700,
                       color: 'var(--accent)', letterSpacing: '0.1em',
-                      textTransform: 'uppercase', marginBottom: 4,
+                      textTransform: 'uppercase', marginBottom: 2,
                     }}>{s.day}</div>
                     <div style={{
                       fontFamily: 'var(--font-head)', fontWeight: 700,
                       fontSize: 16, color: 'white', letterSpacing: '-0.01em', marginBottom: 2,
                     }}>{s.city}</div>
-                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.04em', marginBottom: 14 }}>{s.country}</div>
-                    <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)', fontWeight: 500, marginBottom: 6, lineHeight: 1.35 }}>{s.label}</div>
+                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.04em', marginBottom: 8 }}>{s.country}</div>
+                    <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)', fontWeight: 500, marginBottom: 4, lineHeight: 1.35 }}>{s.label}</div>
                     <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', lineHeight: 1.55 }}>{s.desc}</div>
                   </div>
                 </div>
               );
             })}
           </div>
-        </div>
+        ) : (
+          /* Desktop: horizontal grid */
+          <div style={{ position: 'relative' }}>
+            {/* Progress line */}
+            <div style={{
+              position: 'absolute', top: 28, left: 28, right: 28, height: 2,
+              background: 'linear-gradient(90deg, rgba(255,255,255,0.2) 0%, var(--accent) 100%)',
+              zIndex: 0,
+            }} />
+            <div style={{
+              display: 'grid', gridTemplateColumns: `repeat(${STEPS.length}, 1fr)`,
+              gap: 16, position: 'relative', zIndex: 1,
+            }}>
+              {STEPS.map((s, i) => {
+                const isLast = i === STEPS.length - 1;
+                return (
+                  <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+                    <div style={{
+                      width: 56, height: 56, borderRadius: '50%',
+                      background: isLast ? 'var(--accent)' : 'rgba(255,255,255,0.08)',
+                      border: `2px solid ${isLast ? 'var(--accent)' : 'rgba(255,255,255,0.2)'}`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      backdropFilter: 'blur(4px)',
+                      boxShadow: isLast ? '0 0 0 8px rgba(217,119,87,0.15), 0 0 0 16px rgba(217,119,87,0.07)' : 'none',
+                    }}>
+                      <span style={{
+                        fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 700,
+                        color: isLast ? 'white' : 'var(--accent)',
+                      }}>{String(i + 1).padStart(2, '0')}</span>
+                    </div>
+                    <div>
+                      <div style={{
+                        fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700,
+                        color: 'var(--accent)', letterSpacing: '0.1em',
+                        textTransform: 'uppercase', marginBottom: 4,
+                      }}>{s.day}</div>
+                      <div style={{
+                        fontFamily: 'var(--font-head)', fontWeight: 700,
+                        fontSize: 16, color: 'white', letterSpacing: '-0.01em', marginBottom: 2,
+                      }}>{s.city}</div>
+                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.04em', marginBottom: 14 }}>{s.country}</div>
+                      <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)', fontWeight: 500, marginBottom: 6, lineHeight: 1.35 }}>{s.label}</div>
+                      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', lineHeight: 1.55 }}>{s.desc}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Stats row */}
         <div style={{
-          marginTop: 80, paddingTop: 36,
+          marginTop: isMobile ? 56 : 80, paddingTop: 36,
           borderTop: '1px solid rgba(255,255,255,0.1)',
-          display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 48,
+          display: 'grid',
+          gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
+          gap: isMobile ? 32 : 48,
         }}>
           {[
             ['14 days',       'Average door-to-door delivery'],
@@ -533,6 +624,7 @@ function ProductIcon({ type }) {
 }
 
 function SectionCatalog({ navigate }) {
+  const isMobile = useIsMobile();
   const [products, setProducts] = useState([]);
   const [loading, setLoading]   = useState(true);
 
@@ -544,11 +636,18 @@ function SectionCatalog({ navigate }) {
   }, []);
 
   return (
-    <section style={{ background: 'var(--cream)', padding: '120px 80px', borderTop: '1px solid var(--hairline)' }}>
+    <section style={{
+      background: 'var(--cream)',
+      padding: isMobile ? '64px 20px' : '120px 80px',
+      borderTop: '1px solid var(--hairline)',
+    }}>
       <div style={{ maxWidth: 1440, margin: '0 auto' }}>
         <div style={{
-          display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'flex-end',
-          gap: 40, marginBottom: 64,
+          display: 'grid',
+          gridTemplateColumns: isMobile ? '1fr' : '1fr auto',
+          alignItems: 'flex-end',
+          gap: isMobile ? 16 : 40,
+          marginBottom: 48,
         }}>
           <div>
             <div style={{
@@ -557,7 +656,7 @@ function SectionCatalog({ navigate }) {
             }}>Chapter IV · The Catalog</div>
             <h2 style={{
               fontFamily: 'var(--font-head)', fontWeight: 800,
-              fontSize: 'clamp(40px, 5vw, 64px)', lineHeight: 0.95,
+              fontSize: 'clamp(32px, 5vw, 64px)', lineHeight: 0.95,
               letterSpacing: '-0.04em', color: 'var(--ink)', margin: 0, maxWidth: 700,
             }}>
               Apple's latest.<br />
@@ -568,15 +667,20 @@ function SectionCatalog({ navigate }) {
             background: 'none', border: 'none', cursor: 'pointer',
             fontSize: 14, fontWeight: 600, color: 'var(--ink)',
             borderBottom: '1.5px solid var(--ink)', paddingBottom: 3,
+            alignSelf: isMobile ? 'flex-start' : 'flex-end',
           }}>View full catalog →</button>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 20 }}>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
+          gap: isMobile ? 14 : 20,
+        }}>
           {loading
             ? Array(4).fill(0).map((_, i) => (
                 <div key={i} style={{
                   background: 'var(--card)', border: '1px solid var(--border)',
-                  borderRadius: 18, height: 320, opacity: 0.4,
+                  borderRadius: 18, height: isMobile ? 240 : 320, opacity: 0.4,
                   animation: 'certoPulse 1.4s ease-in-out infinite',
                 }} />
               ))
@@ -590,7 +694,8 @@ function SectionCatalog({ navigate }) {
                   borderRadius: 18, overflow: 'hidden', cursor: 'pointer',
                 }}>
                   <div style={{
-                    height: 220, background: 'var(--cream)',
+                    height: isMobile ? 160 : 220,
+                    background: 'var(--cream)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     borderBottom: '1px solid var(--hairline)', position: 'relative',
                   }}>
@@ -598,7 +703,7 @@ function SectionCatalog({ navigate }) {
                       ? <img
                           src={`/api/img?url=${encodeURIComponent(img.replace(/[&?]\.v=[^&]*/,''))}`}
                           alt={p.name}
-                          style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 24 }}
+                          style={{ width: '100%', height: '100%', objectFit: 'contain', padding: isMobile ? 16 : 24 }}
                         />
                       : <ProductIcon type={
                           /macbook|mac/i.test(p.name) ? 'laptop'
@@ -609,31 +714,38 @@ function SectionCatalog({ navigate }) {
                     }
                     {p.badge && (
                       <span style={{
-                        position: 'absolute', top: 14, left: 14,
-                        fontSize: 10, fontWeight: 700, letterSpacing: '0.12em',
+                        position: 'absolute', top: 10, left: 10,
+                        fontSize: 9, fontWeight: 700, letterSpacing: '0.12em',
                         color: 'var(--accent)', textTransform: 'uppercase',
-                        background: 'var(--accent-tint)', padding: '4px 10px',
+                        background: 'var(--accent-tint)', padding: '3px 8px',
                         borderRadius: 100,
                       }}>{p.badge}</span>
                     )}
                   </div>
-                  <div style={{ padding: '20px 22px 22px' }}>
+                  <div style={{ padding: isMobile ? '14px 16px 16px' : '20px 22px 22px' }}>
                     <div style={{
                       fontFamily: 'var(--font-head)', fontWeight: 700,
-                      fontSize: 18, color: 'var(--ink)', letterSpacing: '-0.02em', marginBottom: 4,
+                      fontSize: isMobile ? 14 : 18, color: 'var(--ink)',
+                      letterSpacing: '-0.02em', marginBottom: 4,
+                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                     }}>{p.name}</div>
-                    <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 18, minHeight: 18 }}>{p.subtitle || ''}</div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                    {!isMobile && (
+                      <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 18, minHeight: 18 }}>{p.subtitle || ''}</div>
+                    )}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: isMobile ? 8 : 0 }}>
                       <div>
                         <div style={{
                           fontFamily: 'var(--font-head)', fontWeight: 800,
-                          fontSize: 22, color: 'var(--ink)', letterSpacing: '-0.02em', lineHeight: 1,
+                          fontSize: isMobile ? 16 : 22, color: 'var(--ink)',
+                          letterSpacing: '-0.02em', lineHeight: 1,
                         }}>₦{ngn.toLocaleString()}</div>
-                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--subtle)', marginTop: 4 }}>
-                          ≈ ${usd.toLocaleString()} USD
-                        </div>
+                        {!isMobile && (
+                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--subtle)', marginTop: 4 }}>
+                            ≈ ${usd.toLocaleString()} USD
+                          </div>
+                        )}
                       </div>
-                      <span style={{ color: 'var(--accent)', fontSize: 22 }}>→</span>
+                      <span style={{ color: 'var(--accent)', fontSize: isMobile ? 18 : 22 }}>→</span>
                     </div>
                   </div>
                 </article>
@@ -649,6 +761,7 @@ function SectionCatalog({ navigate }) {
 // ─── 5. FOREX ────────────────────────────────────────────────────────────────
 
 function SectionForex() {
+  const isMobile = useIsMobile();
   const [time, setTime] = useState(new Date());
   const [liveRate, setLiveRate] = useState(null);
 
@@ -670,7 +783,8 @@ function SectionForex() {
 
   return (
     <section style={{
-      background: 'var(--cream)', padding: '120px 80px',
+      background: 'var(--cream)',
+      padding: isMobile ? '64px 20px' : '120px 80px',
       borderTop: '1px solid var(--hairline)', position: 'relative', overflow: 'hidden',
     }}>
       <div style={{
@@ -682,7 +796,10 @@ function SectionForex() {
 
       <div style={{
         maxWidth: 1100, margin: '0 auto', position: 'relative',
-        display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: 80, alignItems: 'center',
+        display: 'grid',
+        gridTemplateColumns: isMobile ? '1fr' : '1fr 1.2fr',
+        gap: isMobile ? 40 : 80,
+        alignItems: 'center',
       }}>
         <div>
           <div style={{
@@ -691,7 +808,7 @@ function SectionForex() {
           }}>Chapter V · The Forex Promise</div>
           <h2 style={{
             fontFamily: 'var(--font-head)', fontWeight: 800,
-            fontSize: 'clamp(36px, 4.5vw, 56px)', lineHeight: 0.95,
+            fontSize: 'clamp(32px, 4.5vw, 56px)', lineHeight: 0.95,
             letterSpacing: '-0.04em', color: 'var(--ink)', margin: '0 0 24px',
           }}>
             You pay the rate<br />
@@ -706,11 +823,15 @@ function SectionForex() {
 
         {/* Live rate card */}
         <div style={{
-          background: 'var(--ink)', borderRadius: 24, padding: 40,
+          background: 'var(--ink)', borderRadius: 24,
+          padding: isMobile ? '28px 24px' : 40,
           color: 'white', position: 'relative', overflow: 'hidden',
           boxShadow: '0 32px 80px -20px rgba(26,23,20,0.35)',
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
+          <div style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            marginBottom: 24, flexWrap: 'wrap', gap: 8,
+          }}>
             <div style={{
               display: 'flex', alignItems: 'center', gap: 10,
               fontSize: 11, fontWeight: 700, letterSpacing: '0.16em',
@@ -721,7 +842,7 @@ function SectionForex() {
                 animation: 'certoLiveBlink 1.6s ease-in-out infinite',
                 display: 'inline-block',
               }} />
-              Live rate · updated {timeStr}
+              Live rate · {timeStr}
             </div>
             <span style={{
               fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 500,
@@ -729,22 +850,23 @@ function SectionForex() {
             }}>USD → NGN</span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 16, marginBottom: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 8, flexWrap: 'wrap' }}>
             <span style={{
               fontFamily: 'var(--font-head)', fontWeight: 800,
-              fontSize: 92, color: 'white', letterSpacing: '-0.04em', lineHeight: 1,
+              fontSize: isMobile ? 60 : 92,
+              color: 'white', letterSpacing: '-0.04em', lineHeight: 1,
             }}>₦{rate.toLocaleString()}</span>
             <span style={{ fontSize: 16, color: 'rgba(255,255,255,0.5)', fontFamily: 'var(--font-mono)', letterSpacing: '0.04em' }}>/ $1</span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 32, fontSize: 13, color: '#34d399' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 24, fontSize: 13, color: '#34d399', flexWrap: 'wrap' }}>
             <span>↑ 0.6% from yesterday</span>
             <span style={{ color: 'rgba(255,255,255,0.3)' }}>·</span>
             <span style={{ color: 'rgba(255,255,255,0.5)' }}>30-day avg ₦1,572</span>
           </div>
 
           {/* Sparkline */}
-          <svg width="100%" height="60" viewBox="0 0 400 60" preserveAspectRatio="none" style={{ marginBottom: 32 }}>
+          <svg width="100%" height="60" viewBox="0 0 400 60" preserveAspectRatio="none" style={{ marginBottom: 24 }}>
             <defs>
               <linearGradient id="certoSpark" x1="0" x2="0" y1="0" y2="1">
                 <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.4" />
@@ -762,15 +884,15 @@ function SectionForex() {
           </svg>
 
           <div style={{
-            paddingTop: 24, borderTop: '1px solid rgba(255,255,255,0.1)',
-            display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 24, alignItems: 'center',
+            paddingTop: 20, borderTop: '1px solid rgba(255,255,255,0.1)',
+            display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 16, alignItems: 'center',
           }}>
             <div>
               <div style={{
                 fontSize: 10, fontWeight: 700, letterSpacing: '0.14em',
                 color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', marginBottom: 6,
               }}>iPhone 15 Pro 256GB</div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: 'rgba(255,255,255,0.85)', letterSpacing: '0.04em' }}>$999 USD</div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: isMobile ? 12 : 14, color: 'rgba(255,255,255,0.85)', letterSpacing: '0.04em' }}>$999 USD</div>
             </div>
             <span style={{ color: 'var(--accent)', fontSize: 20 }}>→</span>
             <div style={{ textAlign: 'right' }}>
@@ -780,7 +902,7 @@ function SectionForex() {
               }}>You pay today</div>
               <div style={{
                 fontFamily: 'var(--font-head)', fontWeight: 800,
-                fontSize: 20, color: 'var(--accent)', letterSpacing: '-0.02em',
+                fontSize: isMobile ? 16 : 20, color: 'var(--accent)', letterSpacing: '-0.02em',
               }}>₦{exampleNgn}</div>
             </div>
           </div>
@@ -793,6 +915,7 @@ function SectionForex() {
 // ─── 6. VOICES ───────────────────────────────────────────────────────────────
 
 function SectionVoices() {
+  const isMobile = useIsMobile();
   const QUOTES = [
     {
       stars: 5,
@@ -812,32 +935,40 @@ function SectionVoices() {
   ];
 
   return (
-    <section style={{ background: 'var(--cream)', padding: '120px 80px', borderTop: '1px solid var(--hairline)' }}>
+    <section style={{
+      background: 'var(--cream)',
+      padding: isMobile ? '64px 20px' : '120px 80px',
+      borderTop: '1px solid var(--hairline)',
+    }}>
       <div style={{ maxWidth: 1440, margin: '0 auto' }}>
-        <div style={{ marginBottom: 64 }}>
+        <div style={{ marginBottom: isMobile ? 40 : 64 }}>
           <div style={{
             fontSize: 11, fontWeight: 700, letterSpacing: '0.18em',
             color: 'var(--accent)', textTransform: 'uppercase', marginBottom: 20,
           }}>Chapter VI · The People</div>
           <h2 style={{
             fontFamily: 'var(--font-head)', fontWeight: 800,
-            fontSize: 'clamp(40px, 5vw, 64px)', lineHeight: 0.95,
+            fontSize: 'clamp(32px, 5vw, 64px)', lineHeight: 0.95,
             letterSpacing: '-0.04em', color: 'var(--ink)', margin: 0, maxWidth: 700,
           }}>
             Who took the leap.<br />What happened next.
           </h2>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24 }}>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
+          gap: isMobile ? 20 : 24,
+        }}>
           {QUOTES.map((q, i) => (
             <figure key={i} style={{
               background: 'var(--card)', border: '1px solid var(--border)',
-              borderRadius: 18, padding: 32, margin: 0,
+              borderRadius: 18, padding: isMobile ? '24px 20px' : 32, margin: 0,
               display: 'flex', flexDirection: 'column',
-              transform: i === 1 ? 'translateY(-12px)' : 'none',
-              boxShadow: i === 1 ? '0 24px 64px -24px rgba(26,23,20,0.18)' : 'none',
+              transform: (!isMobile && i === 1) ? 'translateY(-12px)' : 'none',
+              boxShadow: (!isMobile && i === 1) ? '0 24px 64px -24px rgba(26,23,20,0.18)' : 'none',
             }}>
-              <div style={{ display: 'flex', gap: 3, marginBottom: 24 }}>
+              <div style={{ display: 'flex', gap: 3, marginBottom: 20 }}>
                 {Array.from({ length: q.stars }).map((_, j) => (
                   <svg key={j} width="16" height="16" viewBox="0 0 16 16" fill="var(--accent)">
                     <path d="M8 0l2.4 5.2L16 6l-4 3.8L13 16 8 13l-5 3 1-6.2L0 6l5.6-.8z" />
@@ -845,11 +976,11 @@ function SectionVoices() {
                 ))}
               </div>
               <blockquote style={{
-                fontSize: 16, lineHeight: 1.65, color: 'var(--ink)',
-                margin: '0 0 24px', flex: 1, fontWeight: 400,
+                fontSize: isMobile ? 15 : 16, lineHeight: 1.65, color: 'var(--ink)',
+                margin: '0 0 20px', flex: 1, fontWeight: 400,
               }}>
                 <span style={{
-                  fontFamily: 'var(--font-head)', fontSize: 36,
+                  fontFamily: 'var(--font-head)', fontSize: 32,
                   color: 'var(--accent)', lineHeight: 0.5,
                   display: 'inline-block', verticalAlign: '-0.4em',
                   marginRight: 4, fontWeight: 800,
@@ -857,7 +988,7 @@ function SectionVoices() {
                 {q.text}
               </blockquote>
               <figcaption style={{
-                paddingTop: 18, borderTop: '1px solid var(--hairline)',
+                paddingTop: 16, borderTop: '1px solid var(--hairline)',
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
               }}>
                 <div>
@@ -868,6 +999,7 @@ function SectionVoices() {
                   fontSize: 10, fontWeight: 700, letterSpacing: '0.1em',
                   color: 'var(--accent)', textTransform: 'uppercase',
                   background: 'var(--accent-tint)', padding: '4px 10px', borderRadius: 100,
+                  whiteSpace: 'nowrap',
                 }}>{q.product}</div>
               </figcaption>
             </figure>
@@ -876,8 +1008,11 @@ function SectionVoices() {
 
         {/* Stats bar */}
         <div style={{
-          marginTop: 80, padding: '40px 0', borderTop: '1px solid var(--hairline)',
-          display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 0,
+          marginTop: isMobile ? 56 : 80, padding: isMobile ? '32px 0' : '40px 0',
+          borderTop: '1px solid var(--hairline)',
+          display: 'grid',
+          gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
+          gap: isMobile ? 24 : 0,
         }}>
           {[
             ['1,247', 'devices delivered'],
@@ -887,12 +1022,12 @@ function SectionVoices() {
           ].map(([n, l], i) => (
             <div key={n} style={{
               textAlign: 'center',
-              borderRight: i < 3 ? '1px solid var(--hairline)' : 'none',
-              padding: '0 16px',
+              borderRight: (!isMobile && i < 3) ? '1px solid var(--hairline)' : 'none',
+              padding: isMobile ? '0 8px' : '0 16px',
             }}>
               <div style={{
                 fontFamily: 'var(--font-head)', fontWeight: 800,
-                fontSize: 44, color: 'var(--ink)', letterSpacing: '-0.02em',
+                fontSize: isMobile ? 36 : 44, color: 'var(--ink)', letterSpacing: '-0.02em',
                 lineHeight: 1, marginBottom: 8,
               }}>{n}</div>
               <div style={{
@@ -910,9 +1045,11 @@ function SectionVoices() {
 // ─── 7. FOUNDER ──────────────────────────────────────────────────────────────
 
 function SectionFounder() {
+  const isMobile = useIsMobile();
   return (
     <section style={{
-      background: 'var(--cream)', padding: '120px 80px',
+      background: 'var(--cream)',
+      padding: isMobile ? '64px 20px' : '120px 80px',
       borderTop: '1px solid var(--hairline)', position: 'relative',
     }}>
       <div style={{ maxWidth: 720, margin: '0 auto', position: 'relative' }}>
@@ -924,8 +1061,8 @@ function SectionFounder() {
 
         <div style={{
           fontFamily: 'var(--font-head)', fontStyle: 'italic',
-          fontSize: 'clamp(24px, 3vw, 34px)', lineHeight: 1.4,
-          letterSpacing: '-0.015em', color: 'var(--ink)', marginBottom: 36,
+          fontSize: 'clamp(20px, 3vw, 34px)', lineHeight: 1.4,
+          letterSpacing: '-0.015em', color: 'var(--ink)', marginBottom: 32,
         }}>
           "Three years ago my cousin paid ₦980,000 for an 'iPhone 13 Pro' that turned
           out to be a Grade C refurb with a cracked chassis under the skin. She cried. I remembered that."
@@ -943,7 +1080,11 @@ function SectionFounder() {
 
         <div style={{
           paddingTop: 28, borderTop: '1px solid var(--hairline)',
-          display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end',
+          display: 'flex',
+          flexDirection: isMobile ? 'column' : 'row',
+          justifyContent: 'space-between',
+          alignItems: isMobile ? 'flex-start' : 'flex-end',
+          gap: isMobile ? 20 : 0,
         }}>
           <div>
             <div style={{
@@ -970,9 +1111,11 @@ function SectionFounder() {
 // ─── 8. FINAL CTA ─────────────────────────────────────────────────────────────
 
 function SectionFinalCTA({ navigate }) {
+  const isMobile = useIsMobile();
   return (
     <section style={{
-      background: 'var(--accent)', padding: '120px 80px',
+      background: 'var(--accent)',
+      padding: isMobile ? '80px 20px' : '120px 80px',
       color: 'white', position: 'relative', overflow: 'hidden',
     }}>
       {/* Giant ghost text */}
@@ -982,7 +1125,8 @@ function SectionFinalCTA({ navigate }) {
       }}>
         <div style={{
           fontFamily: 'var(--font-head)', fontWeight: 800,
-          fontSize: 600, color: 'rgba(255,255,255,0.05)',
+          fontSize: isMobile ? 200 : 600,
+          color: 'rgba(255,255,255,0.05)',
           letterSpacing: '-0.05em', whiteSpace: 'nowrap',
           userSelect: 'none', transform: 'translateY(40px)',
         }}>Certo</div>
@@ -996,27 +1140,34 @@ function SectionFinalCTA({ navigate }) {
 
         <h2 style={{
           fontFamily: 'var(--font-head)', fontWeight: 800,
-          fontSize: 'clamp(48px, 7vw, 92px)', lineHeight: 0.95,
+          fontSize: isMobile ? 'clamp(40px, 13vw, 72px)' : 'clamp(48px, 7vw, 92px)',
+          lineHeight: 0.95,
           letterSpacing: '-0.045em', color: 'white', margin: '0 0 28px',
         }}>
           Buy Apple<br />the right way.
         </h2>
 
-        <p style={{ fontSize: 19, lineHeight: 1.6, color: 'rgba(255,255,255,0.85)', margin: '0 auto 48px', maxWidth: 560 }}>
+        <p style={{
+          fontSize: isMobile ? 16 : 19, lineHeight: 1.6,
+          color: 'rgba(255,255,255,0.85)', margin: '0 auto 40px', maxWidth: 560,
+        }}>
           No fakes. No surprise charges. No fine print buried somewhere.
           One certificate, one promise, one founder picking up the phone.
         </p>
 
         <div style={{
-          display: 'inline-flex', gap: 20, alignItems: 'center',
+          display: 'flex', gap: 16, alignItems: 'center',
           flexWrap: 'wrap', justifyContent: 'center',
+          flexDirection: isMobile ? 'column' : 'row',
         }}>
           <button onClick={() => navigate('shop')} style={{
             background: 'white', color: 'var(--ink)',
-            padding: '20px 40px', borderRadius: 14,
+            padding: isMobile ? '18px 36px' : '20px 40px',
+            borderRadius: 14,
             fontSize: 16, fontWeight: 700, letterSpacing: '0.01em',
             border: 'none', cursor: 'pointer',
             display: 'inline-flex', alignItems: 'center', gap: 12,
+            width: isMobile ? '100%' : 'auto', justifyContent: 'center',
           }}>Shop Apple →</button>
           <button onClick={() => document.getElementById('certificate')?.scrollIntoView({ behavior: 'smooth' })} style={{
             background: 'none', border: 'none', cursor: 'pointer',
@@ -1032,11 +1183,18 @@ function SectionFinalCTA({ navigate }) {
 // ─── Footer ──────────────────────────────────────────────────────────────────
 
 function SectionFooter({ navigate }) {
+  const isMobile = useIsMobile();
   return (
-    <footer style={{ background: 'var(--ink)', color: 'rgba(255,255,255,0.5)', padding: '64px 80px 40px' }}>
+    <footer style={{
+      background: 'var(--ink)', color: 'rgba(255,255,255,0.5)',
+      padding: isMobile ? '48px 20px 32px' : '64px 80px 40px',
+    }}>
       <div style={{
         maxWidth: 1440, margin: '0 auto',
-        display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: 64, marginBottom: 56,
+        display: 'grid',
+        gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr 1fr 1fr',
+        gap: isMobile ? 36 : 64,
+        marginBottom: isMobile ? 36 : 56,
       }}>
         <div>
           <div style={{
@@ -1070,7 +1228,10 @@ function SectionFooter({ navigate }) {
       </div>
       <div style={{
         paddingTop: 24, borderTop: '1px solid rgba(255,255,255,0.1)',
-        display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16,
+        display: 'flex',
+        flexDirection: isMobile ? 'column' : 'row',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap', gap: 12,
         fontSize: 12, color: 'rgba(255,255,255,0.4)',
       }}>
         <div>© {new Date().getFullYear()} Certo · Registered in Nigeria (CAC) · Lagos, Nigeria</div>
