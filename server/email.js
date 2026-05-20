@@ -64,11 +64,18 @@ const C = {
 
 const FONT_HEAD = "'Syne', Georgia, 'Times New Roman', serif";
 const FONT_BODY = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif";
+// Inline style shorthand — every Syne element must include font-weight:800 explicitly
+// so the bold weight is applied as soon as the font loads (or if it falls back to Georgia)
+const SYNE800 = `font-family:${FONT_HEAD};font-weight:800;letter-spacing:-0.02em;`;
 
-// Web font include — supported by Gmail / Apple Mail; degrades to Georgia elsewhere
+// Web font include — <link> is respected by Gmail, Apple Mail, and most web clients.
+// @import inside <style> is stripped by Gmail; <link> in <head> survives.
+// Outlook ignores web fonts entirely and falls back to Georgia (weight is preserved by font-weight).
 const HEAD_STYLES = `
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Inter:wght@400;500;600;700&display=swap');
   body { margin:0; padding:0; background:${C.cream}; font-family:${FONT_BODY}; -webkit-font-smoothing:antialiased; color:${C.ink}; }
   a { color:${C.accent}; text-decoration:none; }
   .syne { font-family:${FONT_HEAD}; letter-spacing:-0.02em; }
@@ -127,7 +134,7 @@ function masthead() {
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
         <tr>
           <td style="vertical-align:middle;">
-            <div class="syne" style="font-family:${FONT_HEAD};font-weight:800;font-size:30px;color:${C.ink};line-height:1;">Certo</div>
+            <div class="syne" style="${SYNE800}font-size:30px;color:${C.ink};line-height:1;">Certo</div>
           </td>
           <td align="right" style="vertical-align:middle;">
             <div style="font-size:11px;color:${C.subtle};letter-spacing:0.08em;text-transform:uppercase;font-weight:600;">Genuine Apple, delivered</div>
@@ -147,7 +154,7 @@ function footerBlock() {
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
         <tr>
           <td style="vertical-align:top;">
-            <div class="syne" style="font-family:${FONT_HEAD};font-weight:800;font-size:18px;color:${C.ink};margin-bottom:4px;">Certo</div>
+            <div class="syne" style="${SYNE800}font-size:18px;color:${C.ink};margin-bottom:4px;">Certo</div>
             <div style="font-size:12px;color:${C.muted};line-height:1.6;">Lagos, Nigeria</div>
           </td>
           <td align="right" style="vertical-align:top;">
@@ -223,7 +230,7 @@ function orderConfirmationHtml(order) {
         </td></tr>
       </table>
       <div class="eyebrow" style="margin:24px 0 10px;color:${C.sage};">Order confirmed</div>
-      <h1 class="syne hero-h1" style="font-family:${FONT_HEAD};font-weight:800;font-size:38px;color:${C.ink};margin:0 0 12px;line-height:1.05;letter-spacing:-0.03em;">
+      <h1 class="syne hero-h1" style="${SYNE800}font-size:38px;color:${C.ink};margin:0 0 12px;line-height:1.05;letter-spacing:-0.03em;">
         Thank you, ${esc(customer_name.split(' ')[0])}.
       </h1>
       <p style="font-size:15px;color:${C.muted};margin:0 auto;line-height:1.7;max-width:420px;">
@@ -238,7 +245,7 @@ function orderConfirmationHtml(order) {
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
         <tr><td style="padding:28px;background:${C.cream};border-radius:14px;text-align:center;margin:32px 0;">
           <div class="eyebrow" style="margin-bottom:10px;">Your order ID</div>
-          <div class="syne id-num" style="font-family:${FONT_HEAD};font-weight:800;font-size:32px;color:${C.ink};letter-spacing:0.06em;line-height:1;">${esc(id)}</div>
+          <div class="syne id-num" style="${SYNE800}font-size:32px;color:${C.ink};letter-spacing:0.06em;line-height:1;">${esc(id)}</div>
           <div style="font-size:12px;color:${C.muted};margin-top:10px;">Save this &mdash; you'll use it to track your order anytime</div>
         </td></tr>
       </table>
@@ -268,7 +275,7 @@ function orderConfirmationHtml(order) {
         <tr>
           <td style="padding-top:14px;font-size:15px;font-weight:700;color:${C.ink};font-family:${FONT_HEAD};letter-spacing:-0.01em;">Total paid</td>
           <td align="right" style="padding-top:14px;">
-            <span class="syne" style="font-family:${FONT_HEAD};font-weight:800;font-size:24px;color:${C.accent};letter-spacing:-0.02em;">${fmtNgn(ngn_price)}</span>
+            <span class="syne" style="${SYNE800}font-size:24px;color:${C.accent};">${fmtNgn(ngn_price)}</span>
           </td>
         </tr>
       </table>
@@ -315,7 +322,7 @@ function orderConfirmationHtml(order) {
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
           <tr>
             <td style="vertical-align:top;width:56px;padding-right:16px;">
-              <div class="syne" style="font-family:${FONT_HEAD};font-weight:800;font-size:28px;color:${C.accent};line-height:1;letter-spacing:-0.02em;">${num}</div>
+              <div class="syne" style="${SYNE800}font-size:28px;color:${C.accent};line-height:1;">${num}</div>
               ${i < arr.length - 1 ? `<div style="width:1px;height:36px;background:${C.border};margin:8px 0 0 14px;"></div>` : ''}
             </td>
             <td style="vertical-align:top;padding-bottom:${i < arr.length - 1 ? '20' : '0'}px;">
@@ -422,7 +429,7 @@ function statusUpdateHtml(order) {
         </td></tr>
       </table>
       <div class="eyebrow" style="margin:24px 0 10px;color:${msg.accentColor};">${msg.eyebrow}</div>
-      <h1 class="syne hero-h1" style="font-family:${FONT_HEAD};font-weight:800;font-size:38px;color:${C.ink};margin:0 0 14px;line-height:1.05;letter-spacing:-0.03em;">
+      <h1 class="syne hero-h1" style="${SYNE800}font-size:38px;color:${C.ink};margin:0 0 14px;line-height:1.05;letter-spacing:-0.03em;">
         ${msg.headline}
       </h1>
       <p style="font-size:15px;color:${C.muted};margin:0 auto;line-height:1.75;max-width:440px;">
@@ -530,7 +537,7 @@ function cancellationHtml(order) {
         </td></tr>
       </table>
       <div class="eyebrow" style="margin:24px 0 10px;">Order cancelled</div>
-      <h1 class="syne hero-h1" style="font-family:${FONT_HEAD};font-weight:800;font-size:36px;color:${C.ink};margin:0 0 14px;line-height:1.1;letter-spacing:-0.03em;">
+      <h1 class="syne hero-h1" style="${SYNE800}font-size:36px;color:${C.ink};margin:0 0 14px;line-height:1.1;letter-spacing:-0.03em;">
         Your order<br/>has been cancelled.
       </h1>
       <p style="font-size:15px;color:${C.muted};margin:0 auto;line-height:1.7;max-width:420px;">
@@ -567,7 +574,7 @@ function cancellationHtml(order) {
   <tr>
     <td class="pad" style="padding:32px 40px 24px;">
       <div style="border:1px solid ${C.accentTint};background:${C.accentTint};border-radius:14px;padding:24px;">
-        <div class="syne" style="font-family:${FONT_HEAD};font-weight:800;font-size:18px;color:${C.ink};margin-bottom:8px;letter-spacing:-0.01em;">Didn't request this?</div>
+        <div class="syne" style="${SYNE800}font-size:18px;color:${C.ink};margin-bottom:8px;">Didn't request this?</div>
         <p style="font-size:14px;color:${C.ink};line-height:1.7;margin:0 0 18px;opacity:0.85;">
           If you didn't ask to cancel this order or believe this is a mistake, please reach out immediately. We'll sort it out promptly.
         </p>
