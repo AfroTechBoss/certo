@@ -209,7 +209,7 @@ function SectionHero({ navigate }) {
     <section style={{ minHeight: '100vh', background: 'var(--cream)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
       <div style={{
         flex: 1, maxWidth: 1440, width: '100%', margin: '0 auto',
-        padding: isMobile ? '40px 20px 64px' : '64px 80px',
+        padding: isMobile ? '112px 20px 64px' : '136px 80px 64px',
         display: 'flex', flexDirection: 'column',
       }}>
         <div style={{
@@ -356,7 +356,7 @@ function SectionCertificate({ navigate }) {
           <p style={{ fontSize: 16, lineHeight: 1.75, color: 'var(--muted)', margin: '0 0 36px' }}>
             You can independently verify the serial on{' '}
             <span style={{ color: 'var(--ink)', fontWeight: 600, borderBottom: '1.5px solid var(--accent)' }}>
-              apple.com/coverage
+              checkcoverage.apple.com
             </span>{' '}
             before you accept delivery. If it doesn't check out, you don't pay.
           </p>
@@ -1180,69 +1180,6 @@ function SectionFinalCTA({ navigate }) {
   );
 }
 
-// ─── Footer ──────────────────────────────────────────────────────────────────
-
-function SectionFooter({ navigate }) {
-  const isMobile = useIsMobile();
-  return (
-    <footer style={{
-      background: 'var(--ink)', color: 'rgba(255,255,255,0.5)',
-      padding: isMobile ? '48px 20px 32px' : '64px 80px 40px',
-    }}>
-      <div style={{
-        maxWidth: 1440, margin: '0 auto',
-        display: 'grid',
-        gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr 1fr 1fr',
-        gap: isMobile ? 36 : 64,
-        marginBottom: isMobile ? 36 : 56,
-      }}>
-        <div>
-          <div style={{
-            fontFamily: 'var(--font-head)', fontWeight: 800,
-            fontSize: 26, color: 'white', letterSpacing: '-0.03em', marginBottom: 14,
-          }}>Certo</div>
-          <p style={{ fontSize: 13, lineHeight: 1.7, color: 'rgba(255,255,255,0.45)', maxWidth: 320 }}>
-            Genuine Apple products, sourced directly from Apple US,
-            delivered to Nigeria with a verification certificate in the box.
-          </p>
-        </div>
-        {[
-          { title: 'Shop',    links: [['iPhone', 'shop'], ['MacBook', 'shop'], ['iPad', 'shop'], ['Apple Watch', 'shop'], ['AirPods', 'shop']] },
-          { title: 'Company', links: [['About', 'how-it-works'], ['How it works', 'how-it-works'], ['FAQ', 'faq'], ['Track Order', 'track']] },
-          { title: 'Contact', links: [['WhatsApp', null], ['Email', null], ['Twitter', null], ['Instagram', null]] },
-        ].map(col => (
-          <div key={col.title}>
-            <div style={{
-              fontSize: 10, fontWeight: 700, letterSpacing: '0.16em',
-              color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', marginBottom: 18,
-            }}>{col.title}</div>
-            {col.links.map(([label, screen]) => (
-              <button key={label} onClick={() => screen && navigate(screen)} style={{
-                display: 'block', padding: '6px 0', fontSize: 14,
-                color: 'rgba(255,255,255,0.7)', background: 'none', border: 'none',
-                cursor: screen ? 'pointer' : 'default', textAlign: 'left',
-              }}>{label}</button>
-            ))}
-          </div>
-        ))}
-      </div>
-      <div style={{
-        paddingTop: 24, borderTop: '1px solid rgba(255,255,255,0.1)',
-        display: 'flex',
-        flexDirection: isMobile ? 'column' : 'row',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap', gap: 12,
-        fontSize: 12, color: 'rgba(255,255,255,0.4)',
-      }}>
-        <div>© {new Date().getFullYear()} Certo · Registered in Nigeria (CAC) · Lagos, Nigeria</div>
-        <div>
-          <span style={{ marginRight: 24 }}>Privacy</span>
-          <span>Terms</span>
-        </div>
-      </div>
-    </footer>
-  );
-}
 
 // ─── Root ─────────────────────────────────────────────────────────────────────
 
@@ -1306,7 +1243,6 @@ const HomePage = ({ navigate }) => {
       <div data-screen-label="08 Final CTA" data-certo-reveal>
         <SectionFinalCTA navigate={navigate} />
       </div>
-      <SectionFooter navigate={navigate} />
     </main>
   );
 };
