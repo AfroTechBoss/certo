@@ -324,7 +324,8 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password: loginPwd }),
       });
-      const d = await r.json();
+      let d;
+      try { d = await r.json(); } catch { throw new Error('Server error — could not connect. Please try again.'); }
       if (!r.ok) throw new Error(d.error || 'Login failed');
       try {
         sessionStorage.setItem('certo_admin_token', d.token);

@@ -11,10 +11,12 @@ const { generateToken, parseAccounts } = require('./adminAuth');
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
-// CORS — only accept requests from the live site and local dev
+// CORS — only accept requests from the live site, preview domain, and local dev
 const allowedOrigins = [
   'https://certo.ng',
   'https://www.certo.ng',
+  'https://preview.certo.ng',
+  'https://beta.certo.ng'
   'http://localhost:3000',
   'http://localhost:5173',
 ];
