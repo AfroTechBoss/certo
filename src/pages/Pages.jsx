@@ -254,6 +254,14 @@ const TrackOrderPage = ({ initialOrderId }) => {
               {ORDER_STATUS_SEQUENCE.map((s, i) => {
                 const isDone   = i < currentIdx;
                 const isActive = i === currentIdx;
+
+                // Find the timestamp for this status from status_timeline
+                const timeline = Array.isArray(order.status_timeline) ? order.status_timeline : [];
+                const entry    = timeline.find(e => e.status === s.key);
+                const entryDate = entry?.timestamp
+                  ? new Date(entry.timestamp).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric' })
+                  : null;
+
                 return (
                   <div key={s.key} style={{ display: 'flex', gap: 20, marginBottom: 0 }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 28, flexShrink: 0 }}>
@@ -270,8 +278,13 @@ const TrackOrderPage = ({ initialOrderId }) => {
                         <div style={{ width: 2, flex: 1, minHeight: 32, background: isDone ? 'oklch(50% 0.18 145)' : 'var(--border)', marginTop: 4 }} />
                       )}
                     </div>
-                    <div style={{ paddingBottom: 28 }}>
-                      <div style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 15, color: isDone || isActive ? 'var(--text)' : 'var(--text-muted)', marginBottom: 2 }}>{s.label}</div>
+                    <div style={{ paddingBottom: 28, flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 2 }}>
+                        <div style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 15, color: isDone || isActive ? 'var(--text)' : 'var(--text-muted)' }}>{s.label}</div>
+                        {(isDone || isActive) && entryDate && (
+                          <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{entryDate}</div>
+                        )}
+                      </div>
                       {isActive && s.note && <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6, marginTop: 4 }}>{s.note}</p>}
                     </div>
                   </div>

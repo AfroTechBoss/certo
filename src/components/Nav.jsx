@@ -29,11 +29,12 @@ const NavComponent = ({ page, navigate, cartCount = 0 }) => {
   React.useEffect(() => { setMenuOpen(false); }, [page]);
 
   const navLinks = isDashboard ? [
-    { key: 'dashboard',          label: 'Orders'    },
-    { key: 'dashboard-products', label: 'Products'  },
-    { key: 'dashboard-forex',    label: 'Forex'     },
-    { key: 'dashboard-revenue',  label: 'Revenue'   },
-    { key: 'dashboard-customers',label: 'Customers' },
+    { key: 'dashboard',               label: 'Orders'       },
+    { key: 'dashboard-products',      label: 'Products'     },
+    { key: 'dashboard-certificates',  label: 'Certificates' },
+    { key: 'dashboard-forex',         label: 'Forex'        },
+    { key: 'dashboard-revenue',       label: 'Revenue'      },
+    { key: 'dashboard-customers',     label: 'Customers'    },
   ] : [
     { key: 'shop',         label: 'Shop'         },
     { key: 'how-it-works', label: 'How It Works' },

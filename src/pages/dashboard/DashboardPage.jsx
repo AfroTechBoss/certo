@@ -339,6 +339,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
       fetchMessages();
       fetchCoupons();
       fetchLogs();
+      fetchCertificates();
     } catch(err) {
       setLoginErr(err.message);
     } finally {
@@ -483,6 +484,16 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
 
   React.useEffect(() => { fetchLogs(); }, [fetchLogs]);
 
+  const fetchCertificates = React.useCallback(() => {
+    setCertsLoading(true);
+    authFetch('/api/certificates')
+      .then(r => r.json())
+      .then(data => { setCertificates(Array.isArray(data) ? data : []); setCertsLoading(false); })
+      .catch(() => setCertsLoading(false));
+  }, []);
+
+  React.useEffect(() => { fetchCertificates(); }, [fetchCertificates]);
+
   // ── Tab-local state lifted here so hook count is stable across renders ────────
   // MessagesTab selected message
   const [selectedMessage, setSelectedMessage] = React.useState(null);
@@ -490,6 +501,16 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
   const [clearConfirm, setClearConfirm] = React.useState(false);
   const [clearing,     setClearing]     = React.useState(false);
   // ─────────────────────────────────────────────────────────────────────────────
+
+  // Certificates
+  const [certificates,  setCertificates]  = React.useState([]);
+  const [certsLoading,  setCertsLoading]  = React.useState(false);
+  const [certSearch,    setCertSearch]    = React.useState('');
+  // Publish-certificate modal (opened from order detail)
+  const [publishModal,  setPublishModal]  = React.useState(null); // { order, productIndex, productName, productSubtitle, variantColor, variantStorage, existingCertId }
+  const [publishDraft,  setPublishDraft]  = React.useState({ serial_number: '', apple_order_ref: '', chain_of_custody: [] });
+  const [publishSaving, setPublishSaving] = React.useState(false);
+  const [publishError,  setPublishError]  = React.useState('');
 
   // Auto-refresh orders and messages every 2 minutes so the admin sees new data without a page reload
   React.useEffect(() => {
@@ -503,14 +524,15 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
   const unreadMessages = messages.filter(m => !m.read).length;
 
   const tabs = [
-    { key: 'orders',    label: 'Orders',    count: orders.filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled').length },
-    { key: 'products',  label: 'Products'  },
-    { key: 'messages',  label: 'Messages',  count: unreadMessages },
-    { key: 'coupons',   label: 'Coupons'   },
-    { key: 'activity',  label: 'Activity'  },
-    { key: 'forex',     label: 'Forex'     },
-    { key: 'revenue',   label: 'Revenue'   },
-    { key: 'customers', label: 'Customers' },
+    { key: 'orders',       label: 'Orders',       count: orders.filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled').length },
+    { key: 'products',     label: 'Products'     },
+    { key: 'certificates', label: 'Certificates' },
+    { key: 'messages',     label: 'Messages',     count: unreadMessages },
+    { key: 'coupons',      label: 'Coupons'      },
+    { key: 'activity',     label: 'Activity'     },
+    { key: 'forex',        label: 'Forex'        },
+    { key: 'revenue',      label: 'Revenue'      },
+    { key: 'customers',    label: 'Customers'    },
   ];
 
   // Apply time filter to any list of orders
@@ -885,6 +907,69 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
                 🚩 {selectedOrder.flag ? 'Unflag Order' : 'Flag Order'}
               </button>
             </div>
+
+            {/* ── Certificates section ───────────────────────────────── */}
+            {(() => {
+              const orderCerts = certificates.filter(c => c.order_id === selectedOrder.id);
+              const productList = selectedOrder.items && selectedOrder.items.length > 0
+                ? selectedOrder.items.map((item, idx) => ({ idx, name: item.name || selectedOrder.product, subtitle: item.subtitle || '', variantColor: item.variant_color || null, variantStorage: item.variant_storage || null }))
+                : [{ idx: 0, name: selectedOrder.product, subtitle: '', variantColor: selectedOrder.variant_color || null, variantStorage: selectedOrder.variant_storage || null }];
+
+              return (
+                <div style={{ marginBottom: 20, padding: '16px', background: 'var(--bg-alt)', borderRadius: 12, border: '1px solid var(--border)' }}>
+                  <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>Certificates</div>
+                  {productList.map(({ idx, name, subtitle, variantColor, variantStorage }) => {
+                    const cert = orderCerts.find(c => c.product_index === idx);
+                    const isPublished = cert?.status === 'published';
+                    const isDraft     = cert?.status === 'draft';
+                    return (
+                      <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', padding: '8px 0', borderBottom: idx < productList.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}{subtitle ? ` · ${subtitle}` : ''}</div>
+                          <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+                            {isPublished && (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 10px', borderRadius: 20, background: 'oklch(93% 0.06 155)', color: 'oklch(35% 0.15 155)', fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700 }}>
+                                ✓ Published
+                              </span>
+                            )}
+                            {isDraft && (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 10px', borderRadius: 20, background: 'oklch(95% 0.08 70)', color: 'oklch(42% 0.18 55)', fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700 }}>
+                                ⏳ Pending / Draft
+                              </span>
+                            )}
+                            {cert && <span style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--text-muted)' }}>{cert.id}</span>}
+                          </div>
+                        </div>
+                        {!isPublished && (
+                          <button
+                            onClick={() => {
+                              const order = selectedOrder;
+                              setPublishModal({ order, productIndex: idx, productName: name, productSubtitle: subtitle, variantColor, variantStorage, existingCertId: cert?.id || null });
+                              setPublishDraft(cert ? {
+                                serial_number:   cert.serial_number   || '',
+                                apple_order_ref: cert.apple_order_ref || '',
+                                chain_of_custody: Array.isArray(cert.chain_of_custody) ? cert.chain_of_custody : [],
+                              } : { serial_number: '', apple_order_ref: '', chain_of_custody: [] });
+                              setPublishError('');
+                            }}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, border: '1.5px solid var(--accent)', background: 'var(--accent-tint)', color: 'var(--accent)', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
+                            {isDraft ? '✏ Edit / Publish' : '＋ Publish Certificate'}
+                          </button>
+                        )}
+                        {isPublished && (
+                          <a
+                            href={`/verify/${selectedOrder.id}`}
+                            target="_blank" rel="noreferrer"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '8px 16px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, textDecoration: 'none', flexShrink: 0 }}>
+                            View →
+                          </a>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
 
             {/* ── Flag section ─────────────────────────────────────────── */}
             {!selectedOrder.flag ? (
@@ -2228,20 +2313,365 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
     );
   };
 
+  // ── Certificates Tab ──────────────────────────────────────────────────────
+  const CertificatesTab = () => {
+    const fld = { ...MODAL_FLD };
+    const lbl = { ...MODAL_LBL };
+
+    const filtered = React.useMemo(() => {
+      if (!certSearch.trim()) return certificates;
+      const q = certSearch.trim().toLowerCase();
+      return certificates.filter(c =>
+        c.id.toLowerCase().includes(q) ||
+        c.order_id.toLowerCase().includes(q) ||
+        (c.product_name || '').toLowerCase().includes(q) ||
+        (c.serial_number || '').toLowerCase().includes(q) ||
+        (c.recipient_name || '').toLowerCase().includes(q)
+      );
+    }, [certificates, certSearch]);
+
+    const [createOrderId, setCreateOrderId] = React.useState('');
+    const [createError,   setCreateError]   = React.useState('');
+
+    const statusBadge = (s) => {
+      const styles = {
+        published: { bg: 'oklch(93% 0.06 155)', color: 'oklch(35% 0.15 155)', label: 'Published' },
+        draft:     { bg: 'oklch(95% 0.08 70)',  color: 'oklch(42% 0.18 55)',  label: 'Pending / Draft' },
+      };
+      const st = styles[s] || styles.draft;
+      return <span style={{ padding: '3px 10px', borderRadius: 20, background: st.bg, color: st.color, fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}>{st.label}</span>;
+    };
+
+    const handleCreateByOrderId = async () => {
+      const id = createOrderId.trim().toUpperCase();
+      if (!id) return;
+      // Fetch order to pre-fill
+      setCreateError('');
+      try {
+        const r = await authFetch(`/api/orders/${id}`);
+        const order = await r.json();
+        if (!r.ok) { setCreateError(order.error || 'Order not found'); return; }
+        const normOrder = normaliseOrder(order);
+        // Determine products
+        const items = Array.isArray(order.items) && order.items.length > 0 ? order.items : null;
+        const productName = items ? items[0].name : (order.product_name || '');
+        const productSub  = items ? (items[0].subtitle || '') : (order.product_subtitle || '');
+        const vColor   = items ? (items[0].variant_color || null) : (order.variant_color || null);
+        const vStorage = items ? (items[0].variant_storage || null) : (order.variant_storage || null);
+        setPublishModal({ order: normOrder, productIndex: 0, productName, productSubtitle: productSub, variantColor: vColor, variantStorage: vStorage, existingCertId: null });
+        setPublishDraft({ serial_number: '', apple_order_ref: '', chain_of_custody: [] });
+        setPublishError('');
+        setCreateOrderId('');
+      } catch(e) {
+        setCreateError('Could not fetch order. Check the ID and try again.');
+      }
+    };
+
+    const deleteCert = async (certId) => {
+      if (!confirm('Delete this certificate? This cannot be undone.')) return;
+      try {
+        const r = await authFetch(`/api/certificates/${certId}`, { method: 'DELETE' });
+        if (r.ok) fetchCertificates();
+      } catch(e) {}
+    };
+
+    return (
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
+          <div>
+            <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 22, color: 'var(--text)', margin: '0 0 4px' }}>Certificates</h2>
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>Published and draft verification certificates for customer orders.</p>
+          </div>
+          <RefreshBtn onClick={fetchCertificates} loading={certsLoading} />
+        </div>
+
+        {/* Create by order ID */}
+        <div style={{ background: 'var(--bg)', border: '1.5px dashed var(--border)', borderRadius: 12, padding: 16, marginBottom: 20 }}>
+          <div style={{ ...lbl, marginBottom: 10 }}>Create certificate for order</div>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+            <input
+              value={createOrderId}
+              onChange={e => { setCreateOrderId(e.target.value.toUpperCase()); setCreateError(''); }}
+              onKeyDown={e => e.key === 'Enter' && handleCreateByOrderId()}
+              placeholder="CRT-220426-8841"
+              style={{ ...fld, width: 220, flexShrink: 0 }}
+              onFocus={e => e.target.style.borderColor = 'var(--accent)'}
+              onBlur={e => e.target.style.borderColor = 'var(--border)'}
+            />
+            <button onClick={handleCreateByOrderId} disabled={!createOrderId.trim()}
+              style={{ padding: '9px 20px', borderRadius: 9, border: 'none', background: createOrderId.trim() ? 'var(--accent)' : 'var(--border)', color: 'white', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 700, cursor: createOrderId.trim() ? 'pointer' : 'not-allowed' }}>
+              Open Certificate Form →
+            </button>
+          </div>
+          {createError && <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'oklch(45% 0.2 20)', marginTop: 8 }}>{createError}</div>}
+        </div>
+
+        {/* Search */}
+        <div style={{ position: 'relative', marginBottom: 16 }}>
+          <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontSize: 14, pointerEvents: 'none' }}>🔍</span>
+          <input
+            type="text"
+            placeholder="Search by cert ID, order ID, product, serial, recipient…"
+            value={certSearch}
+            onChange={e => setCertSearch(e.target.value)}
+            style={{ ...inputStyle, paddingLeft: 32, width: '100%', boxSizing: 'border-box' }}
+          />
+        </div>
+
+        {/* Table */}
+        {certsLoading ? (
+          <div style={{ textAlign: 'center', padding: 60, fontFamily: 'var(--font-body)', color: 'var(--text-muted)' }}>Loading…</div>
+        ) : filtered.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: 60, fontFamily: 'var(--font-body)', color: 'var(--text-muted)' }}>
+            {certificates.length === 0 ? 'No certificates yet. Create one using the order ID form above.' : 'No certificates match your search.'}
+          </div>
+        ) : (
+          <div style={{ background: 'var(--bg)', borderRadius: 14, border: '1px solid var(--border)', overflow: 'hidden' }}>
+            <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
+              <thead>
+                <tr style={{ background: 'var(--bg-alt)' }}>
+                  {['Certificate ID', 'Order', 'Product', 'Serial', 'Status', 'Issued', ''].map(h => (
+                    <th key={h} style={{ padding: '12px 16px', fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((c, i) => (
+                  <tr key={c.id} style={{ borderTop: '1px solid var(--border)' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-alt)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                    <td style={{ padding: '12px 16px' }}>
+                      <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, color: 'var(--accent)', letterSpacing: '0.02em', fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>{c.id}</div>
+                    </td>
+                    <td style={{ padding: '12px 16px', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{c.order_id}</td>
+                    <td style={{ padding: '12px 16px', maxWidth: 200 }}>
+                      <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.product_name}</div>
+                      {c.product_subtitle && <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--text-muted)' }}>{c.product_subtitle}</div>}
+                    </td>
+                    <td style={{ padding: '12px 16px', fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 12, color: 'var(--text-muted)', letterSpacing: '0.04em' }}>{c.serial_number || '—'}</td>
+                    <td style={{ padding: '12px 16px' }}>{statusBadge(c.status)}</td>
+                    <td style={{ padding: '12px 16px', fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                      {c.published_at ? new Date(c.published_at).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                    </td>
+                    <td style={{ padding: '12px 16px' }}>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'nowrap' }}>
+                        {c.status !== 'published' && (
+                          <button
+                            onClick={() => {
+                              // Find the matching order from the orders list or just pass order_id
+                              const order = orders.find(o => o.id === c.order_id) || { id: c.order_id };
+                              setPublishModal({ order, productIndex: c.product_index, productName: c.product_name, productSubtitle: c.product_subtitle || '', variantColor: c.variant_color || null, variantStorage: c.variant_storage || null, existingCertId: c.id });
+                              setPublishDraft({ serial_number: c.serial_number || '', apple_order_ref: c.apple_order_ref || '', chain_of_custody: Array.isArray(c.chain_of_custody) ? c.chain_of_custody : [] });
+                              setPublishError('');
+                            }}
+                            style={{ padding: '5px 12px', borderRadius: 7, border: '1.5px solid var(--accent)', background: 'var(--accent-tint)', color: 'var(--accent)', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                            Edit / Publish
+                          </button>
+                        )}
+                        {c.status === 'published' && (
+                          <a href={`/verify/${c.order_id}`} target="_blank" rel="noreferrer"
+                            style={{ padding: '5px 12px', borderRadius: 7, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, textDecoration: 'none', cursor: 'pointer' }}>
+                            View
+                          </a>
+                        )}
+                        <button onClick={() => deleteCert(c.id)}
+                          style={{ padding: '5px 12px', borderRadius: 7, border: '1px solid oklch(85% 0.05 20)', background: 'transparent', color: 'oklch(50% 0.18 20)', fontFamily: 'var(--font-body)', fontSize: 12, cursor: 'pointer' }}>
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ── Publish-certificate modal ──────────────────────────────────────────────
+  const renderPublishModal = () => {
+    if (!publishModal) return null;
+    const { order, productIndex, productName, productSubtitle, variantColor, variantStorage, existingCertId } = publishModal;
+    const fld = { ...MODAL_FLD };
+    const lbl = { ...MODAL_LBL };
+
+    const custody = Array.isArray(publishDraft.chain_of_custody) ? publishDraft.chain_of_custody : [];
+
+    const setCustodyItem = (i, key, val) => setPublishDraft(d => ({
+      ...d, chain_of_custody: d.chain_of_custody.map((s, j) => j === i ? { ...s, [key]: val } : s),
+    }));
+    const addCustodyStep = () => setPublishDraft(d => ({ ...d, chain_of_custody: [...d.chain_of_custody, { title: '', subtitle: '', date: '' }] }));
+    const removeCustodyStep = (i) => setPublishDraft(d => ({ ...d, chain_of_custody: d.chain_of_custody.filter((_, j) => j !== i) }));
+
+    const canPublish = publishDraft.serial_number.trim() && publishDraft.apple_order_ref.trim() && custody.length > 0;
+
+    const handleSave = async (publish) => {
+      if (publish && !canPublish) {
+        setPublishError('Serial number, Apple order ref, and at least one chain-of-custody step are required to publish.');
+        return;
+      }
+      setPublishSaving(true);
+      setPublishError('');
+      try {
+        const rawOrder = order.raw || {};
+        const body = {
+          order_id:          order.id,
+          product_index:     productIndex,
+          product_name:      productName,
+          product_subtitle:  productSubtitle || '',
+          variant_color:     variantColor  || null,
+          variant_storage:   variantStorage || null,
+          serial_number:     publishDraft.serial_number.trim(),
+          apple_order_ref:   publishDraft.apple_order_ref.trim(),
+          chain_of_custody:  custody,
+          status:            publish ? 'published' : 'draft',
+          recipient_name:    rawOrder.customer_name || order.customer || '',
+          recipient_address: rawOrder.address || '',
+          recipient_state:   rawOrder.state   || '',
+          usd_price:         rawOrder.usd_price || order.usd || 0,
+          ngn_price:         rawOrder.ngn_price || order.ngn || 0,
+          forex_rate:        rawOrder.forex_rate || 0,
+        };
+        const url    = existingCertId ? `/api/certificates/${existingCertId}` : '/api/certificates';
+        const method = existingCertId ? 'PATCH' : 'POST';
+        const r = await authFetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error || 'Save failed');
+        fetchCertificates();
+        setPublishModal(null);
+      } catch(e) {
+        setPublishError(e.message || 'Failed to save certificate');
+      } finally {
+        setPublishSaving(false);
+      }
+    };
+
+    return (
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 9999, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '40px 20px 40px', overflowY: 'auto' }}
+        onClick={e => { if (e.target === e.currentTarget) setPublishModal(null); }}>
+        <div style={{ background: 'var(--bg)', borderRadius: 20, width: '100%', maxWidth: 680, padding: 32, boxShadow: '0 32px 80px -16px rgba(0,0,0,0.35)', flexShrink: 0 }}
+          onClick={e => e.stopPropagation()}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+            <div>
+              <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 20, color: 'var(--text)', margin: '0 0 4px' }}>
+                {existingCertId ? 'Edit Certificate' : 'Publish Certificate'}
+              </h2>
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)' }}>
+                {productName}{productSubtitle ? ` · ${productSubtitle}` : ''} — Order <strong>{order.id}</strong>
+              </div>
+            </div>
+            <button onClick={() => setPublishModal(null)} aria-label="Close"
+              style={{ background: 'none', border: '1.5px solid var(--border)', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', fontSize: 14, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>✕</button>
+          </div>
+
+          {/* Serial + Apple order ref */}
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16, marginBottom: 20 }}>
+            <div>
+              <label style={lbl}>Serial Number *</label>
+              <input value={publishDraft.serial_number} onChange={e => setPublishDraft(d => ({ ...d, serial_number: e.target.value }))}
+                placeholder="e.g. M82FX19JH3RQ"
+                style={{ ...fld, fontFamily: "'JetBrains Mono', ui-monospace, monospace", letterSpacing: '0.04em' }}
+                onFocus={e => e.target.style.borderColor = 'var(--accent)'}
+                onBlur={e => e.target.style.borderColor = 'var(--border)'} />
+            </div>
+            <div>
+              <label style={lbl}>Apple Order Reference *</label>
+              <input value={publishDraft.apple_order_ref} onChange={e => setPublishDraft(d => ({ ...d, apple_order_ref: e.target.value }))}
+                placeholder="e.g. W1234567890"
+                style={{ ...fld, fontFamily: "'JetBrains Mono', ui-monospace, monospace", letterSpacing: '0.04em' }}
+                onFocus={e => e.target.style.borderColor = 'var(--accent)'}
+                onBlur={e => e.target.style.borderColor = 'var(--border)'} />
+            </div>
+          </div>
+
+          {/* Chain of custody */}
+          <div style={{ marginBottom: 24 }}>
+            <label style={{ ...lbl, marginBottom: 10 }}>Chain of Custody * <span style={{ color: 'var(--text-muted)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(at least one step required)</span></label>
+            {custody.map((step, i) => (
+              <div key={i} style={{ background: 'var(--bg-alt)', borderRadius: 10, padding: 14, marginBottom: 10, border: '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                  <span style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, color: 'var(--text-muted)' }}>Step {i + 1}</span>
+                  <button onClick={() => removeCustodyStep(i)} aria-label="Remove"
+                    style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 14 }}>×</button>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px', gap: 10, marginBottom: 8 }}>
+                  <div>
+                    <label style={{ ...lbl, marginBottom: 4 }}>Title</label>
+                    <input value={step.title} onChange={e => setCustodyItem(i, 'title', e.target.value)}
+                      placeholder="e.g. Apple Inc." style={fld}
+                      onFocus={e => e.target.style.borderColor = 'var(--accent)'}
+                      onBlur={e => e.target.style.borderColor = 'var(--border)'} />
+                  </div>
+                  <div>
+                    <label style={{ ...lbl, marginBottom: 4 }}>Date</label>
+                    <input value={step.date} onChange={e => setCustodyItem(i, 'date', e.target.value)}
+                      placeholder="MAY 03" style={fld}
+                      onFocus={e => e.target.style.borderColor = 'var(--accent)'}
+                      onBlur={e => e.target.style.borderColor = 'var(--border)'} />
+                  </div>
+                </div>
+                <div>
+                  <label style={{ ...lbl, marginBottom: 4 }}>Subtitle / Detail</label>
+                  <input value={step.subtitle} onChange={e => setCustodyItem(i, 'subtitle', e.target.value)}
+                    placeholder="e.g. Cupertino, CA · United States" style={fld}
+                    onFocus={e => e.target.style.borderColor = 'var(--accent)'}
+                    onBlur={e => e.target.style.borderColor = 'var(--border)'} />
+                </div>
+              </div>
+            ))}
+            <button onClick={addCustodyStep}
+              style={{ fontSize: 13, color: 'var(--accent)', background: 'var(--accent-tint)', border: '1px dashed var(--accent-tint2)', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontWeight: 600 }}>
+              + Add Custody Step
+            </button>
+          </div>
+
+          {/* Error */}
+          {publishError && (
+            <div style={{ marginBottom: 16, padding: '10px 14px', borderRadius: 10, background: 'oklch(97% 0.02 20)', border: '1px solid oklch(85% 0.05 20)', fontFamily: 'var(--font-body)', fontSize: 13, color: 'oklch(40% 0.15 20)' }}>
+              ⚠ {publishError}
+            </div>
+          )}
+
+          {/* Action buttons */}
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <button onClick={() => setPublishModal(null)}
+              style={{ padding: '11px 22px', borderRadius: 10, border: '1.5px solid var(--border)', background: 'transparent', color: 'var(--text)', fontFamily: 'var(--font-body)', fontSize: 14, cursor: 'pointer' }}>
+              Cancel
+            </button>
+            <button onClick={() => handleSave(false)} disabled={publishSaving}
+              style={{ padding: '11px 22px', borderRadius: 10, border: '1.5px solid var(--border)', background: 'var(--bg-alt)', color: 'var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600, cursor: publishSaving ? 'not-allowed' : 'pointer' }}>
+              {publishSaving ? 'Saving…' : 'Save as Draft'}
+            </button>
+            <button onClick={() => handleSave(true)} disabled={publishSaving || !canPublish}
+              style={{ padding: '11px 22px', borderRadius: 10, border: 'none', background: canPublish ? 'var(--accent)' : 'var(--border)', color: 'white', fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 700, cursor: publishSaving || !canPublish ? 'not-allowed' : 'pointer', opacity: !canPublish ? 0.65 : 1 }}>
+              {publishSaving ? 'Publishing…' : '✓ Publish Certificate'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const tabContent = {
-    orders:    OrdersTab(),
-    products:  ProductsTab(),
-    messages:  MessagesTab(),
-    coupons:   CouponsTab(),
-    activity:  ActivityTab(),
-    forex:     ForexTab(),
-    revenue:   RevenueTab(),
-    customers: CustomersTab(),
+    orders:       OrdersTab(),
+    products:     ProductsTab(),
+    certificates: CertificatesTab(),
+    messages:     MessagesTab(),
+    coupons:      CouponsTab(),
+    activity:     ActivityTab(),
+    forex:        ForexTab(),
+    revenue:      RevenueTab(),
+    customers:    CustomersTab(),
   };
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-alt)', paddingTop: 64 }}>
       {renderEditModal()}
+      {renderPublishModal()}
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? '24px 16px 80px' : '40px 24px 80px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <div>

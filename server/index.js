@@ -85,11 +85,12 @@ const distPath = path.join(__dirname, '..', 'dist');
 app.use(express.static(distPath));
 
 // API routes — public routes get the general rate limiter
-app.use('/api/products',    publicLimiter, require('./routes/products'));
-app.use('/api/orders',      publicLimiter, require('./routes/orders'));
-app.use('/api/coupons',     publicLimiter, require('./routes/coupons'));
-app.use('/api/contact',     publicLimiter, require('./routes/contact'));
-app.use('/api/admin/logs',  require('./routes/adminLog'));
+app.use('/api/products',      publicLimiter, require('./routes/products'));
+app.use('/api/orders',        publicLimiter, require('./routes/orders'));
+app.use('/api/coupons',       publicLimiter, require('./routes/coupons'));
+app.use('/api/contact',       publicLimiter, require('./routes/contact'));
+app.use('/api/certificates',  publicLimiter, require('./routes/certificates'));
+app.use('/api/admin/logs',    require('./routes/adminLog'));
 
 // POST /api/admin/event  — lightweight client-side event logger
 // The dashboard calls this for actions that happen entirely on the frontend
@@ -115,6 +116,48 @@ app.get('/api/config', (req, res) => {
   });
 });
 
+// ── Startup migrations ───────────────────────────────────────────────────────
+// Idempotent — safe to run on every cold start; uses IF NOT EXISTS / IF NOT EXISTS column
+async function runMigrations() {
+  try {
+    // Add status_timeline JSONB column to orders (tracks a timestamped log of every status change)
+    await pool.queryR(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS status_timeline JSONB DEFAULT '[]'`);
+
+    // Certificates table
+    await pool.queryR(`
+      CREATE TABLE IF NOT EXISTS certificates (
+        id                TEXT PRIMARY KEY,
+        order_id          TEXT NOT NULL,
+        product_index     INTEGER NOT NULL DEFAULT 0,
+        product_name      TEXT NOT NULL DEFAULT '',
+        product_subtitle  TEXT DEFAULT '',
+        variant_color     TEXT,
+        variant_storage   TEXT,
+        serial_number     TEXT NOT NULL DEFAULT '',
+        apple_order_ref   TEXT NOT NULL DEFAULT '',
+        chain_of_custody  JSONB NOT NULL DEFAULT '[]',
+        status            TEXT NOT NULL DEFAULT 'draft',
+        published_at      TIMESTAMPTZ,
+        created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        recipient_name    TEXT NOT NULL DEFAULT '',
+        recipient_address TEXT NOT NULL DEFAULT '',
+        recipient_state   TEXT NOT NULL DEFAULT '',
+        usd_price         NUMERIC NOT NULL DEFAULT 0,
+        ngn_price         NUMERIC NOT NULL DEFAULT 0,
+        forex_rate        NUMERIC NOT NULL DEFAULT 0
+      )
+    `);
+
+    console.log('[migrations] ✓ schema up to date');
+  } catch (err) {
+    console.error('[migrations] error:', err.message);
+  }
+}
+// Fire-and-forget on every cold start — idempotent so safe to run concurrently
+runMigrations().catch(() => {});
+// ─────────────────────────────────────────────────────────────────────────────
+
 // ── Flutterwave ──────────────────────────────────────────────────────────────
 
 // POST /api/flutterwave/verify — called by the frontend after Flutterwave fires the callback
@@ -137,9 +180,14 @@ app.post('/api/flutterwave/verify', async (req, res) => {
       return res.status(402).json({ error: 'Payment not confirmed by Flutterwave', detail: fData?.data?.status });
     }
 
-    // Payment verified — promote the order to confirmed
+    // Payment verified — promote the order to confirmed + record timestamp in status_timeline
     const { rows } = await pool.queryR(
-      `UPDATE orders SET status = 'Order Confirmed', updated_at = NOW() WHERE id = $1 AND status = 'Payment Pending' RETURNING *`,
+      `UPDATE orders
+       SET status = 'Order Confirmed',
+           status_timeline = COALESCE(status_timeline, '[]'::jsonb) ||
+             jsonb_build_array(jsonb_build_object('status', 'Order Confirmed', 'timestamp', NOW()::text)),
+           updated_at = NOW()
+       WHERE id = $1 AND status = 'Payment Pending' RETURNING *`,
       [orderId],
     );
 
@@ -192,7 +240,12 @@ app.post('/api/flutterwave/webhook', express.json(), async (req, res) => {
       try {
         // Only promotes if still Payment Pending — idempotent if already confirmed by frontend
         const { rows } = await pool.queryR(
-          `UPDATE orders SET status = 'Order Confirmed', updated_at = NOW() WHERE id = $1 AND status = 'Payment Pending' RETURNING *`,
+          `UPDATE orders
+           SET status = 'Order Confirmed',
+               status_timeline = COALESCE(status_timeline, '[]'::jsonb) ||
+                 jsonb_build_array(jsonb_build_object('status', 'Order Confirmed', 'timestamp', NOW()::text)),
+               updated_at = NOW()
+           WHERE id = $1 AND status = 'Payment Pending' RETURNING *`,
           [orderId],
         );
         if (rows.length) {

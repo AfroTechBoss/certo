@@ -39,6 +39,7 @@ router.post('/', async (req, res) => {
   const id = generateOrderId();
 
   try {
+    const now = new Date().toISOString();
     const { rows } = await pool.queryR(`
       INSERT INTO orders (
         id, customer_name, customer_email, customer_phone,
@@ -46,14 +47,16 @@ router.post('/', async (req, res) => {
         product_id, product_name, product_subtitle, product_image_url, apple_url,
         applecare, qty, usd_price, ngn_price, forex_rate, status, payment_method, items,
         coupon_code, coupon_discount,
-        variant_id, variant_color, variant_storage, variant_color_hex
+        variant_id, variant_color, variant_storage, variant_color_hex,
+        status_timeline
       ) VALUES (
         $1,$2,$3,$4,
         $5,$6,
         $7,$8,$9,$10,$11,
         $12,$13,$14,$15,$16,$17,$18,$19,
         $20,$21,
-        $22,$23,$24,$25
+        $22,$23,$24,$25,
+        $26::jsonb
       ) RETURNING *
     `, [
       id, customer_name, customer_email, customer_phone,
@@ -64,6 +67,7 @@ router.post('/', async (req, res) => {
       JSON.stringify(Array.isArray(items) ? items : []),
       coupon_code || null, coupon_discount || 0,
       variant_id || null, variant_color || null, variant_storage || null, variant_color_hex || null,
+      JSON.stringify([{ status: orderStatus, timestamp: now }]),
     ]);
 
     const order = rows[0];
@@ -176,7 +180,8 @@ router.get('/:id', async (req, res) => {
     const { rows } = await pool.queryR(
       `SELECT id, customer_name, product_name, product_subtitle, product_image_url,
               status, created_at, updated_at, applecare, qty, items,
-              variant_color, variant_storage, variant_color_hex
+              variant_color, variant_storage, variant_color_hex,
+              COALESCE(status_timeline, '[]'::jsonb) AS status_timeline
        FROM orders WHERE id = $1`,
       [req.params.id],
     );
@@ -215,8 +220,15 @@ router.patch('/:id', adminAuth, async (req, res) => {
     const prevResult = await pool.queryR('SELECT status FROM orders WHERE id = $1', [req.params.id]);
     const prevStatus = prevResult.rows[0]?.status;
 
-    const setClauses = fields.map((f, i) => `${f} = $${i + 1}`).join(', ');
+    let setClauses = fields.map((f, i) => `${f} = $${i + 1}`).join(', ');
     const values = fields.map(f => req.body[f]);
+
+    // When status actually changes, append a timestamped entry to status_timeline
+    if (req.body.status && req.body.status !== prevStatus) {
+      values.push(req.body.status);
+      setClauses += `, status_timeline = COALESCE(status_timeline, '[]'::jsonb) || jsonb_build_array(jsonb_build_object('status', $${values.length}::text, 'timestamp', NOW()::text))`;
+    }
+
     values.push(req.params.id);
 
     const { rows } = await pool.queryR(
