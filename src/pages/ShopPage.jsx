@@ -208,7 +208,7 @@ const ShopPage = ({ navigate, addToCart, initialType }) => {
 
       {/* ── Header ── */}
       <div style={{ borderBottom: '1px solid var(--border)', padding: isMobile ? '24px 20px 20px' : '40px 24px 28px', background: 'var(--bg)' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+        <div style={{ maxWidth: 1400, margin: '0 auto' }}>
           <h1 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: isMobile ? 28 : 42, letterSpacing: '-0.03em', color: 'var(--text)', marginBottom: 6 }}>Shop Apple</h1>
           <p style={{ fontFamily: 'var(--font-body)', fontSize: isMobile ? 14 : 16, color: 'var(--text-muted)', marginBottom: 20 }}>
             Every product sourced directly from Apple US.{totalCount > 0 ? ` ${totalCount} products available.` : ''}
@@ -307,7 +307,7 @@ const ShopPage = ({ navigate, addToCart, initialType }) => {
       </div>
 
       {/* ── Product grid ── */}
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? '24px 20px' : '40px 24px' }}>
+      <div style={{ maxWidth: 1400, margin: '0 auto', padding: isMobile ? '24px 20px' : '40px 24px' }}>
 
         {/* Results summary */}
         {!loading && totalCount > 0 && (
@@ -516,7 +516,7 @@ const ProductDetailPage = ({ productId, navigate, addToCart }) => {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', paddingTop: 80 }}>
-      <div style={{ padding: '24px 24px 0', maxWidth: 1200, margin: '0 auto' }}>
+      <div style={{ padding: '24px 24px 0', maxWidth: 1400, margin: '0 auto' }}>
         <button onClick={() => navigate('shop')} style={{
           background: 'none', border: 'none', cursor: 'pointer', padding: 0,
           fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)',
@@ -526,7 +526,7 @@ const ProductDetailPage = ({ productId, navigate, addToCart }) => {
         </button>
       </div>
 
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? '24px 20px 80px' : '32px 24px 80px', display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 32 : 80 }}>
+      <div style={{ maxWidth: 1400, margin: '0 auto', padding: isMobile ? '24px 20px 80px' : '32px 24px 80px', display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 32 : 80 }}>
         {/* Left: product display */}
         <div>
           <div style={{
@@ -825,7 +825,7 @@ const ProductDetailPage = ({ productId, navigate, addToCart }) => {
       </div>
 
       {/* ── Accordion sections ─────────────────────────────────────── */}
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? '0 20px' : '0 24px' }}>
+      <div style={{ maxWidth: 1400, margin: '0 auto', padding: isMobile ? '0 20px' : '0 24px' }}>
         <div style={{ borderBottom: '1px solid var(--border)' }}>
 
           {/* Product Information */}
@@ -890,7 +890,7 @@ const ProductDetailPage = ({ productId, navigate, addToCart }) => {
 
       {/* ── You may also like ───────────────────────────────────────── */}
       {related.length > 0 && (
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? '48px 20px 80px' : '64px 24px 100px' }}>
+        <div style={{ maxWidth: 1400, margin: '0 auto', padding: isMobile ? '48px 20px 80px' : '64px 24px 100px' }}>
           <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: isMobile ? 22 : 28, color: 'var(--text)', letterSpacing: '-0.02em', marginBottom: 24 }}>You may also like</h2>
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)', gap: isMobile ? 12 : 20 }}>
             {related.map(p => <ProductCard key={p.id} product={p} navigate={navigate} />)}

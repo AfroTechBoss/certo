@@ -131,7 +131,7 @@ const HomePage = ({ navigate }) => {
       {/* Hero */}
       <section style={{
         minHeight: '100vh', display: 'flex', alignItems: 'center',
-        padding: isMobile ? '100px 20px 64px' : '120px 24px 80px',
+        padding: isMobile ? '100px 20px 64px' : '120px 48px 80px',
         background: 'var(--bg)', position: 'relative', overflow: 'hidden',
       }}>
         <div style={{
@@ -142,7 +142,7 @@ const HomePage = ({ navigate }) => {
         }} />
 
         <div style={{
-          maxWidth: 1200, margin: '0 auto', width: '100%',
+          maxWidth: 1400, margin: '0 auto', width: '100%',
           display: 'grid',
           gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
           gap: isMobile ? 48 : 80, alignItems: 'center',

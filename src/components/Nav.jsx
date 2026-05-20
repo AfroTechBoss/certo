@@ -57,7 +57,7 @@ const NavComponent = ({ page, navigate, cartCount = 0 }) => {
 
   return (
     <nav style={navStyle}>
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 20px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ maxWidth: 1400, margin: '0 auto', padding: '0 20px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <CertoLogo navigate={navigate} />
 
         {/* Desktop links */}

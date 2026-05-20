@@ -30,7 +30,7 @@ const FooterComponent = ({ navigate }) => {
 
   return (
     <footer style={{ background: 'var(--text)', color: 'rgba(255,255,255,0.55)' }}>
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? '56px 24px 40px' : '72px 24px 48px' }}>
+      <div style={{ maxWidth: 1400, margin: '0 auto', padding: isMobile ? '56px 24px 40px' : '72px 24px 48px' }}>
 
         {/* Top grid */}
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '2fr 1fr 1fr 1fr', gap: isMobile ? '40px 24px' : 40, marginBottom: isMobile ? 48 : 64 }}>
