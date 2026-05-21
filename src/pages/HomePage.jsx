@@ -209,7 +209,7 @@ function SectionHero({ navigate }) {
     <section style={{ minHeight: '100vh', background: 'var(--cream)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
       <div style={{
         flex: 1, maxWidth: 1440, width: '100%', margin: '0 auto',
-        padding: isMobile ? '112px 20px 64px' : '136px 80px 64px',
+        padding: isMobile ? '112px 20px 64px' : '136px 48px 64px',
         display: 'flex', flexDirection: 'column',
       }}>
         <div style={{
@@ -316,7 +316,7 @@ function SectionCertificate({ navigate }) {
   return (
     <section id="certificate" style={{
       background: 'var(--cream)',
-      padding: isMobile ? '64px 20px' : '120px 80px',
+      padding: isMobile ? '64px 20px' : '120px 48px',
       borderTop: '1px solid var(--hairline)', position: 'relative', overflow: 'hidden',
     }}>
       <div style={{
@@ -416,7 +416,7 @@ function SectionChainOfCustody() {
   return (
     <section style={{
       background: 'var(--ink)', color: 'white',
-      padding: isMobile ? '64px 20px' : '120px 80px',
+      padding: isMobile ? '64px 20px' : '120px 48px',
       position: 'relative', overflow: 'hidden',
     }}>
       {/* Grid overlay */}
@@ -638,7 +638,7 @@ function SectionCatalog({ navigate }) {
   return (
     <section style={{
       background: 'var(--cream)',
-      padding: isMobile ? '64px 20px' : '120px 80px',
+      padding: isMobile ? '64px 20px' : '120px 48px',
       borderTop: '1px solid var(--hairline)',
     }}>
       <div style={{ maxWidth: 1440, margin: '0 auto' }}>
@@ -784,7 +784,7 @@ function SectionForex() {
   return (
     <section style={{
       background: 'var(--cream)',
-      padding: isMobile ? '64px 20px' : '120px 80px',
+      padding: isMobile ? '64px 20px' : '120px 48px',
       borderTop: '1px solid var(--hairline)', position: 'relative', overflow: 'hidden',
     }}>
       <div style={{
@@ -937,7 +937,7 @@ function SectionVoices() {
   return (
     <section style={{
       background: 'var(--cream)',
-      padding: isMobile ? '64px 20px' : '120px 80px',
+      padding: isMobile ? '64px 20px' : '120px 48px',
       borderTop: '1px solid var(--hairline)',
     }}>
       <div style={{ maxWidth: 1440, margin: '0 auto' }}>
@@ -1049,7 +1049,7 @@ function SectionFounder() {
   return (
     <section style={{
       background: 'var(--cream)',
-      padding: isMobile ? '64px 20px' : '120px 80px',
+      padding: isMobile ? '64px 20px' : '120px 48px',
       borderTop: '1px solid var(--hairline)', position: 'relative',
     }}>
       <div style={{ maxWidth: 720, margin: '0 auto', position: 'relative' }}>
@@ -1115,7 +1115,7 @@ function SectionFinalCTA({ navigate }) {
   return (
     <section style={{
       background: 'var(--accent)',
-      padding: isMobile ? '80px 20px' : '120px 80px',
+      padding: isMobile ? '80px 20px' : '120px 48px',
       color: 'white', position: 'relative', overflow: 'hidden',
     }}>
       {/* Giant ghost text */}

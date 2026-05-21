@@ -327,7 +327,7 @@ const VerifyPage = ({ navigate, initialOrderId }) => {
       {/* Page header + lookup form */}
       <div id="cert-lookup-section" style={{
         maxWidth: 920, margin: '0 auto',
-        padding: isMobile ? '96px 20px 28px' : '120px 32px 28px',
+        padding: isMobile ? '96px 20px 28px' : '120px 48px 28px',
         textAlign: 'center',
       }}>
         <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#d97757', marginBottom: 16 }}>Issued with every device</div>
@@ -445,7 +445,7 @@ const VerifyPage = ({ navigate, initialOrderId }) => {
 
       {/* Real certificate */}
       {cert && (
-        <div id="cert-stage" style={{ padding: isMobile ? '0 16px 64px' : '0 32px 80px', display: 'flex', justifyContent: 'center', flexDirection: 'column', alignItems: 'center' }}>
+        <div id="cert-stage" style={{ padding: isMobile ? '0 16px 64px' : '0 48px 80px', display: 'flex', justifyContent: 'center', flexDirection: 'column', alignItems: 'center' }}>
           <CertificateCard cert={cert} orderId={result.order.id} isMobile={isMobile} />
 
           {/* Action bar */}

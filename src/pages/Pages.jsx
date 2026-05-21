@@ -46,7 +46,7 @@ const HowItWorksPage = ({ navigate }) => {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', paddingTop: 80 }}>
-      <div style={{ maxWidth: 860, margin: '0 auto', padding: isMobile ? '40px 20px 80px' : '60px 24px 100px' }}>
+      <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? '40px 20px 80px' : '60px 48px 100px' }}>
         <div style={{ marginBottom: isMobile ? 40 : 64 }}>
           <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 16 }}>The full process</div>
           <h1 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 'clamp(32px, 5vw, 52px)', letterSpacing: '-0.03em', color: 'var(--text)', marginBottom: 20 }}>How Certo works</h1>
@@ -145,7 +145,7 @@ const TrackOrderPage = ({ initialOrderId }) => {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', paddingTop: 80 }}>
-      <div style={{ maxWidth: 680, margin: '0 auto', padding: isMobile ? '40px 20px 80px' : '60px 24px 100px' }}>
+      <div style={{ maxWidth: 680, margin: '0 auto', padding: isMobile ? '40px 20px 80px' : '60px 48px 100px' }}>
         <h1 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: isMobile ? 32 : 44, letterSpacing: '-0.03em', color: 'var(--text)', marginBottom: 8 }}>Track My Order</h1>
         <p style={{ fontFamily: 'var(--font-body)', fontSize: 16, color: 'var(--text-muted)', marginBottom: 40, lineHeight: 1.7 }}>
           Enter your order ID to see where your device is right now. No login needed.
@@ -307,7 +307,7 @@ const TrackOrderPage = ({ initialOrderId }) => {
 // ─── About ────────────────────────────────────────────────────────────────────
 const AboutPage = ({ navigate }) => (
   <div style={{ minHeight: '100vh', background: 'var(--bg)', paddingTop: 80 }}>
-    <div style={{ maxWidth: 720, margin: '0 auto', padding: '60px 24px 100px' }}>
+    <div style={{ maxWidth: 960, margin: '0 auto', padding: '60px 48px 100px' }}>
       <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 20 }}>Our story</div>
       <h1 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 'clamp(32px, 5vw, 52px)', letterSpacing: '-0.03em', color: 'var(--text)', lineHeight: 1.1, marginBottom: 48 }}>
         Why I built<br/>Certo
@@ -389,7 +389,7 @@ const FAQPage = () => {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', paddingTop: 80 }}>
-      <div style={{ maxWidth: 780, margin: '0 auto', padding: '60px 24px 100px' }}>
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '60px 48px 100px' }}>
         <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 16 }}>FAQ</div>
         <h1 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 48, letterSpacing: '-0.03em', color: 'var(--text)', marginBottom: 16 }}>Frequently Asked Questions</h1>
         <p style={{ fontFamily: 'var(--font-body)', fontSize: 17, color: 'var(--text-muted)', lineHeight: 1.7, marginBottom: 56 }}>
@@ -436,7 +436,7 @@ const ContactPage = () => {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', paddingTop: 80 }}>
-      <div style={{ maxWidth: 900, margin: '0 auto', padding: isMobile ? '40px 20px 80px' : '60px 24px 100px', display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 40 : 80 }}>
+      <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? '40px 20px 80px' : '60px 48px 100px', display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 40 : 80 }}>
         <div>
           <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 16 }}>Contact</div>
           <h1 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 44, letterSpacing: '-0.03em', color: 'var(--text)', marginBottom: 16 }}>Talk to us</h1>
@@ -545,7 +545,7 @@ const PrivacyPolicyPage = ({ navigate }) => {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', paddingTop: 80 }}>
-      <div style={{ maxWidth: 780, margin: '0 auto', padding: isMobile ? '40px 20px 80px' : '60px 24px 100px' }}>
+      <div style={{ maxWidth: 960, margin: '0 auto', padding: isMobile ? '40px 20px 80px' : '60px 48px 100px' }}>
         <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 16 }}>Legal</div>
         <h1 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: isMobile ? 36 : 52, letterSpacing: '-0.03em', color: 'var(--text)', marginBottom: 12 }}>Privacy Policy</h1>
         <p style={{ fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--text-muted)', marginBottom: 56 }}>Last updated: April 2026</p>
@@ -603,7 +603,7 @@ const TermsOfServicePage = ({ navigate }) => {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', paddingTop: 80 }}>
-      <div style={{ maxWidth: 780, margin: '0 auto', padding: isMobile ? '40px 20px 80px' : '60px 24px 100px' }}>
+      <div style={{ maxWidth: 960, margin: '0 auto', padding: isMobile ? '40px 20px 80px' : '60px 48px 100px' }}>
         <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 16 }}>Legal</div>
         <h1 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: isMobile ? 36 : 52, letterSpacing: '-0.03em', color: 'var(--text)', marginBottom: 12 }}>Terms of Service</h1>
         <p style={{ fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--text-muted)', marginBottom: 56 }}>Last updated: April 2026</p>
@@ -710,7 +710,7 @@ const RefundPolicyPage = ({ navigate }) => {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', paddingTop: 80 }}>
-      <div style={{ maxWidth: 780, margin: '0 auto', padding: isMobile ? '40px 20px 80px' : '60px 24px 100px' }}>
+      <div style={{ maxWidth: 960, margin: '0 auto', padding: isMobile ? '40px 20px 80px' : '60px 48px 100px' }}>
         <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 16 }}>Legal</div>
         <h1 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: isMobile ? 36 : 52, letterSpacing: '-0.03em', color: 'var(--text)', marginBottom: 12 }}>Refund Policy</h1>
         <p style={{ fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--text-muted)', marginBottom: 24 }}>Last updated: April 2026</p>
