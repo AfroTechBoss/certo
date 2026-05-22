@@ -1064,18 +1064,19 @@ function SectionFounder() {
           fontSize: 'clamp(20px, 3vw, 34px)', lineHeight: 1.4,
           letterSpacing: '-0.015em', color: 'var(--ink)', marginBottom: 32,
         }}>
-          "Three years ago my cousin paid ₦980,000 for an 'iPhone 13 Pro' that turned
-          out to be a Grade C refurb with a cracked chassis under the skin. She cried. I remembered that."
+          "Two devices. Two different kinds of dishonesty. The same lesson both times: in this market,
+          trust has to be earned with evidence, not just promised. Nobody was going to build that bridge —
+          so I built it."
         </div>
 
         <p style={{ fontSize: 16, lineHeight: 1.8, color: 'var(--muted)', margin: '0 0 24px' }}>
-          Certo means <em>certainly</em> in Italian. I chose the name because certainty is exactly
-          what the Nigerian gadget market doesn't give you. We buy directly from Apple. We verify
-          every serial. We show you our margin. We track every order in real time.
+          Certo buys directly from Apple US. Every device comes with the original Apple order receipt
+          and a verified serial number you can check yourself on Apple's website. The name comes from
+          Italian — <em>certo</em> means "certainly." That's the standard I hold myself to.
         </p>
         <p style={{ fontSize: 16, lineHeight: 1.8, color: 'var(--muted)', margin: '0 0 40px' }}>
-          This is my business and my name is behind every order that leaves the site. If you have
-          a question, my WhatsApp is on the contact page and I pick up.
+          This is my business. My name is behind every order. If you have a question before buying,
+          message us on WhatsApp — we actually pick up.
         </p>
 
         <div style={{
