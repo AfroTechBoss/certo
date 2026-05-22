@@ -314,15 +314,11 @@ const AboutPage = ({ navigate }) => (
       </h1>
 
       {[
-        { p: `In 2025, I was trying to buy an iPhone 15 Pro Max. Jumia's prices were insane, so I went looking elsewhere. That's when I came across a Twitter post — not from a brand, but from a girl sharing how she'd relocated to the US and gone to an Apple Store to trade in her iPhone 14 Pro for a new one. The staff checked her phone, stopped the process, and called the police. They told her the device was stolen. A phone she had bought brand new from a popular store in Lagos. She had receipts. Unboxing videos. Everything. That was the only reason they let her go.` },
-        { p: `That story shook me. I spent the next few weeks reading more of them — people receiving wrong devices, cloned serials, refurbished units sold as new. It made me put off buying for another three months. Eventually, a close friend who sold gadgets helped me understand how these scams worked and offered to sell me a used iPhone 15 Pro Max — 95% battery health — for ₦1.3M. He promised a full refund or free replacement if anything went wrong. I only trusted it because it was him. That's how I got my first Apple device.` },
-        { p: `Then there was my MacBook. I ordered it online. The listing said brand new. It arrived in perfect condition, sealed box and everything. Two months later the RAM started failing randomly. I took it to an engineer and he told me it had been repaired before — refurbished components, no Apple warranty, nothing. I had paid full price and had no idea.` },
-        { p: `Two devices. Two different kinds of dishonesty. And the same lesson both times: in this market, trust has to be earned with evidence, not just promised. Nobody was going to build that bridge for me, so I decided to build it myself.` },
-        { p: `Certo buys directly from Apple US. Every device comes with the original Apple order receipt and a verified serial number you can check yourself on Apple's website. We handle shipping, customs, and delivery door-to-door — no middlemen, no surprises. And if anything goes wrong, you get your money back. Full stop.` },
-        { p: `The name comes from Italian. Certo means "certainly" — as in, yes, absolutely, without a doubt. That's the standard I'm holding myself to. You should know exactly what you're buying, exactly where it came from, and exactly what happens if something isn't right.` },
-        { p: `This is my business. My name is behind every order. If you have a question before buying, message us on WhatsApp — we actually pick up.` },
+        { p: `Three years ago my cousin paid ₦980,000 for an 'iPhone 13 Pro' that turned out to be a Grade C refurb with a cracked chassis under the skin. She cried. I remembered that.` },
+        { p: `Certo means certainly in Italian. I chose the name because certainty is exactly what the Nigerian gadget market doesn't give you. We buy directly from Apple. We verify every serial. We show you our margin. We track every order in real time.` },
+        { p: `This is my business and my name is behind every order that leaves the site. If you have a question, my WhatsApp is on the contact page and I pick up.` },
       ].map((block, i) => (
-        <p key={i} style={{ fontFamily: 'var(--font-body)', fontSize: 18, lineHeight: 1.85, color: i === 6 ? 'var(--text)' : 'var(--text-muted)', marginBottom: 28 }}>
+        <p key={i} style={{ fontFamily: 'var(--font-body)', fontSize: 18, lineHeight: 1.85, color: i === 2 ? 'var(--text)' : 'var(--text-muted)', marginBottom: 28 }}>
           {block.p}
         </p>
       ))}
