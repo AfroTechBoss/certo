@@ -764,6 +764,10 @@ const ProductDetailPage = ({ productId, navigate, addToCart }) => {
                 );
               })}
             </div>
+            {/* AppleCare Nigeria disclaimer */}
+            <div style={{ marginTop: 10, padding: '10px 14px', borderRadius: 10, background: 'oklch(97% 0.015 65)', border: '1px solid oklch(88% 0.04 65)', fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.65 }}>
+              ⚠️ <strong style={{ color: 'var(--text)' }}>Coverage note:</strong> AppleCare purchased for US devices does not provide service coverage in Nigeria. You can still activate it, but repairs under AppleCare will need to be processed in the US. Certo's own 12-month warranty applies to all orders regardless.
+            </div>
           </div>
 
           {/* What's included */}
