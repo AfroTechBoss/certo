@@ -819,15 +819,164 @@ async function sendPaymentPendingEmail(order) {
   });
 }
 
+// ─── pending payment — Naira / Flutterwave ────────────────────────────────────
+
+function pendingNairaHtml(order) {
+  const {
+    id, customer_name, product_name, product_subtitle,
+    ngn_price, forex_rate, items,
+  } = order;
+
+  const displayName = (() => {
+    if (Array.isArray(items) && items.length > 1) return `${items.length} items`;
+    if (Array.isArray(items) && items.length === 1) return [items[0].name, items[0].subtitle].filter(Boolean).join(' ');
+    return [product_name, product_subtitle].filter(Boolean).join(' ');
+  })();
+
+  const inner = `
+  ${masthead()}
+
+  <!-- hero -->
+  <tr>
+    <td class="pad" style="padding:48px 40px 32px;text-align:center;border-bottom:1px solid ${C.hairline};">
+      <table role="presentation" cellpadding="0" cellspacing="0" align="center">
+        <tr><td style="background:#fff8e1;width:56px;height:56px;border-radius:50%;text-align:center;line-height:56px;">
+          <span style="font-size:26px;">&#128338;</span>
+        </td></tr>
+      </table>
+      <div class="eyebrow" style="margin:24px 0 10px;color:${C.accent};">Awaiting payment confirmation</div>
+      <h1 class="syne hero-h1" style="${SYNE800}font-size:38px;color:${C.ink};margin:0 0 12px;line-height:1.05;letter-spacing:-0.03em;">
+        Almost there, ${esc(customer_name.split(' ')[0])}.
+      </h1>
+      <p style="font-size:15px;color:${C.muted};margin:0 auto;line-height:1.7;max-width:420px;">
+        Your order is reserved. We're waiting for your Flutterwave payment to clear — this usually takes just a few seconds after you complete the checkout.
+      </p>
+    </td>
+  </tr>
+
+  <!-- order ID — ticket stub -->
+  <tr>
+    <td class="pad" style="padding:32px 40px 0;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+        <tr><td style="padding:28px;background:${C.cream};border-radius:14px;text-align:center;">
+          <div class="eyebrow" style="margin-bottom:10px;">Your order ID</div>
+          <div class="syne id-num" style="${SYNE800}font-size:32px;color:${C.ink};letter-spacing:0.06em;line-height:1;">${esc(id)}</div>
+          <div style="font-size:12px;color:${C.muted};margin-top:10px;">Save this — you can use it to track your order at any time</div>
+        </td></tr>
+      </table>
+    </td>
+  </tr>
+
+  <!-- order summary -->
+  <tr>
+    <td class="pad" style="padding:28px 40px 0;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${C.cream};border-radius:14px;">
+        <tr>
+          <td style="padding:20px 24px;">
+            <div class="eyebrow" style="margin-bottom:6px;">Reserved item</div>
+            <div style="font-size:15px;font-weight:700;color:${C.ink};letter-spacing:-0.01em;">${esc(displayName)}</div>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:12px;border-top:1px solid ${C.border};">
+              <tr>
+                <td style="font-size:13px;color:${C.muted};padding-top:12px;">Amount</td>
+                <td align="right" style="padding-top:12px;">
+                  <span class="syne" style="${SYNE800}font-size:22px;color:${C.accent};">${fmtNgn(ngn_price)}</span>
+                </td>
+              </tr>
+              ${forex_rate ? `<tr>
+                <td style="font-size:12px;color:${C.subtle};padding-top:6px;">Forex rate</td>
+                <td align="right" style="font-size:12px;color:${C.muted};padding-top:6px;font-weight:600;">&#8358;${Number(forex_rate).toLocaleString()} / $1</td>
+              </tr>` : ''}
+            </table>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+  <!-- what happens next -->
+  <tr>
+    <td class="pad" style="padding:28px 40px 8px;">
+      <div class="eyebrow" style="margin-bottom:20px;">What happens next</div>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td style="vertical-align:top;width:36px;padding-right:14px;padding-bottom:20px;">
+            <div class="syne" style="${SYNE800}font-size:26px;color:${C.accentTint};line-height:1;">1</div>
+          </td>
+          <td style="vertical-align:top;padding-bottom:20px;">
+            <div style="font-size:14px;font-weight:700;color:${C.ink};margin-bottom:3px;">Payment clears</div>
+            <div style="font-size:13px;color:${C.muted};line-height:1.6;">Flutterwave verifies your payment automatically. Most cards and bank transfers clear within seconds.</div>
+          </td>
+        </tr>
+        <tr>
+          <td style="vertical-align:top;width:36px;padding-right:14px;padding-bottom:20px;">
+            <div class="syne" style="${SYNE800}font-size:26px;color:${C.accentTint};line-height:1;">2</div>
+          </td>
+          <td style="vertical-align:top;padding-bottom:20px;">
+            <div style="font-size:14px;font-weight:700;color:${C.ink};margin-bottom:3px;">Order confirmed</div>
+            <div style="font-size:13px;color:${C.muted};line-height:1.6;">Once payment is verified you'll get a separate confirmation email with your full order details.</div>
+          </td>
+        </tr>
+        <tr>
+          <td style="vertical-align:top;width:36px;padding-right:14px;padding-bottom:20px;">
+            <div class="syne" style="${SYNE800}font-size:26px;color:${C.accentTint};line-height:1;">3</div>
+          </td>
+          <td style="vertical-align:top;padding-bottom:20px;">
+            <div style="font-size:14px;font-weight:700;color:${C.ink};margin-bottom:3px;">Procurement starts</div>
+            <div style="font-size:13px;color:${C.muted};line-height:1.6;">We order directly from Apple US within 24 hours and keep you updated on WhatsApp.</div>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+  <!-- didn't get a confirmation? -->
+  <tr>
+    <td class="pad" style="padding:8px 40px 32px;border-bottom:1px solid ${C.hairline};">
+      <div style="border:1px solid ${C.border};background:${C.cream};border-radius:14px;padding:20px 24px;">
+        <div style="font-size:13px;font-weight:700;color:${C.ink};margin-bottom:6px;">Paid but didn't get a confirmation?</div>
+        <p style="font-size:13px;color:${C.muted};line-height:1.65;margin:0 0 14px;">
+          If your payment went through but you haven't received a confirmation email within 10 minutes, message us with your order ID and we'll sort it out immediately.
+        </p>
+        <a href="https://wa.me/${WA_NUM}?text=${encodeURIComponent(`Hi, I paid for my Certo order but haven't received a confirmation.\n\nOrder ID: ${id}`)}"
+           style="display:inline-block;background:#25D366;color:#fff;font-size:13px;font-weight:700;padding:11px 22px;border-radius:9px;text-decoration:none;">
+          &#128172;&nbsp; Message us on WhatsApp
+        </a>
+      </div>
+    </td>
+  </tr>
+
+  ${footerBlock()}
+  `;
+
+  return shell({
+    title: `Payment pending – ${id}`,
+    preheader: `Almost there, ${customer_name.split(' ')[0]} — we're waiting for your Flutterwave payment to be confirmed for order ${id}.`,
+    inner,
+  });
+}
+
+async function sendPaymentPendingNairaEmail(order) {
+  const html = pendingNairaHtml(order);
+  return transporter.sendMail({
+    from:    process.env.SMTP_USER ? `"Certo" <${process.env.SMTP_USER}>` : '"Certo" <noreply@certo.ng>',
+    to:      `${order.customer_name} <${order.customer_email}>`,
+    subject: `Almost there — payment pending for your Certo order (${order.id})`,
+    html,
+    text: `Hi ${order.customer_name},\n\nYour Certo order is reserved and we're waiting for your Flutterwave payment to be confirmed.\n\nOrder ID: ${order.id}\nAmount: ${fmtNgn(order.ngn_price)}\n\nOnce your payment clears you'll receive a separate confirmation email. This usually takes just a few seconds.\n\nIf your payment went through but you don't receive a confirmation within 10 minutes, message us:\nhttps://wa.me/${WA_NUM}\n\nCerto`,
+  });
+}
+
 module.exports = {
   sendOrderConfirmation,
   sendStatusUpdate,
   sendCancellationEmail,
   sendPaymentPendingEmail,
+  sendPaymentPendingNairaEmail,
   transporter,
   // expose builders for previewing / testing
   orderConfirmationHtml,
   statusUpdateHtml,
   cancellationHtml,
   pendingPaymentHtml,
+  pendingNairaHtml,
 };

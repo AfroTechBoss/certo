@@ -1,7 +1,7 @@
 const express = require('express');
 const router  = express.Router();
 const pool    = require('../db');
-const { sendOrderConfirmation, sendStatusUpdate, sendCancellationEmail, sendPaymentPendingEmail } = require('../email');
+const { sendOrderConfirmation, sendStatusUpdate, sendCancellationEmail, sendPaymentPendingEmail, sendPaymentPendingNairaEmail } = require('../email');
 const { adminAuth } = require('../adminAuth');
 const logAdminAction = require('../logAdminAction');
 const logOrderEvent  = require('../logAdminAction'); // same helper, aliased for clarity
@@ -88,9 +88,11 @@ router.post('/', async (req, res) => {
         // Don't fail the order — email error is non-fatal
       }
     } else {
-      // Pending payment order — send a "your order is reserved" email with WhatsApp CTA
+      // Pending payment — email varies by payment method
+      const isWhatsApp = (order.payment_method || '').includes('WhatsApp');
+      const pendingEmailFn = isWhatsApp ? sendPaymentPendingEmail : sendPaymentPendingNairaEmail;
       try {
-        await sendPaymentPendingEmail(order);
+        await pendingEmailFn(order);
         await pool.queryR('UPDATE orders SET email_sent = true WHERE id = $1', [id]);
       } catch (emailErr) {
         console.error('Pending payment email failed for', id, ':', emailErr.message);
