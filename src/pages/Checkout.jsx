@@ -557,16 +557,36 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
           <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>via Flutterwave · bank transfer, card, USSD</div>
         </div>
 
-        {/* USD / Crypto — Coming Soon */}
-        <div style={{
-          flex: 1, padding: '18px 16px', borderRadius: 14, cursor: 'not-allowed',
-          border: '2px solid var(--border)', background: 'var(--bg)', opacity: 0.55,
-          position: 'relative',
-        }}>
-          <div style={{ position: 'absolute', top: 8, right: 10, background: 'var(--border)', borderRadius: 20, padding: '2px 8px', fontFamily: 'var(--font-body)', fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.04em' }}>COMING SOON</div>
-          <div style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 15, color: 'var(--text-muted)', marginBottom: 4 }}>🌍  Pay in USD / Crypto</div>
-          <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>card, USDC, BTC, ETH — coming soon</div>
-        </div>
+        {/* USD / Crypto — WhatsApp redirect */}
+        <a
+          href={`https://wa.me/2348057575906?text=${encodeURIComponent(`Hi, I'd like to pay in USD/Crypto for my Certo order. Total: $${totalUsd.toLocaleString()} USD`)}`}
+          target="_blank"
+          rel="noreferrer"
+          style={{
+            flex: 1, padding: '18px 16px', borderRadius: 14,
+            border: '2px solid var(--border)', background: 'var(--bg)',
+            textDecoration: 'none', display: 'block',
+            transition: 'border-color 0.15s, background 0.15s',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--text)'; e.currentTarget.style.background = 'var(--bg-alt)'; }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'var(--bg)'; }}
+        >
+          <div style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 15, color: 'var(--text)', marginBottom: 4 }}>🌍  Pay in USD / Crypto</div>
+          <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>card, USDC, BTC, ETH</div>
+          <div style={{
+            marginTop: 12, display: 'inline-flex', alignItems: 'center', gap: 6,
+            fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700,
+            color: 'var(--text)', letterSpacing: '0.04em', textTransform: 'uppercase',
+          }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#34d399', display: 'inline-block' }} />
+            WhatsApp us →
+          </div>
+        </a>
+      </div>
+
+      {/* USD/Crypto note */}
+      <div style={{ marginBottom: 20, padding: '12px 16px', borderRadius: 10, background: 'var(--bg-alt)', border: '1px solid var(--border)', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+        💬 <strong style={{ color: 'var(--text)' }}>Paying in USD or crypto?</strong> Tap the card above to message us on WhatsApp — we'll handle the transaction directly and confirm your order manually.
       </div>
 
       {/* Payment summary */}
