@@ -427,103 +427,467 @@ const FAQPage = () => {
 };
 
 // ─── Contact ──────────────────────────────────────────────────────────────────
+
+const Eyebrow = ({ children, color = 'var(--accent)' }) => (
+  <div style={{
+    fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700,
+    letterSpacing: '0.16em', textTransform: 'uppercase',
+    color, marginBottom: 16,
+  }}>{children}</div>
+);
+
+const SLAPill = () => (
+  <div style={{
+    display: 'inline-flex', alignItems: 'center', gap: 8,
+    padding: '6px 12px', borderRadius: 100,
+    background: 'oklch(95% 0.05 155)',
+    color: 'oklch(35% 0.15 155)',
+    fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700,
+    letterSpacing: '0.08em', textTransform: 'uppercase',
+  }}>
+    <span style={{
+      width: 6, height: 6, borderRadius: '50%',
+      background: 'oklch(45% 0.18 155)',
+      animation: 'certoLivePulse 1.8s ease-in-out infinite',
+    }} />
+    Within 24 hrs · usually faster
+  </div>
+);
+
+const WhatsAppIcon = ({ size = 24, color = 'currentColor' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path
+      d="M12 2.5a9.5 9.5 0 0 0-8.13 14.46L2.5 21.5l4.7-1.32A9.5 9.5 0 1 0 12 2.5Zm5.4 13.42c-.23.65-1.36 1.25-1.9 1.32-.5.07-1.13.1-1.83-.12a17.4 17.4 0 0 1-1.66-.61 13.1 13.1 0 0 1-5.03-4.45c-.37-.5-.97-1.34-.97-2.56 0-1.21.63-1.81.86-2.06.23-.25.5-.31.66-.31h.5c.16 0 .37-.06.57.43.23.55.78 1.92.85 2.06.07.14.11.31.02.5-.09.18-.14.3-.27.46-.14.16-.29.36-.41.48-.14.14-.28.29-.12.57.16.28.71 1.17 1.52 1.9 1.04.92 1.92 1.21 2.2 1.35.27.14.43.11.59-.07.16-.18.68-.79.86-1.06.18-.27.36-.23.61-.14.25.09 1.6.76 1.87.9.27.14.46.21.52.32.07.12.07.66-.15 1.31Z"
+      fill={color}
+    />
+  </svg>
+);
+
+const EmailIcon = ({ size = 20, color = 'currentColor' }) => (
+  <svg width={size} height={size} viewBox="0 0 20 20" fill="none" aria-hidden="true">
+    <rect x="2.5" y="4" width="15" height="12" rx="2" stroke={color} strokeWidth="1.5"/>
+    <path d="M3 5l7 5 7-5" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+const TwitterIcon = ({ size = 20, color = 'currentColor' }) => (
+  <svg width={size} height={size} viewBox="0 0 20 20" fill="none" aria-hidden="true">
+    <path d="M14.5 3h2.6l-5.7 6.5L18 17h-5.3l-4.1-5.4L3.7 17H1.1l6.1-7-5.8-7h5.4l3.7 4.9L14.5 3Zm-.9 12.5h1.5L6.5 4.4H4.9l8.7 11.1Z" fill={color}/>
+  </svg>
+);
+
+const InstagramIcon = ({ size = 20, color = 'currentColor' }) => (
+  <svg width={size} height={size} viewBox="0 0 20 20" fill="none" aria-hidden="true">
+    <rect x="3" y="3" width="14" height="14" rx="4" stroke={color} strokeWidth="1.5"/>
+    <circle cx="10" cy="10" r="3.5" stroke={color} strokeWidth="1.5"/>
+    <circle cx="14.2" cy="5.8" r="1" fill={color}/>
+  </svg>
+);
+
+const FloatingInput = ({ label, value, onChange, type = 'text', autoComplete, multiline = false }) => {
+  const [focused, setFocused] = React.useState(false);
+  const active = focused || (value && value.length > 0);
+
+  const baseStyle = {
+    width: '100%', boxSizing: 'border-box',
+    padding: multiline ? '24px 16px 14px' : '24px 16px 10px',
+    borderRadius: 12,
+    border: `1.5px solid ${focused ? 'var(--accent)' : 'var(--border)'}`,
+    background: 'var(--bg)',
+    fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--text)',
+    outline: 'none', resize: multiline ? 'vertical' : 'none',
+    minHeight: multiline ? 140 : 'auto',
+    transition: 'border-color 0.15s, box-shadow 0.15s',
+    boxShadow: focused ? '0 0 0 4px var(--accent-tint, rgba(217,119,87,0.12))' : 'none',
+  };
+
+  const labelStyle = {
+    position: 'absolute',
+    left: 16,
+    top: active ? 7 : multiline ? 22 : 18,
+    fontSize: active ? 11 : 14,
+    fontFamily: 'var(--font-body)',
+    fontWeight: active ? 600 : 500,
+    color: focused ? 'var(--accent)' : 'var(--text-muted)',
+    letterSpacing: active ? '0.06em' : 'normal',
+    textTransform: active ? 'uppercase' : 'none',
+    pointerEvents: 'none',
+    transition: 'all 0.15s cubic-bezier(0.22, 1, 0.36, 1)',
+    background: 'transparent',
+  };
+
+  const handlers = {
+    value,
+    onChange,
+    onFocus: () => setFocused(true),
+    onBlur:  () => setFocused(false),
+    autoComplete,
+  };
+
+  return (
+    <div style={{ position: 'relative', marginBottom: 14 }}>
+      <label style={labelStyle}>{label}</label>
+      {multiline ? (
+        <textarea rows={5} style={baseStyle} {...handlers} />
+      ) : (
+        <input type={type} style={baseStyle} {...handlers} />
+      )}
+    </div>
+  );
+};
+
 const ContactPage = () => {
   const { isMobile } = useResponsive();
-  const [form, setForm] = React.useState({ name: '', email: '', message: '' });
-  const [sent, setSent]         = React.useState(false);
+  const [form,    setForm]      = React.useState({ name: '', email: '', message: '' });
+  const [sent,    setSent]      = React.useState(false);
   const [sending, setSending]   = React.useState(false);
   const [sendError, setSendError] = React.useState('');
 
+  const canSend = form.name && form.email && form.message && !sending;
+
+  const send = async () => {
+    setSending(true);
+    setSendError('');
+    try {
+      const r = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed to send');
+      setSent(true);
+    } catch (e) {
+      setSendError(e.message || 'Something went wrong. Please try WhatsApp or email directly.');
+    } finally {
+      setSending(false);
+    }
+  };
+
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', paddingTop: 80 }}>
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? '40px 20px 80px' : '60px 48px 100px', display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 40 : 80 }}>
-        <div>
-          <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 16 }}>Contact</div>
-          <h1 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 44, letterSpacing: '-0.03em', color: 'var(--text)', marginBottom: 16 }}>Talk to us</h1>
-          <p style={{ fontFamily: 'var(--font-body)', fontSize: 16, color: 'var(--text-muted)', lineHeight: 1.7, marginBottom: 48 }}>
-            WhatsApp is fastest. We respond to every message personally — no bots.
+    <div style={{
+      minHeight: '100vh', background: 'var(--bg)', paddingTop: 80,
+      position: 'relative', overflow: 'hidden',
+    }}>
+      <div aria-hidden="true" style={{
+        position: 'absolute', top: -120, right: -180,
+        width: 600, height: 600, pointerEvents: 'none',
+        background: 'radial-gradient(circle, var(--accent-tint, rgba(217,119,87,0.18)) 0%, transparent 65%)',
+        opacity: 0.7,
+      }} />
+
+      <style>{`
+        @keyframes certoLivePulse {
+          0%, 100% { opacity: 0.4; transform: scale(0.85); }
+          50%      { opacity: 1;   transform: scale(1); }
+        }
+        @keyframes certoSpin {
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
+
+      <div style={{
+        position: 'relative',
+        maxWidth: 1200, margin: '0 auto',
+        padding: isMobile ? '36px 20px 80px' : '72px 48px 120px',
+      }}>
+        {/* Hero */}
+        <header style={{ marginBottom: isMobile ? 40 : 64, maxWidth: 760 }}>
+          <Eyebrow>Talk to us</Eyebrow>
+          <h1 style={{
+            fontFamily: 'var(--font-head)', fontWeight: 800,
+            fontSize: isMobile ? 52 : 'clamp(56px, 6vw, 96px)',
+            letterSpacing: '-0.04em', color: 'var(--text)',
+            margin: 0, lineHeight: 0.95,
+          }}>
+            One founder.<br />
+            <span style={{ fontStyle: 'italic', fontWeight: 700, color: 'var(--accent)' }}>
+              One inbox.
+            </span>
+          </h1>
+          <p style={{
+            marginTop: 28, maxWidth: 540,
+            fontFamily: 'var(--font-body)', fontSize: isMobile ? 16 : 18,
+            color: 'var(--text-muted)', lineHeight: 1.65,
+          }}>
+            We don't run a call centre and we don't use bots. Every message comes
+            straight to the person who runs Certo — usually replied to within
+            a few hours, never longer than a business day.
           </p>
+        </header>
 
-          {[
-            { icon: '💬', label: 'WhatsApp', val: '+234 805 757 5906', href: 'https://wa.me/2348057575906', sub: 'Fastest response' },
-            { icon: '✉️', label: 'Email', val: 'hello@certo.ng', href: 'mailto:hello@certo.ng', sub: 'Within 24hrs on business days' },
-            { icon: '𝕏', label: 'Twitter / X', val: '@certong', sub: 'DMs open' },
-            { icon: '📷', label: 'Instagram', val: '@certo.ng', sub: 'DMs open' },
-          ].map(c => (
-            <div key={c.label} style={{ display: 'flex', gap: 16, marginBottom: 24, alignItems: 'flex-start' }}>
-              <div style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--bg-alt)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>{c.icon}</div>
-              <div>
-                {c.href ? (
-                  <a href={c.href} target="_blank" rel="noreferrer" style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 15, color: 'var(--accent)', marginBottom: 2, display: 'block', textDecoration: 'none' }}>{c.val}</a>
-                ) : (
-                  <div style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 15, color: 'var(--text)', marginBottom: 2 }}>{c.val}</div>
-                )}
-                <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)' }}>{c.label} · {c.sub}</div>
+        {/* Grid */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+          gap: isMobile ? 32 : 64,
+          alignItems: 'start',
+        }}>
+          {/* Left: contact methods */}
+          <div>
+            {/* WhatsApp hero card */}
+            <a
+              href="https://wa.me/2348057575906"
+              target="_blank" rel="noreferrer"
+              style={{
+                display: 'block', textDecoration: 'none',
+                padding: 24, borderRadius: 18,
+                background: 'var(--text)', color: 'white',
+                marginBottom: 16,
+                position: 'relative', overflow: 'hidden',
+                boxShadow: '0 20px 40px -16px rgba(26,23,20,0.25)',
+                transition: 'transform 0.2s, box-shadow 0.2s',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 24px 48px -16px rgba(26,23,20,0.32)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 20px 40px -16px rgba(26,23,20,0.25)';
+              }}
+            >
+              <div aria-hidden="true" style={{
+                position: 'absolute', top: -20, right: -20,
+                opacity: 0.06, pointerEvents: 'none',
+              }}>
+                <WhatsAppIcon size={180} color="white" />
               </div>
-            </div>
-          ))}
-        </div>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700,
+                letterSpacing: '0.14em', textTransform: 'uppercase',
+                color: 'rgba(255,255,255,0.6)', marginBottom: 12,
+              }}>
+                <span style={{
+                  width: 7, height: 7, borderRadius: '50%', background: '#34d399',
+                  animation: 'certoLivePulse 1.8s ease-in-out infinite',
+                }} />
+                Fastest channel
+              </div>
+              <div style={{
+                fontFamily: 'var(--font-head)', fontWeight: 700,
+                fontSize: 28, letterSpacing: '-0.02em',
+                lineHeight: 1.05, marginBottom: 8,
+              }}>
+                WhatsApp us<br />
+                <span style={{ color: 'rgba(255,255,255,0.55)', fontWeight: 600 }}>
+                  +234 805 757 5906
+                </span>
+              </div>
+              <div style={{
+                marginTop: 20,
+                display: 'inline-flex', alignItems: 'center', gap: 10,
+                padding: '11px 18px', borderRadius: 10,
+                background: 'rgba(255,255,255,0.12)',
+                fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600,
+              }}>
+                <WhatsAppIcon size={16} color="white" />
+                Open in WhatsApp →
+              </div>
+            </a>
 
-        <div>
-          {sent ? (
-            <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-              <div style={{ fontSize: 48, marginBottom: 16 }}>✓</div>
-              <h3 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 24, color: 'var(--text)', marginBottom: 12 }}>Message sent</h3>
-              <p style={{ fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--text-muted)', lineHeight: 1.7 }}>We'll get back to you within 24 hours on business days. For faster response, send a WhatsApp message.</p>
-            </div>
-          ) : (
-            <div>
+            {/* Secondary channels */}
+            <div style={{ border: '1px solid var(--border)', borderRadius: 18, background: 'var(--bg)', overflow: 'hidden' }}>
               {[
-                { label: 'Your Name', key: 'name', placeholder: 'Full name' },
-                { label: 'Email', key: 'email', placeholder: 'your@email.com', type: 'email' },
-              ].map(f => (
-                <div key={f.key} style={{ marginBottom: 18 }}>
-                  <label style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, color: 'var(--text)', display: 'block', marginBottom: 6 }}>{f.label}</label>
-                  <input value={form[f.key]} onChange={e => setForm({...form, [f.key]: e.target.value})} placeholder={f.placeholder} type={f.type || 'text'}
-                    style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: '1.5px solid var(--border)', background: 'var(--bg)', fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--text)', outline: 'none', boxSizing: 'border-box' }}
-                    onFocus={e => e.target.style.borderColor = 'var(--accent)'}
-                    onBlur={e => e.target.style.borderColor = 'var(--border)'}
-                  />
-                </div>
+                { Icon: EmailIcon,     label: 'Email',       val: 'hello@certo.ng',  sub: 'Replies within 24 hours on business days', href: 'mailto:hello@certo.ng' },
+                { Icon: TwitterIcon,   label: 'Twitter / X', val: '@certong',        sub: 'DMs open · public questions welcome',      href: 'https://x.com/certong' },
+                { Icon: InstagramIcon, label: 'Instagram',   val: '@certo.ng',       sub: 'DMs open · behind-the-scenes content',     href: 'https://instagram.com/certo.ng' },
+              ].map((c, i, arr) => (
+                <a
+                  key={c.label}
+                  href={c.href} target="_blank" rel="noreferrer"
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 16,
+                    padding: '18px 20px', textDecoration: 'none', color: 'inherit',
+                    borderBottom: i < arr.length - 1 ? '1px solid var(--border)' : 'none',
+                    transition: 'background 0.15s',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-alt)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'var(--bg)'}
+                >
+                  <div style={{
+                    width: 40, height: 40, borderRadius: 10,
+                    background: 'var(--bg-alt)', border: '1px solid var(--border)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    flexShrink: 0, color: 'var(--text)',
+                  }}>
+                    <c.Icon size={18} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 15, color: 'var(--text)', marginBottom: 2 }}>{c.val}</div>
+                    <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)' }}>
+                      <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{c.label}</span>
+                      {' · '}{c.sub}
+                    </div>
+                  </div>
+                  <span style={{ color: 'var(--text-muted)', fontSize: 16 }}>→</span>
+                </a>
               ))}
-              <div style={{ marginBottom: 24 }}>
-                <label style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, color: 'var(--text)', display: 'block', marginBottom: 6 }}>Message</label>
-                <textarea value={form.message} onChange={e => setForm({...form, message: e.target.value})} placeholder="What can we help you with?" rows={5}
-                  style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: '1.5px solid var(--border)', background: 'var(--bg)', fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--text)', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
-                  onFocus={e => e.target.style.borderColor = 'var(--accent)'}
-                  onBlur={e => e.target.style.borderColor = 'var(--border)'}
-                />
-              </div>
-              {sendError && (
-                <div style={{ marginBottom: 14, padding: '10px 14px', borderRadius: 10, background: 'oklch(97% 0.02 20)', border: '1px solid oklch(85% 0.05 20)', fontFamily: 'var(--font-body)', fontSize: 13, color: 'oklch(40% 0.15 20)' }}>
-                  {sendError}
-                </div>
-              )}
-              <button
-                disabled={!form.name || !form.email || !form.message || sending}
-                onClick={async () => {
-                  setSending(true);
-                  setSendError('');
-                  try {
-                    const r = await fetch('/api/contact', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify(form),
-                    });
-                    const d = await r.json();
-                    if (!r.ok) throw new Error(d.error || 'Failed to send');
-                    setSent(true);
-                  } catch (e) {
-                    setSendError(e.message || 'Something went wrong. Please try WhatsApp or email directly.');
-                  } finally {
-                    setSending(false);
-                  }
-                }}
-                style={{ width: '100%', padding: '16px', borderRadius: 12, border: 'none', background: (form.name && form.email && form.message && !sending) ? 'var(--accent)' : 'var(--border)', color: (form.name && form.email && form.message && !sending) ? 'white' : 'var(--text-muted)', cursor: (form.name && form.email && form.message && !sending) ? 'pointer' : 'not-allowed', fontFamily: 'var(--font-body)', fontSize: 16, fontWeight: 700 }}>
-                {sending ? 'Sending…' : 'Send Message →'}
-              </button>
             </div>
-          )}
+
+            {/* Founder note */}
+            <div style={{
+              marginTop: 32, padding: '20px 24px', borderRadius: 14,
+              background: 'var(--bg-alt)', borderLeft: '3px solid var(--accent)',
+            }}>
+              <div style={{
+                fontFamily: 'var(--font-head)', fontStyle: 'italic',
+                fontWeight: 600, fontSize: 16, color: 'var(--text)',
+                letterSpacing: '-0.01em', lineHeight: 1.5, marginBottom: 8,
+              }}>
+                "If you message me at 11pm, I'll probably reply at 11pm."
+              </div>
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)' }}>
+                — Founder &amp; sole operator, Lagos
+              </div>
+            </div>
+          </div>
+
+          {/* Right: form card */}
+          <div style={{
+            border: '1px solid var(--border)', borderRadius: 20,
+            background: 'var(--bg)',
+            padding: isMobile ? 24 : 32,
+            boxShadow: '0 20px 40px -24px rgba(26,23,20,0.12)',
+            position: 'sticky', top: 96,
+          }}>
+            {sent ? (
+              <div style={{ textAlign: 'center', padding: '40px 12px' }}>
+                <div style={{
+                  width: 72, height: 72, borderRadius: '50%',
+                  background: 'var(--bg-alt)', border: '2px solid var(--accent)',
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  marginBottom: 24, color: 'var(--accent)',
+                  fontFamily: 'var(--font-head)', fontWeight: 800, fontSize: 32,
+                }}>✓</div>
+                <h3 style={{
+                  fontFamily: 'var(--font-head)', fontWeight: 800,
+                  fontSize: 32, letterSpacing: '-0.03em',
+                  color: 'var(--text)', margin: '0 0 12px', lineHeight: 1,
+                }}>
+                  Message<br />
+                  <span style={{ fontStyle: 'italic', fontWeight: 700, color: 'var(--accent)' }}>received.</span>
+                </h3>
+                <p style={{
+                  fontFamily: 'var(--font-body)', fontSize: 15,
+                  color: 'var(--text-muted)', lineHeight: 1.65,
+                  maxWidth: 360, margin: '0 auto 28px',
+                }}>
+                  Thanks {form.name ? form.name.split(' ')[0] : 'for reaching out'}. I'll get back to you within 24 hours on business days — usually faster.
+                </p>
+                <a
+                  href="https://wa.me/2348057575906"
+                  target="_blank" rel="noreferrer"
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 10,
+                    padding: '12px 22px', borderRadius: 10,
+                    background: 'var(--text)', color: 'white',
+                    textDecoration: 'none',
+                    fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600,
+                  }}
+                >
+                  <WhatsAppIcon size={16} color="white" />
+                  Need a faster reply? WhatsApp
+                </a>
+              </div>
+            ) : (
+              <>
+                <div style={{
+                  display: 'flex', justifyContent: 'space-between',
+                  alignItems: 'flex-start', marginBottom: 24, gap: 16, flexWrap: 'wrap',
+                }}>
+                  <div>
+                    <h2 style={{
+                      fontFamily: 'var(--font-head)', fontWeight: 800,
+                      fontSize: 24, letterSpacing: '-0.02em',
+                      color: 'var(--text)', margin: '0 0 6px',
+                    }}>Send a message</h2>
+                    <p style={{ margin: 0, fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)' }}>
+                      Or just say hello.
+                    </p>
+                  </div>
+                  <SLAPill />
+                </div>
+
+                <FloatingInput
+                  label="Your name"
+                  value={form.name}
+                  onChange={e => setForm({ ...form, name: e.target.value })}
+                  autoComplete="name"
+                />
+                <FloatingInput
+                  label="Email address"
+                  type="email"
+                  value={form.email}
+                  onChange={e => setForm({ ...form, email: e.target.value })}
+                  autoComplete="email"
+                />
+                <FloatingInput
+                  label="What's on your mind?"
+                  multiline
+                  value={form.message}
+                  onChange={e => setForm({ ...form, message: e.target.value })}
+                />
+
+                {sendError && (
+                  <div style={{
+                    marginTop: 4, marginBottom: 14,
+                    padding: '12px 16px', borderRadius: 10,
+                    background: 'oklch(97% 0.02 20)', border: '1px solid oklch(85% 0.05 20)',
+                    fontFamily: 'var(--font-body)', fontSize: 13, color: 'oklch(40% 0.15 20)',
+                    display: 'flex', alignItems: 'flex-start', gap: 10,
+                  }}>
+                    <span style={{ flexShrink: 0, marginTop: 1 }}>⚠</span>
+                    <span>{sendError}</span>
+                  </div>
+                )}
+
+                <button
+                  disabled={!canSend}
+                  onClick={send}
+                  style={{
+                    width: '100%', marginTop: 8,
+                    padding: '18px 20px', borderRadius: 12, border: 'none',
+                    background: canSend ? 'var(--accent)' : 'var(--border)',
+                    color: canSend ? 'white' : 'var(--text-muted)',
+                    cursor: canSend ? 'pointer' : 'not-allowed',
+                    fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 700,
+                    letterSpacing: '0.01em',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                    boxShadow: canSend ? '0 8px 20px -8px rgba(217,119,87,0.5)' : 'none',
+                    transition: 'transform 0.15s, box-shadow 0.15s',
+                  }}
+                  onMouseEnter={e => { if (canSend) e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                  onMouseLeave={e => { if (canSend) e.currentTarget.style.transform = 'translateY(0)'; }}
+                >
+                  {sending ? (
+                    <>
+                      <span style={{
+                        width: 14, height: 14, borderRadius: '50%',
+                        border: '2px solid rgba(255,255,255,0.4)',
+                        borderTopColor: 'white',
+                        animation: 'certoSpin 0.8s linear infinite',
+                        display: 'inline-block',
+                      }} />
+                      Sending…
+                    </>
+                  ) : (
+                    <>Send message <span>→</span></>
+                  )}
+                </button>
+
+                <p style={{
+                  marginTop: 16, marginBottom: 0,
+                  fontFamily: 'var(--font-body)', fontSize: 12,
+                  color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.6,
+                }}>
+                  By sending, you agree we may reply via email.<br />
+                  We don't share your details with anyone.
+                </p>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>
