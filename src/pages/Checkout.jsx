@@ -535,6 +535,75 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
     }
   };
 
+  const handleWhatsAppPay = async () => {
+    setSubmitting(true);
+    setSubmitError('');
+    try {
+      const firstItem = cartItems[0];
+      const res = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customer_name:     delivery.name,
+          customer_email:    delivery.email,
+          customer_phone:    delivery.phone,
+          address:           delivery.address,
+          state:             delivery.state,
+          product_id:        firstItem?.product?.id || null,
+          product_name:      firstItem?.product?.name || '',
+          product_subtitle:  firstItem?.product?.subtitle || '',
+          product_image_url: (firstItem?.product?.image_urls || firstItem?.product?.images || [])[0] || '',
+          apple_url:         firstItem?.product?.apple_url || '',
+          applecare:         firstItem?.applecare?.name || 'none',
+          variant_id:        firstItem?.variant?.id      || null,
+          variant_color:     firstItem?.variant?.color   || null,
+          variant_storage:   firstItem?.variant?.storage || null,
+          variant_color_hex: firstItem?.variant?.color_hex || null,
+          qty:               cartItems.reduce((sum, item) => sum + (item.qty || 1), 0),
+          usd_price:         totalUsd,
+          ngn_price:         totalNgn,
+          forex_rate:        CERTO_RATE,
+          initial_status:    'Payment Pending',
+          payment_method:    'WhatsApp (USD/Crypto)',
+          coupon_code:       couponData?.code || null,
+          coupon_discount:   couponDiscount || 0,
+          items: cartItems.map(item => ({
+            product_id:        item.product.id || '',
+            name:              item.product.name || '',
+            subtitle:          item.product.subtitle || '',
+            usd_price:         itemDevicePrice(item) || 0,
+            image_url:         (item.product.image_urls || item.product.images || [])[0] || '',
+            apple_url:         item.product.apple_url || '',
+            applecare:         item.applecare?.name || 'none',
+            qty:               item.qty || 1,
+            variant_id:        item.variant?.id        || null,
+            variant_color:     item.variant?.color     || null,
+            variant_storage:   item.variant?.storage   || null,
+            variant_color_hex: item.variant?.color_hex || null,
+          })),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Order creation failed');
+      const newOrderId = data.id;
+      setOrderId(newOrderId);
+      orderIdRef.current = newOrderId;
+      setPayMethod('whatsapp');
+      setConfirmedItems([...cartItems]);
+      clearCart && clearCart();
+
+      // Open WhatsApp with order ID + total pre-filled
+      const msg = `Hi, I'd like to pay in USD/Crypto for my Certo order.\n\nOrder ID: ${newOrderId}\nTotal: $${totalUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD\n\nPlease let me know how to proceed.`;
+      window.open(`https://wa.me/2348057575906?text=${encodeURIComponent(msg)}`, '_blank');
+
+      setStep(4);
+    } catch (err) {
+      setSubmitError(err.message || 'Something went wrong. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const PaymentStep = () => (
     <div>
       <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 28, letterSpacing: '-0.02em', color: 'var(--text)', marginBottom: 24 }}>Payment</h2>
@@ -557,18 +626,18 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
           <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>via Flutterwave · bank transfer, card, USSD</div>
         </div>
 
-        {/* USD / Crypto — WhatsApp redirect */}
-        <a
-          href={`https://wa.me/2348057575906?text=${encodeURIComponent(`Hi, I'd like to pay in USD/Crypto for my Certo order. Total: $${totalUsd.toLocaleString()} USD`)}`}
-          target="_blank"
-          rel="noreferrer"
+        {/* USD / Crypto — creates order then opens WhatsApp */}
+        <button
+          onClick={handleWhatsAppPay}
+          disabled={submitting}
           style={{
             flex: 1, padding: '18px 16px', borderRadius: 14,
             border: '2px solid var(--border)', background: 'var(--bg)',
-            textDecoration: 'none', display: 'block',
+            textAlign: 'left', cursor: submitting ? 'not-allowed' : 'pointer',
             transition: 'border-color 0.15s, background 0.15s',
+            opacity: submitting ? 0.6 : 1,
           }}
-          onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--text)'; e.currentTarget.style.background = 'var(--bg-alt)'; }}
+          onMouseEnter={e => { if (!submitting) { e.currentTarget.style.borderColor = 'var(--text)'; e.currentTarget.style.background = 'var(--bg-alt)'; }}}
           onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'var(--bg)'; }}
         >
           <div style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 15, color: 'var(--text)', marginBottom: 4 }}>🌍  Pay in USD / Crypto</div>
@@ -581,7 +650,7 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#34d399', display: 'inline-block' }} />
             WhatsApp us →
           </div>
-        </a>
+        </button>
       </div>
 
       {/* USD/Crypto note */}
@@ -636,13 +705,18 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
         </svg>
       </div>
       <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 32, letterSpacing: '-0.02em', color: 'var(--text)', marginBottom: 8 }}>
-        {payMethod === 'usd' ? 'Order Created' : 'Order Confirmed'}
+        {payMethod === 'whatsapp' ? 'Order Created' : 'Order Confirmed'}
       </h2>
       <p style={{ fontFamily: 'var(--font-body)', fontSize: 16, color: 'var(--text-muted)', lineHeight: 1.7, marginBottom: 32, maxWidth: 420, margin: '0 auto 32px' }}>
-        {payMethod === 'usd'
-          ? 'Complete your payment on the Hel.io tab that just opened. Once confirmed, we start procurement within 24 hours.'
+        {payMethod === 'whatsapp'
+          ? 'Your order is saved and pending payment. We\'ve opened WhatsApp with your order ID — complete the payment there and we\'ll confirm your order manually.'
           : 'Your payment has been received. We\'re starting procurement within 24 hours.'}
       </p>
+      {payMethod === 'whatsapp' && (
+        <div style={{ maxWidth: 420, margin: '0 auto 24px', padding: '14px 18px', borderRadius: 12, background: 'oklch(97% 0.015 65)', border: '1px solid oklch(88% 0.03 65)', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text)', lineHeight: 1.6, textAlign: 'left' }}>
+          ⏳ <strong>Status: Payment Pending</strong> — your order will be confirmed once we receive your payment via WhatsApp.
+        </div>
+      )}
 
       <div style={{ background: 'var(--bg-alt)', borderRadius: 16, padding: 24, border: '1px solid var(--border)', marginBottom: 28, maxWidth: 420, margin: '0 auto 28px', textAlign: 'left' }}>
         <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 8, textAlign: 'center' }}>Your Order ID</div>
