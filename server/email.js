@@ -766,8 +766,8 @@ function pendingPaymentHtml(order) {
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
         ${[
           ['1', 'Message us on WhatsApp', 'Use the button above — your order details are already in the message.'],
-          ['2', 'Send payment', 'We'll share our USD bank or crypto wallet details. Pay from wherever works best for you.'],
-          ['3', 'Order confirmed', 'Once payment clears we confirm your order and start procurement. You'll get a confirmation email.'],
+          ['2', 'Send payment', "We'll share our USD bank or crypto wallet details. Pay from wherever works best for you."],
+          ['3', 'Order confirmed', "Once payment clears we confirm your order and start procurement. You'll get a confirmation email."],
         ].map(([num, title, desc]) => `
         <tr>
           <td style="vertical-align:top;width:36px;padding-right:14px;padding-bottom:20px;">
