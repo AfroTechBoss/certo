@@ -341,16 +341,36 @@ app.get('/api/img', async (req, res) => {
 });
 
 // Forex proxy — avoid CORS issues from client
+// Tries multiple free APIs in order; falls back to a hardcoded rate so it never 500s
+const FOREX_APIS = [
+  // Open ER-API — free, no key, reliable v6 endpoint
+  { url: 'https://open.er-api.com/v6/latest/USD', extract: d => d?.rates?.NGN },
+  // ExchangeRate-API v4 — free open access, no key needed
+  { url: 'https://api.exchangerate-api.com/v4/latest/USD', extract: d => d?.rates?.NGN },
+  // Fawaz Ahmed's free CDN-backed rates
+  { url: 'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json', extract: d => d?.usd?.ngn },
+];
+// Hardcoded last-resort — keeps the UI functional even when all live APIs are down.
+// Update this periodically to stay approximate.
+const FOREX_FALLBACK = 1680;
+
 app.get('/api/forex', async (req, res) => {
-  try {
-    const resp = await fetch('https://api.exchangerate-api.com/v4/latest/USD', { signal: AbortSignal.timeout(8000) });
-    const data = await resp.json();
-    const ngn  = data?.rates?.NGN;
-    if (!ngn) throw new Error('No NGN rate');
-    res.json({ rate: Math.round(ngn) + 100 });
-  } catch (err) {
-    res.status(500).json({ error: 'Forex fetch failed', rate: null });
+  for (const { url, extract } of FOREX_APIS) {
+    try {
+      const resp = await fetch(url, { signal: AbortSignal.timeout(6000) });
+      if (!resp.ok) continue;
+      const data = await resp.json();
+      const ngn  = extract(data);
+      if (ngn && Number(ngn) > 0) {
+        return res.json({ rate: Math.round(Number(ngn)) + 100 });
+      }
+    } catch (err) {
+      console.warn('[forex] API failed:', url, err.message);
+    }
   }
+  // All live APIs failed — serve the hardcoded fallback rather than a 500
+  console.warn('[forex] All APIs failed — serving hardcoded fallback rate', FOREX_FALLBACK);
+  res.json({ rate: FOREX_FALLBACK, fallback: true });
 });
 
 // Health check

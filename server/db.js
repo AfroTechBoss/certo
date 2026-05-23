@@ -19,18 +19,24 @@ pool.on('error', (err) => {
 });
 
 // Query with automatic retry on transient errors (covers Neon cold start)
+// Neon can take up to ~10s to wake from sleep; we allow 4 attempts with exponential backoff
 async function query(sql, params) {
-  const RETRIES = 3;
+  const RETRIES = 4;
   for (let attempt = 1; attempt <= RETRIES; attempt++) {
     try {
       return await pool.query(sql, params);
     } catch (err) {
       const transient = err.code === 'ECONNRESET' || err.code === 'ECONNREFUSED' || err.code === 'ETIMEDOUT'
+        || err.code === '57P01' // Neon: connection terminated by admin
         || !err.code
-        || err.message?.includes('timeout') || err.message?.includes('terminated') || err.message?.includes('ECONNRESET');
+        || err.message?.includes('timeout')
+        || err.message?.includes('terminated')
+        || err.message?.includes('ECONNRESET')
+        || err.message?.includes('connection')
+        || err.message?.includes('fetch failed'); // Neon WS fetch error
       if (transient && attempt < RETRIES) {
-        const delay = 1000 * attempt; // 1s, 2s
-        console.warn(`[db] ${err.code || err.message?.slice(0, 50)} — attempt ${attempt}/${RETRIES}, retrying in ${delay}ms…`);
+        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000); // 1s, 2s, 4s
+        console.warn(`[db] ${err.code || err.message?.slice(0, 60)} — attempt ${attempt}/${RETRIES}, retrying in ${delay}ms…`);
         await new Promise(r => setTimeout(r, delay));
         continue;
       }
