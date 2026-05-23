@@ -656,13 +656,178 @@ async function sendCancellationEmail(order) {
   });
 }
 
+// ─── pending payment (USD / Crypto via WhatsApp) ─────────────────────────────
+
+function pendingPaymentHtml(order) {
+  const {
+    id, customer_name, product_name, product_subtitle,
+    usd_price, items,
+  } = order;
+
+  const displayName = (() => {
+    if (Array.isArray(items) && items.length > 1) return `${items.length} items`;
+    if (Array.isArray(items) && items.length === 1) return [items[0].name, items[0].subtitle].filter(Boolean).join(' ');
+    return [product_name, product_subtitle].filter(Boolean).join(' ');
+  })();
+
+  const totalUsd = (() => {
+    if (Array.isArray(items) && items.length > 0) {
+      return items.reduce((sum, it) => sum + Number(it.usd_price) * (it.qty || 1), 0);
+    }
+    return Number(usd_price);
+  })();
+
+  const waMsg = encodeURIComponent(
+    `Hi, I'd like to pay in USD/Crypto for my Certo order.\n\nOrder ID: ${id}\nTotal: $${totalUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD\n\nPlease let me know how to proceed.`
+  );
+  const waLink = `https://wa.me/${WA_NUM}?text=${waMsg}`;
+
+  const inner = `
+  ${masthead()}
+
+  <!-- hero -->
+  <tr>
+    <td class="pad" style="padding:48px 40px 32px;text-align:center;border-bottom:1px solid ${C.hairline};">
+      <table role="presentation" cellpadding="0" cellspacing="0" align="center">
+        <tr><td style="background:#fff8e1;width:56px;height:56px;border-radius:50%;text-align:center;line-height:56px;">
+          <span style="font-size:26px;">⏳</span>
+        </td></tr>
+      </table>
+      <div class="eyebrow" style="margin:24px 0 10px;color:${C.accent};">Payment pending</div>
+      <h1 class="syne hero-h1" style="${SYNE800}font-size:38px;color:${C.ink};margin:0 0 12px;line-height:1.05;letter-spacing:-0.03em;">
+        We're holding your order.
+      </h1>
+      <p style="font-size:15px;color:${C.muted};margin:0 auto;line-height:1.7;max-width:420px;">
+        Hi ${esc(customer_name.split(' ')[0])} — your order is reserved but won't be confirmed until we receive your USD or crypto payment. Message us on WhatsApp to complete it.
+      </p>
+    </td>
+  </tr>
+
+  <!-- order ID — ticket stub -->
+  <tr>
+    <td class="pad" style="padding:32px 40px 0;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+        <tr><td style="padding:28px;background:${C.cream};border-radius:14px;text-align:center;">
+          <div class="eyebrow" style="margin-bottom:10px;">Your order ID</div>
+          <div class="syne id-num" style="${SYNE800}font-size:32px;color:${C.ink};letter-spacing:0.06em;line-height:1;">${esc(id)}</div>
+          <div style="font-size:12px;color:${C.muted};margin-top:10px;">Quote this when you message us — it links your payment to your order</div>
+        </td></tr>
+      </table>
+    </td>
+  </tr>
+
+  <!-- what you ordered -->
+  <tr>
+    <td class="pad" style="padding:28px 40px 0;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${C.cream};border-radius:14px;">
+        <tr>
+          <td style="padding:20px 24px;">
+            <div class="eyebrow" style="margin-bottom:6px;">Reserved item</div>
+            <div style="font-size:15px;font-weight:700;color:${C.ink};letter-spacing:-0.01em;">${esc(displayName)}</div>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:12px;border-top:1px solid ${C.border};padding-top:12px;">
+              <tr>
+                <td style="font-size:13px;color:${C.muted};padding-top:12px;">Amount due</td>
+                <td align="right" style="padding-top:12px;">
+                  <span class="syne" style="${SYNE800}font-size:22px;color:${C.accent};">${fmtUsd(totalUsd)}</span>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+  <!-- CTA -->
+  <tr>
+    <td class="pad" style="padding:28px 40px 32px;border-bottom:1px solid ${C.hairline};">
+      <div style="background:${C.ink};border-radius:16px;padding:28px 28px 24px;text-align:center;">
+        <div class="syne" style="${SYNE800}font-size:20px;color:#fff;margin-bottom:8px;line-height:1.2;">
+          Ready to pay? Open WhatsApp.
+        </div>
+        <p style="font-size:14px;color:rgba(255,255,255,0.65);line-height:1.65;margin:0 0 20px;">
+          Tap the button below — your order ID and total are pre-filled.<br/>We'll confirm your order as soon as payment clears.
+        </p>
+        <a href="${waLink}"
+           style="display:inline-block;background:#25D366;color:#fff;font-size:15px;font-weight:700;padding:14px 32px;border-radius:12px;text-decoration:none;letter-spacing:-0.01em;">
+          &#128172;&nbsp; Send payment details on WhatsApp
+        </a>
+        <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:14px;">
+          Or message us manually: <strong style="color:rgba(255,255,255,0.6);">+234 805 757 5906</strong> and quote ${esc(id)}
+        </div>
+      </div>
+    </td>
+  </tr>
+
+  <!-- what happens next -->
+  <tr>
+    <td class="pad" style="padding:28px 40px 8px;">
+      <div class="eyebrow" style="margin-bottom:20px;">What happens next</div>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+        ${[
+          ['1', 'Message us on WhatsApp', 'Use the button above — your order details are already in the message.'],
+          ['2', 'Send payment', 'We'll share our USD bank or crypto wallet details. Pay from wherever works best for you.'],
+          ['3', 'Order confirmed', 'Once payment clears we confirm your order and start procurement. You'll get a confirmation email.'],
+        ].map(([num, title, desc]) => `
+        <tr>
+          <td style="vertical-align:top;width:36px;padding-right:14px;padding-bottom:20px;">
+            <div class="syne" style="${SYNE800}font-size:26px;color:${C.accentTint};line-height:1;">${num}</div>
+          </td>
+          <td style="vertical-align:top;padding-bottom:20px;">
+            <div style="font-size:14px;font-weight:700;color:${C.ink};margin-bottom:3px;">${title}</div>
+            <div style="font-size:13px;color:${C.muted};line-height:1.6;">${desc}</div>
+          </td>
+        </tr>`).join('')}
+      </table>
+    </td>
+  </tr>
+
+  <!-- soft note -->
+  <tr>
+    <td class="pad" style="padding:8px 40px 32px;border-bottom:1px solid ${C.hairline};text-align:center;">
+      <p style="font-size:12px;color:${C.subtle};line-height:1.7;margin:0;">
+        Your order will be held for <strong style="color:${C.muted};">48 hours</strong>. If we don't hear from you within that time, the reservation may be released.
+      </p>
+    </td>
+  </tr>
+
+  ${footerBlock()}
+  `;
+
+  return shell({
+    title: `Payment pending – ${id}`,
+    preheader: `Your Certo order ${id} is reserved. Message us on WhatsApp to complete your USD/crypto payment.`,
+    inner,
+  });
+}
+
+async function sendPaymentPendingEmail(order) {
+  const html = pendingPaymentHtml(order);
+  const totalUsd = (() => {
+    if (Array.isArray(order.items) && order.items.length > 0) {
+      return order.items.reduce((sum, it) => sum + Number(it.usd_price) * (it.qty || 1), 0);
+    }
+    return Number(order.usd_price);
+  })();
+
+  return transporter.sendMail({
+    from:    process.env.SMTP_USER ? `"Certo" <${process.env.SMTP_USER}>` : '"Certo" <noreply@certo.ng>',
+    to:      `${order.customer_name} <${order.customer_email}>`,
+    subject: `Your Certo order is reserved – complete payment to confirm (${order.id})`,
+    html,
+    text: `Hi ${order.customer_name},\n\nYour Certo order is reserved but pending payment.\n\nOrder ID: ${order.id}\nAmount due: $${totalUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD\n\nTo confirm your order, message us on WhatsApp and we'll share payment details:\nhttps://wa.me/${WA_NUM}?text=${encodeURIComponent(`Hi, I'd like to pay for my Certo order.\n\nOrder ID: ${order.id}\nTotal: $${totalUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD`)}\n\nOr call/text: +234 805 757 5906\n\nYour order will be held for 48 hours.\n\nCerto`,
+  });
+}
+
 module.exports = {
   sendOrderConfirmation,
   sendStatusUpdate,
   sendCancellationEmail,
+  sendPaymentPendingEmail,
   transporter,
   // expose builders for previewing / testing
   orderConfirmationHtml,
   statusUpdateHtml,
   cancellationHtml,
+  pendingPaymentHtml,
 };
