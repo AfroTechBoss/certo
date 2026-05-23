@@ -32,6 +32,11 @@ transporter.verify((err) => {
 const WA_NUM = process.env.WHATSAPP_NUMBER || '2348057575906';
 const SITE   = process.env.FRONTEND_URL    || 'https://certo.ng';
 
+// Internal notification recipients — comma-separated list in env var
+// Falls back to the hardcoded defaults so it works without any env change
+const NOTIFY_EMAILS = (process.env.NOTIFY_EMAILS || 'hello@certo.ng,chidile@certo.ng,chidileozoemena@gmail.com')
+  .split(',').map(e => e.trim()).filter(Boolean);
+
 // ─── helpers ────────────────────────────────────────────────────────────────
 
 function esc(str) {
@@ -966,12 +971,135 @@ async function sendPaymentPendingNairaEmail(order) {
   });
 }
 
+// ─── internal notifications ──────────────────────────────────────────────────
+
+async function sendNewOrderNotification(order) {
+  const {
+    id, customer_name, customer_email, customer_phone,
+    product_name, product_subtitle, usd_price, ngn_price,
+    payment_method, status, items,
+  } = order;
+
+  const displayName = (() => {
+    if (Array.isArray(items) && items.length > 1) return `${items.length} items`;
+    if (Array.isArray(items) && items.length === 1) return [items[0].name, items[0].subtitle].filter(Boolean).join(' ');
+    return [product_name, product_subtitle].filter(Boolean).join(' ');
+  })();
+
+  const isPending = status === 'Payment Pending';
+  const statusColour = isPending ? '#d97757' : '#1f7a4d';
+  const dashUrl = `${SITE}/dashboard`;
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
+  <style>body{margin:0;padding:0;background:#f2f0ec;font-family:'Inter',-apple-system,sans-serif;}
+  a{color:#d97757;}</style></head>
+  <body>
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f2f0ec;">
+    <tr><td align="center" style="padding:32px 16px;">
+      <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#faf9f7;border-radius:14px;border:1px solid #e5e2db;overflow:hidden;">
+        <!-- header -->
+        <tr><td style="padding:20px 28px;background:#1a1714;border-bottom:3px solid ${statusColour};">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="font-family:'Georgia',serif;font-size:22px;font-weight:800;color:#fff;letter-spacing:-0.02em;">Certo</td>
+              <td align="right" style="font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:${statusColour};">${isPending ? '⏳ Payment Pending' : '✅ New Order'}</td>
+            </tr>
+          </table>
+        </td></tr>
+        <!-- order ID -->
+        <tr><td style="padding:24px 28px 0;">
+          <div style="font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#9a9387;margin-bottom:6px;">Order ID</div>
+          <div style="font-size:28px;font-weight:800;color:#1a1714;letter-spacing:0.04em;font-family:'Georgia',serif;">${esc(id)}</div>
+        </td></tr>
+        <!-- details table -->
+        <tr><td style="padding:20px 28px;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #ece8e0;">
+            ${[
+              ['Customer',   `${esc(customer_name)} &lt;${esc(customer_email)}&gt;`],
+              ['Phone',      esc(customer_phone)],
+              ['Product',    esc(displayName)],
+              ['USD total',  `$${Number(usd_price).toLocaleString('en-US', { minimumFractionDigits: 2 })}`],
+              ['NGN total',  ngn_price ? `&#8358;${Number(ngn_price).toLocaleString('en-NG', { minimumFractionDigits: 2 })}` : '—'],
+              ['Payment',    esc(payment_method)],
+              ['Status',     `<span style="font-weight:700;color:${statusColour};">${esc(status)}</span>`],
+            ].map(([label, value]) => `
+              <tr>
+                <td style="padding:10px 0;font-size:12px;color:#706b60;border-bottom:1px solid #f2f0ec;width:110px;">${label}</td>
+                <td style="padding:10px 0;font-size:13px;color:#1a1714;font-weight:600;border-bottom:1px solid #f2f0ec;">${value}</td>
+              </tr>`).join('')}
+          </table>
+        </td></tr>
+        <!-- CTA -->
+        <tr><td style="padding:8px 28px 28px;text-align:center;">
+          <a href="${dashUrl}" style="display:inline-block;background:#1a1714;color:#fff;font-size:13px;font-weight:700;padding:12px 28px;border-radius:9px;text-decoration:none;">Open dashboard →</a>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+  </body></html>`;
+
+  return transporter.sendMail({
+    from:    process.env.SMTP_USER ? `"Certo" <${process.env.SMTP_USER}>` : '"Certo" <noreply@certo.ng>',
+    to:      NOTIFY_EMAILS.join(', '),
+    subject: `${isPending ? '⏳ Pending' : '🛍️ New order'} — ${esc(id)} · ${esc(customer_name)} · $${Number(usd_price).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+    html,
+    text:    `New order on Certo\n\nOrder ID: ${id}\nCustomer: ${customer_name} <${customer_email}>\nPhone: ${customer_phone}\nProduct: ${displayName}\nUSD: $${usd_price}\nNGN: ₦${ngn_price}\nPayment: ${payment_method}\nStatus: ${status}\n\nDashboard: ${dashUrl}`,
+  });
+}
+
+async function sendContactNotification(msg) {
+  const { name, email, message, created_at } = msg;
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
+  <style>body{margin:0;padding:0;background:#f2f0ec;font-family:'Inter',-apple-system,sans-serif;}</style>
+  </head><body>
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f2f0ec;">
+    <tr><td align="center" style="padding:32px 16px;">
+      <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#faf9f7;border-radius:14px;border:1px solid #e5e2db;overflow:hidden;">
+        <tr><td style="padding:20px 28px;background:#1a1714;border-bottom:3px solid #d97757;">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="font-family:'Georgia',serif;font-size:22px;font-weight:800;color:#fff;letter-spacing:-0.02em;">Certo</td>
+              <td align="right" style="font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#d97757;">💬 New message</td>
+            </tr>
+          </table>
+        </td></tr>
+        <tr><td style="padding:24px 28px 0;">
+          <div style="font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#9a9387;margin-bottom:4px;">From</div>
+          <div style="font-size:20px;font-weight:700;color:#1a1714;margin-bottom:2px;">${esc(name)}</div>
+          <div style="font-size:13px;color:#d97757;">${esc(email)}</div>
+          ${created_at ? `<div style="font-size:11px;color:#9a9387;margin-top:4px;">${new Date(created_at).toLocaleString('en-NG', { timeZone: 'Africa/Lagos' })} WAT</div>` : ''}
+        </td></tr>
+        <tr><td style="padding:20px 28px;">
+          <div style="font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#9a9387;margin-bottom:10px;">Message</div>
+          <div style="font-size:15px;color:#1a1714;line-height:1.75;background:#f2f0ec;border-radius:10px;padding:16px 18px;white-space:pre-wrap;">${esc(message)}</div>
+        </td></tr>
+        <tr><td style="padding:8px 28px 28px;text-align:center;">
+          <a href="mailto:${esc(email)}" style="display:inline-block;background:#d97757;color:#fff;font-size:13px;font-weight:700;padding:12px 28px;border-radius:9px;text-decoration:none;">Reply to ${esc(name)} →</a>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+  </body></html>`;
+
+  return transporter.sendMail({
+    from:    process.env.SMTP_USER ? `"Certo" <${process.env.SMTP_USER}>` : '"Certo" <noreply@certo.ng>',
+    to:      NOTIFY_EMAILS.join(', '),
+    replyTo: `${esc(name)} <${esc(email)}>`,
+    subject: `💬 New message from ${esc(name)} — Certo contact form`,
+    html,
+    text:    `New contact form message\n\nFrom: ${name} <${email}>\n\n${message}`,
+  });
+}
+
 module.exports = {
   sendOrderConfirmation,
   sendStatusUpdate,
   sendCancellationEmail,
   sendPaymentPendingEmail,
   sendPaymentPendingNairaEmail,
+  sendNewOrderNotification,
+  sendContactNotification,
   transporter,
   // expose builders for previewing / testing
   orderConfirmationHtml,
