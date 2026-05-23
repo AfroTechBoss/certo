@@ -2443,7 +2443,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
                     onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-alt)'}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                     <td style={{ padding: '12px 16px' }}>
-                      <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, color: 'var(--accent)', letterSpacing: '0.02em', fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>{c.id}</div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)', letterSpacing: '0.02em', fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>{c.id}</div>
                     </td>
                     <td style={{ padding: '12px 16px', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{c.order_id}</td>
                     <td style={{ padding: '12px 16px', maxWidth: 200 }}>
