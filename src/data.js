@@ -510,13 +510,22 @@ export const TESTIMONIALS = [
 ];
 
 export const useResponsive = () => {
-  const [w, setW] = React.useState(() => window.innerWidth);
+  const mqMobile = typeof window !== 'undefined' ? window.matchMedia('(max-width: 639px)')  : null;
+  const mqTablet = typeof window !== 'undefined' ? window.matchMedia('(max-width: 1023px)') : null;
+  const [isMobile, setIsMobile] = React.useState(() => mqMobile ? mqMobile.matches : false);
+  const [isTablet, setIsTablet] = React.useState(() => mqTablet ? mqTablet.matches : false);
   React.useEffect(() => {
-    const h = () => setW(window.innerWidth);
-    window.addEventListener('resize', h);
-    return () => window.removeEventListener('resize', h);
+    if (!mqMobile || !mqTablet) return;
+    const hm = (e) => setIsMobile(e.matches);
+    const ht = (e) => setIsTablet(e.matches);
+    mqMobile.addEventListener('change', hm);
+    mqTablet.addEventListener('change', ht);
+    return () => {
+      mqMobile.removeEventListener('change', hm);
+      mqTablet.removeEventListener('change', ht);
+    };
   }, []);
-  return { isMobile: w < 640, isTablet: w < 1024, w };
+  return { isMobile, isTablet, w: typeof window !== 'undefined' ? window.innerWidth : 1280 };
 };
 
 // data.js — all exports are named ES module exports above

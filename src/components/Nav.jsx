@@ -1,40 +1,173 @@
 
-// Certo — Navigation
+// Certo — Navigation (redesigned)
+//
+// Visual changes from previous version
+//   - Floating pill on scroll: at the top of the page the nav is transparent
+//     and full-width; once you scroll past 40px it shrinks into a centered
+//     pill with a subtle shadow and backdrop blur.
+//   - Live forex chip sits next to the cart — Certo-specific signal that
+//     reinforces the rate-locked-at-checkout promise from the homepage.
+//   - Cart button uses a soft terracotta dot instead of a filled badge when
+//     items are present (cleaner at small sizes).
+//   - Mobile menu is a full-screen overlay with large tap targets, a hero
+//     "Shop Apple" CTA at the bottom, and the forex rate pinned to the foot.
+//   - Active link uses an underline accent rather than color swap, so the
+//     non-active links can stay quietly muted.
+
 import React from 'react';
 import { useResponsive } from '../data.js';
 
-const CertoLogo = ({ navigate }) => (
-  <button onClick={() => navigate('home')} style={{
-    background: 'none', border: 'none', cursor: 'pointer', padding: 0,
-  }}>
-    <span style={{ fontFamily: 'var(--font-head)', fontWeight: 800, fontSize: 22, letterSpacing: '-0.03em', color: 'var(--text)' }}>
+// ─── Logo ──────────────────────────────────────────────────────────────────
+
+const CertoLogo = ({ navigate, dark = false }) => (
+  <button
+    onClick={() => navigate('home')}
+    aria-label="Certo home"
+    style={{
+      background: 'none', border: 'none', cursor: 'pointer',
+      padding: 0, display: 'inline-flex', alignItems: 'baseline', gap: 6,
+    }}
+  >
+    <span style={{
+      fontFamily: 'var(--font-head)', fontWeight: 800,
+      fontSize: 22, letterSpacing: '-0.04em',
+      color: dark ? 'var(--text)' : 'var(--text)', lineHeight: 1,
+    }}>
       Certo
     </span>
+    <span style={{
+      width: 5, height: 5, borderRadius: '50%',
+      background: 'var(--accent)', display: 'inline-block',
+      transform: 'translateY(-1px)',
+    }} aria-hidden="true" />
   </button>
 );
 
+// ─── Live forex chip ───────────────────────────────────────────────────────
+
+const ForexChip = ({ compact = false }) => (
+  <div
+    title="Current USD → NGN buying rate · locked at checkout"
+    style={{
+      display: 'inline-flex', alignItems: 'center', gap: 8,
+      padding: compact ? '5px 10px' : '6px 12px',
+      borderRadius: 100,
+      background: 'var(--bg-alt)',
+      border: '1px solid var(--border)',
+      fontFamily: 'var(--font-body)',
+      fontSize: 12, fontWeight: 500, color: 'var(--text-muted)',
+      whiteSpace: 'nowrap',
+    }}
+  >
+    <span
+      aria-hidden="true"
+      style={{
+        width: 6, height: 6, borderRadius: '50%',
+        background: 'var(--accent)',
+        animation: 'certoLivePulse 1.8s ease-in-out infinite',
+      }}
+    />
+    <span>
+      <strong style={{ color: 'var(--text)', fontWeight: 600 }}>₦1,590</strong>
+      <span style={{ color: 'var(--text-muted)' }}> / $1</span>
+    </span>
+  </div>
+);
+
+// ─── Active link underline ─────────────────────────────────────────────────
+
+const NavLink = ({ active, onClick, children }) => (
+  <button
+    onClick={onClick}
+    style={{
+      position: 'relative',
+      background: 'none', border: 'none', cursor: 'pointer',
+      padding: '8px 4px', margin: '0 8px',
+      fontFamily: 'var(--font-body)', fontSize: 14,
+      fontWeight: active ? 600 : 500,
+      color: active ? 'var(--text)' : 'var(--text-muted)',
+      transition: 'color 0.18s',
+    }}
+    onMouseEnter={e => e.currentTarget.style.color = 'var(--text)'}
+    onMouseLeave={e => e.currentTarget.style.color = active ? 'var(--text)' : 'var(--text-muted)'}
+  >
+    {children}
+    {active && (
+      <span
+        aria-hidden="true"
+        style={{
+          position: 'absolute', left: 4, right: 4, bottom: 2,
+          height: 2, borderRadius: 2, background: 'var(--accent)',
+        }}
+      />
+    )}
+  </button>
+);
+
+// ─── Cart icon ─────────────────────────────────────────────────────────────
+
+const CartButton = ({ onClick, count, size = 20 }) => (
+  <button
+    onClick={onClick}
+    aria-label={count > 0 ? `Cart, ${count} item${count !== 1 ? 's' : ''}` : 'Cart'}
+    style={{
+      position: 'relative', background: 'none', border: 'none', cursor: 'pointer',
+      padding: 8, borderRadius: 10, color: 'var(--text)',
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      transition: 'background 0.15s',
+    }}
+    onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-alt)'}
+    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+  >
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path d="M3 3h1.5L6 12h9l1.5-7H6.5"
+            stroke="currentColor" strokeWidth="1.5"
+            strokeLinecap="round" strokeLinejoin="round"/>
+      <circle cx="8.5" cy="15.5" r="1" fill="currentColor"/>
+      <circle cx="13.5" cy="15.5" r="1" fill="currentColor"/>
+    </svg>
+    {count > 0 && (
+      <span aria-hidden="true" style={{
+        position: 'absolute', top: 4, right: 4,
+        width: 16, height: 16, borderRadius: '50%',
+        background: 'var(--accent)', color: 'white',
+        fontFamily: 'var(--font-body)', fontSize: 10, fontWeight: 700,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        boxShadow: '0 0 0 2px var(--bg)',
+      }}>{count > 9 ? '9+' : count}</span>
+    )}
+  </button>
+);
+
+// ─── Main nav ──────────────────────────────────────────────────────────────
+
 const NavComponent = ({ page, navigate, cartCount = 0 }) => {
   const [menuOpen, setMenuOpen] = React.useState(false);
-  const [scrolled, setScrolled]   = React.useState(false);
+  const [scrolled, setScrolled] = React.useState(false);
   const { isMobile } = useResponsive();
   const isDashboard = page && page.startsWith('dashboard');
 
   React.useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener('scroll', onScroll);
+    const onScroll = () => setScrolled(window.scrollY > 40);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  // close menu on page change
+  // Close menu on page change + lock scroll while open
   React.useEffect(() => { setMenuOpen(false); }, [page]);
+  React.useEffect(() => {
+    document.body.style.overflow = menuOpen ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [menuOpen]);
 
   const navLinks = isDashboard ? [
-    { key: 'dashboard',               label: 'Orders'       },
-    { key: 'dashboard-products',      label: 'Products'     },
-    { key: 'dashboard-certificates',  label: 'Certificates' },
-    { key: 'dashboard-forex',         label: 'Forex'        },
-    { key: 'dashboard-revenue',       label: 'Revenue'      },
-    { key: 'dashboard-customers',     label: 'Customers'    },
+    { key: 'dashboard',              label: 'Orders'       },
+    { key: 'dashboard-products',     label: 'Products'     },
+    { key: 'dashboard-certificates', label: 'Certificates' },
+    { key: 'dashboard-forex',        label: 'Forex'        },
+    { key: 'dashboard-revenue',      label: 'Revenue'      },
+    { key: 'dashboard-customers',    label: 'Customers'    },
   ] : [
     { key: 'shop',         label: 'Shop'         },
     { key: 'how-it-works', label: 'How It Works' },
@@ -42,161 +175,262 @@ const NavComponent = ({ page, navigate, cartCount = 0 }) => {
     { key: 'faq',          label: 'FAQ'          },
   ];
 
-  const navStyle = {
-    position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
-    background: (scrolled || menuOpen) ? 'rgba(250,249,247,0.96)' : 'transparent',
-    backdropFilter: (scrolled || menuOpen) ? 'blur(16px)' : 'none',
-    borderBottom: (scrolled || menuOpen) ? '1px solid var(--border)' : '1px solid transparent',
-    transition: 'all 0.3s ease',
-  };
-  if (isDashboard) {
-    navStyle.background   = 'var(--bg)';
-    navStyle.borderBottom = '1px solid var(--border)';
-  }
-
   const goTo = (key) => { navigate(key); setMenuOpen(false); };
 
+  // Outer wrap controls the floating-pill behavior
+  const outerStyle = {
+    position: 'fixed',
+    top: scrolled && !isMobile && !isDashboard ? 14 : 0,
+    left: 0, right: 0, zIndex: 100,
+    display: 'flex', justifyContent: 'center',
+    pointerEvents: 'none', // children re-enable
+    transition: 'top 0.25s cubic-bezier(0.22, 1, 0.36, 1)',
+  };
+
+  // The actual nav surface
+  const isFloating = scrolled && !isMobile && !isDashboard;
+  const navStyle = {
+    pointerEvents: 'auto',
+    width: isFloating ? 'min(1180px, calc(100% - 28px))' : '100%',
+    maxWidth: '100%',
+    height: 64,
+    padding: isFloating ? '0 14px 0 22px' : '0 20px',
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    background: isDashboard
+      ? 'var(--bg)'
+      : isFloating
+        ? 'rgba(250,249,247,0.92)'
+        : (scrolled || menuOpen)
+          ? 'rgba(250,249,247,0.95)'
+          : 'transparent',
+    backdropFilter: (isFloating || scrolled || menuOpen) ? 'blur(18px) saturate(140%)' : 'none',
+    WebkitBackdropFilter: (isFloating || scrolled || menuOpen) ? 'blur(18px) saturate(140%)' : 'none',
+    borderRadius: isFloating ? 18 : 0,
+    border: isDashboard
+      ? '1px solid transparent'
+      : isFloating
+        ? '1px solid var(--border)'
+        : (scrolled || menuOpen)
+          ? '1px solid transparent'
+          : '1px solid transparent',
+    borderBottom: isDashboard
+      ? '1px solid var(--border)'
+      : (scrolled && !isFloating) || menuOpen
+        ? '1px solid var(--border)'
+        : '1px solid transparent',
+    boxShadow: isFloating
+      ? '0 10px 30px -10px rgba(26,23,20,0.18), 0 2px 6px rgba(26,23,20,0.04)'
+      : 'none',
+    transition: 'all 0.25s cubic-bezier(0.22, 1, 0.36, 1)',
+  };
+
   return (
-    <nav style={navStyle}>
-      <div style={{ maxWidth: 1400, margin: '0 auto', padding: '0 20px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <CertoLogo navigate={navigate} />
+    <>
+      {/* Keyframes for the live pulse indicator */}
+      <style>{`
+        @keyframes certoLivePulse {
+          0%, 100% { opacity: 0.4; transform: scale(0.85); }
+          50%      { opacity: 1;   transform: scale(1); }
+        }
+      `}</style>
 
-        {/* Desktop links */}
-        {!isMobile && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            {navLinks.map(link => (
-              <button key={link.key} onClick={() => goTo(link.key)} style={{
-                background: 'none', border: 'none', cursor: 'pointer',
-                padding: '8px 14px', borderRadius: 8,
-                fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 500,
-                color: page === link.key ? 'var(--accent)' : 'var(--text-muted)',
-                transition: 'color 0.2s',
-              }}
-              onMouseEnter={e => e.target.style.color = 'var(--text)'}
-              onMouseLeave={e => e.target.style.color = page === link.key ? 'var(--accent)' : 'var(--text-muted)'}
-              >{link.label}</button>
-            ))}
+      <div style={outerStyle}>
+        <nav style={navStyle}>
+          {/* Left — logo */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexShrink: 0 }}>
+            <CertoLogo navigate={navigate} />
           </div>
-        )}
 
-        {/* Right side */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {!isDashboard && !isMobile && (
-            <>
-              <button onClick={() => goTo('track')} style={{
-                background: 'none', border: 'none', cursor: 'pointer',
-                fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 500,
-                color: 'var(--text-muted)', padding: '8px 4px',
-              }}>Track Order</button>
-              <button onClick={() => goTo('cart')} aria-label={cartCount > 0 ? `Cart, ${cartCount} item${cartCount !== 1 ? 's' : ''}` : 'Cart'} style={{
-                position: 'relative', background: 'none', border: 'none', cursor: 'pointer',
-                padding: 8, borderRadius: 8, color: 'var(--text)',
-              }}>
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                  <path d="M3 3h1.5L6 12h9l1.5-7H6.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  <circle cx="8.5" cy="15.5" r="1" fill="currentColor"/>
-                  <circle cx="13.5" cy="15.5" r="1" fill="currentColor"/>
-                </svg>
-                {cartCount > 0 && (
-                  <span aria-hidden="true" style={{
-                    position: 'absolute', top: 4, right: 4,
-                    background: 'var(--accent)', color: 'white',
-                    borderRadius: '50%', width: 16, height: 16,
-                    fontSize: 10, fontWeight: 700,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>{cartCount}</span>
-                )}
-              </button>
-              <button onClick={() => goTo('shop')} style={{
-                background: 'var(--accent)', color: 'white', border: 'none',
-                borderRadius: 10, cursor: 'pointer', padding: '10px 20px',
-                fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600,
-              }}>Shop Apple</button>
-            </>
+          {/* Center — links (desktop only) */}
+          {!isMobile && (
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              {navLinks.map(link => (
+                <NavLink
+                  key={link.key}
+                  active={page === link.key}
+                  onClick={() => goTo(link.key)}
+                >
+                  {link.label}
+                </NavLink>
+              ))}
+            </div>
           )}
 
-          {/* Mobile: cart icon + hamburger */}
-          {!isDashboard && isMobile && (
-            <>
-              <button onClick={() => goTo('cart')} aria-label={cartCount > 0 ? `Cart, ${cartCount} item${cartCount !== 1 ? 's' : ''}` : 'Cart'} style={{
-                position: 'relative', background: 'none', border: 'none', cursor: 'pointer',
-                padding: 8, borderRadius: 8, color: 'var(--text)',
-              }}>
-                <svg width="22" height="22" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                  <path d="M3 3h1.5L6 12h9l1.5-7H6.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  <circle cx="8.5" cy="15.5" r="1" fill="currentColor"/>
-                  <circle cx="13.5" cy="15.5" r="1" fill="currentColor"/>
-                </svg>
-                {cartCount > 0 && (
-                  <span aria-hidden="true" style={{
-                    position: 'absolute', top: 4, right: 4,
-                    background: 'var(--accent)', color: 'white',
-                    borderRadius: '50%', width: 16, height: 16,
-                    fontSize: 10, fontWeight: 700,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>{cartCount}</span>
-                )}
-              </button>
-              <button onClick={() => setMenuOpen(m => !m)} aria-label={menuOpen ? 'Close menu' : 'Open menu'} aria-expanded={menuOpen} style={{
-                background: 'none', border: 'none', cursor: 'pointer',
-                padding: '8px 4px', color: 'var(--text)', display: 'flex', flexDirection: 'column',
-                gap: 5, alignItems: 'center', justifyContent: 'center',
-              }}>
-                {menuOpen ? (
-                  <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-                    <path d="M5 5l12 12M17 5L5 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                  </svg>
-                ) : (
-                  <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-                    <path d="M3 6h16M3 11h16M3 16h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                  </svg>
-                )}
-              </button>
-            </>
-          )}
+          {/* Right — actions */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            {!isDashboard && !isMobile && (
+              <>
+                <ForexChip />
+                <button
+                  onClick={() => goTo('track')}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    padding: '8px 12px', borderRadius: 8,
+                    fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 500,
+                    color: 'var(--text-muted)',
+                    transition: 'color 0.15s',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.color = 'var(--text)'}
+                  onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
+                >Track</button>
+                <CartButton onClick={() => goTo('cart')} count={cartCount} />
+                <button
+                  onClick={() => goTo('shop')}
+                  style={{
+                    background: 'var(--accent)', color: 'white', border: 'none',
+                    borderRadius: 10, cursor: 'pointer', padding: '10px 18px',
+                    fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600,
+                    letterSpacing: '0.01em',
+                    boxShadow: '0 4px 12px -4px rgba(217,119,87,0.4)',
+                    transition: 'transform 0.15s, box-shadow 0.15s',
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                    e.currentTarget.style.boxShadow = '0 6px 16px -4px rgba(217,119,87,0.5)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px -4px rgba(217,119,87,0.4)';
+                  }}
+                >Shop Apple</button>
+              </>
+            )}
 
-          {isDashboard && !isMobile && (
-            <button onClick={() => goTo('home')} style={{
-              background: 'none', border: '1px solid var(--border)', cursor: 'pointer',
-              borderRadius: 8, padding: '7px 14px',
-              fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)',
-            }}>← Back to site</button>
-          )}
-        </div>
+            {/* Mobile: cart + hamburger */}
+            {!isDashboard && isMobile && (
+              <>
+                <CartButton onClick={() => goTo('cart')} count={cartCount} size={22} />
+                <button
+                  onClick={() => setMenuOpen(m => !m)}
+                  aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+                  aria-expanded={menuOpen}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    padding: 8, borderRadius: 10, color: 'var(--text)',
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  }}
+                >
+                  {menuOpen ? (
+                    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+                      <path d="M5 5l12 12M17 5L5 17"
+                            stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                    </svg>
+                  ) : (
+                    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+                      <path d="M3 7h16M3 15h16"
+                            stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                    </svg>
+                  )}
+                </button>
+              </>
+            )}
+
+            {isDashboard && !isMobile && (
+              <button onClick={() => goTo('home')} style={{
+                background: 'none', border: '1px solid var(--border)',
+                borderRadius: 8, padding: '7px 14px', cursor: 'pointer',
+                fontFamily: 'var(--font-body)', fontSize: 13,
+                color: 'var(--text-muted)',
+              }}>← Back to site</button>
+            )}
+          </div>
+        </nav>
       </div>
 
-      {/* Mobile slide-down menu */}
+      {/* Mobile overlay menu */}
       {menuOpen && isMobile && (
         <div style={{
-          background: 'var(--bg)', borderTop: '1px solid var(--border)',
-          padding: '8px 20px 24px',
+          position: 'fixed', top: 64, left: 0, right: 0, bottom: 0, zIndex: 99,
+          background: 'var(--bg)',
+          display: 'flex', flexDirection: 'column',
+          padding: '24px 24px 32px',
+          overflowY: 'auto',
+          animation: 'certoMenuSlide 0.25s cubic-bezier(0.22, 1, 0.36, 1)',
         }}>
+          <style>{`
+            @keyframes certoMenuSlide {
+              from { opacity: 0; transform: translateY(-8px); }
+              to   { opacity: 1; transform: translateY(0); }
+            }
+          `}</style>
+
+          <div style={{
+            fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700,
+            letterSpacing: '0.14em', textTransform: 'uppercase',
+            color: 'var(--text-muted)', marginBottom: 8,
+          }}>
+            Browse
+          </div>
+
           {navLinks.map(link => (
-            <button key={link.key} onClick={() => goTo(link.key)} style={{
-              display: 'flex', width: '100%', textAlign: 'left',
-              background: 'none', border: 'none', cursor: 'pointer',
-              padding: '14px 0', fontFamily: 'var(--font-body)', fontSize: 17,
-              fontWeight: page === link.key ? 600 : 400,
-              color: page === link.key ? 'var(--accent)' : 'var(--text)',
-              borderBottom: '1px solid var(--border-light)',
-            }}>{link.label}</button>
+            <button
+              key={link.key}
+              onClick={() => goTo(link.key)}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                width: '100%', textAlign: 'left',
+                background: 'none', border: 'none', cursor: 'pointer',
+                padding: '18px 0',
+                fontFamily: 'var(--font-head)',
+                fontSize: 24, fontWeight: page === link.key ? 700 : 600,
+                letterSpacing: '-0.02em',
+                color: page === link.key ? 'var(--accent)' : 'var(--text)',
+                borderBottom: '1px solid var(--border)',
+              }}
+            >
+              <span>{link.label}</span>
+              <span style={{
+                fontSize: 18, color: page === link.key ? 'var(--accent)' : 'var(--text-muted)',
+              }}>→</span>
+            </button>
           ))}
-          <button onClick={() => goTo('track')} style={{
-            display: 'flex', width: '100%', textAlign: 'left',
-            background: 'none', border: 'none', cursor: 'pointer',
-            padding: '14px 0', fontFamily: 'var(--font-body)', fontSize: 17,
-            color: 'var(--text-muted)', borderBottom: '1px solid var(--border-light)',
-          }}>Track Order</button>
-          <button onClick={() => goTo('shop')} style={{
-            marginTop: 16, width: '100%', padding: '14px',
-            background: 'var(--accent)', color: 'white', border: 'none',
-            borderRadius: 12, fontFamily: 'var(--font-body)', fontSize: 16,
-            fontWeight: 700, cursor: 'pointer',
-          }}>Shop Apple Products →</button>
+
+          <button
+            onClick={() => goTo('track')}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              width: '100%', textAlign: 'left',
+              background: 'none', border: 'none', cursor: 'pointer',
+              padding: '18px 0',
+              fontFamily: 'var(--font-head)',
+              fontSize: 24, fontWeight: 600, letterSpacing: '-0.02em',
+              color: 'var(--text)',
+              borderBottom: '1px solid var(--border)',
+            }}
+          >
+            <span>Track Order</span>
+            <span style={{ fontSize: 18, color: 'var(--text-muted)' }}>→</span>
+          </button>
+
+          <button
+            onClick={() => goTo('shop')}
+            style={{
+              marginTop: 28, width: '100%', padding: '18px',
+              background: 'var(--accent)', color: 'white', border: 'none',
+              borderRadius: 14, fontFamily: 'var(--font-body)',
+              fontSize: 16, fontWeight: 700, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+              boxShadow: '0 8px 20px -6px rgba(217,119,87,0.4)',
+            }}
+          >
+            Shop Apple Products
+            <span>→</span>
+          </button>
+
+          {/* Forex anchor at the foot */}
+          <div style={{
+            marginTop: 'auto', paddingTop: 28,
+            display: 'flex', alignItems: 'center', gap: 10,
+            color: 'var(--text-muted)',
+            fontFamily: 'var(--font-body)', fontSize: 12,
+          }}>
+            <ForexChip compact />
+            <span>locked at checkout</span>
+          </div>
         </div>
       )}
-    </nav>
+    </>
   );
 };
 
-export { CertoLogo, NavComponent };
+export { CertoLogo, NavComponent, ForexChip };
