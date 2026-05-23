@@ -45,34 +45,54 @@ const CertoLogo = ({ navigate, dark = false }) => (
 
 // ─── Live forex chip ───────────────────────────────────────────────────────
 
-const ForexChip = ({ compact = false }) => (
-  <div
-    title="Current USD → NGN buying rate · locked at checkout"
-    style={{
-      display: 'inline-flex', alignItems: 'center', gap: 8,
-      padding: compact ? '5px 10px' : '6px 12px',
-      borderRadius: 100,
-      background: 'var(--bg-alt)',
-      border: '1px solid var(--border)',
-      fontFamily: 'var(--font-body)',
-      fontSize: 12, fontWeight: 500, color: 'var(--text-muted)',
-      whiteSpace: 'nowrap',
-    }}
-  >
-    <span
-      aria-hidden="true"
+const ForexChip = ({ compact = false }) => {
+  const [rate, setRate] = React.useState(() => {
+    try {
+      const cached = localStorage.getItem('certo_rate');
+      return cached ? Number(cached) : null;
+    } catch { return null; }
+  });
+
+  React.useEffect(() => {
+    fetch('/api/forex')
+      .then(r => r.ok ? r.json() : {})
+      .then(d => { if (d.rate) setRate(d.rate); })
+      .catch(() => {});
+  }, []);
+
+  if (!rate) return null;
+
+  return (
+    <div
+      title="Current USD → NGN buying rate · locked at checkout"
       style={{
-        width: 6, height: 6, borderRadius: '50%',
-        background: 'var(--accent)',
-        animation: 'certoLivePulse 1.8s ease-in-out infinite',
+        display: 'inline-flex', alignItems: 'center', gap: 8,
+        padding: compact ? '5px 10px' : '6px 12px',
+        borderRadius: 100,
+        background: 'var(--bg-alt)',
+        border: '1px solid var(--border)',
+        fontFamily: 'var(--font-body)',
+        fontSize: 12, fontWeight: 500, color: 'var(--text-muted)',
+        whiteSpace: 'nowrap',
       }}
-    />
-    <span>
-      <strong style={{ color: 'var(--text)', fontWeight: 600 }}>₦1,590</strong>
-      <span style={{ color: 'var(--text-muted)' }}> / $1</span>
-    </span>
-  </div>
-);
+    >
+      <span
+        aria-hidden="true"
+        style={{
+          width: 6, height: 6, borderRadius: '50%',
+          background: 'var(--accent)',
+          animation: 'certoLivePulse 1.8s ease-in-out infinite',
+        }}
+      />
+      <span>
+        <strong style={{ color: 'var(--text)', fontWeight: 600 }}>
+          ₦{Number(rate).toLocaleString()}
+        </strong>
+        <span style={{ color: 'var(--text-muted)' }}> / $1</span>
+      </span>
+    </div>
+  );
+};
 
 // ─── Active link underline ─────────────────────────────────────────────────
 
