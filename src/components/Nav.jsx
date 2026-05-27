@@ -124,12 +124,39 @@ const NavLink = ({ active, onClick, children }) => (
   </button>
 );
 
+// ─── Cart keyframes (injected once) ────────────────────────────────────────
+
+const CART_STYLES = `
+@keyframes cartShake {
+  0%,100% { transform: rotate(0deg) scale(1); }
+  15%      { transform: rotate(-18deg) scale(1.15); }
+  30%      { transform: rotate(16deg)  scale(1.15); }
+  45%      { transform: rotate(-14deg) scale(1.1); }
+  60%      { transform: rotate(12deg)  scale(1.1); }
+  75%      { transform: rotate(-8deg)  scale(1.05); }
+  90%      { transform: rotate(6deg)   scale(1.05); }
+}
+@keyframes cartDropIn {
+  from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+.cart-shake { animation: cartShake 0.55s cubic-bezier(.36,.07,.19,.97) both; }
+`;
+
+if (typeof document !== 'undefined' && !document.getElementById('certo-cart-styles')) {
+  const s = document.createElement('style');
+  s.id = 'certo-cart-styles';
+  s.textContent = CART_STYLES;
+  document.head.appendChild(s);
+}
+
 // ─── Cart icon ─────────────────────────────────────────────────────────────
 
-const CartButton = ({ onClick, count, size = 20 }) => (
+const CartButton = ({ onClick, count, size = 20, shaking = false }) => (
   <button
     onClick={onClick}
     aria-label={count > 0 ? `Cart, ${count} item${count !== 1 ? 's' : ''}` : 'Cart'}
+    className={shaking ? 'cart-shake' : ''}
     style={{
       position: 'relative', background: 'none', border: 'none', cursor: 'pointer',
       padding: 8, borderRadius: 10, color: 'var(--text)',
@@ -159,13 +186,168 @@ const CartButton = ({ onClick, count, size = 20 }) => (
   </button>
 );
 
+// ─── Cart dropdown ─────────────────────────────────────────────────────────
+
+const CartDropdown = ({ item, count, totalUsd, onCheckout, onDismiss, alignRight = false }) => {
+  const name     = item.product?.name     || '';
+  const subtitle = item.product?.subtitle || '';
+  const variant  = item.variant;
+  const colorHex = variant?.colors?.find?.(c => c.id === item.variant?.id)?.hex || variant?.hex || null;
+  const colorName= variant?.color || variant?.name || null;
+  const storage  = variant?.storage || null;
+  const imgUrl   = item.product?.imageUrl || item.product?.image_urls?.[0] || null;
+
+  const fmtUsd = n => `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+
+  return (
+    <div style={{
+      position: 'absolute',
+      top: 'calc(100% + 10px)',
+      right: alignRight ? 0 : 'auto',
+      left:  alignRight ? 'auto' : 'auto',
+      width: 290,
+      background: 'var(--bg, #fff)',
+      border: '1px solid var(--border, #e5e2db)',
+      borderRadius: 16,
+      boxShadow: '0 16px 40px -8px rgba(26,23,20,0.18), 0 2px 8px -2px rgba(26,23,20,0.08)',
+      zIndex: 9999,
+      overflow: 'hidden',
+      animation: 'cartDropIn 0.22s cubic-bezier(0.34,1.56,0.64,1) both',
+    }}>
+      {/* Header */}
+      <div style={{
+        padding: '12px 14px 10px',
+        background: 'var(--bg-alt, #f5f4f1)',
+        borderBottom: '1px solid var(--border, #e5e2db)',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+          <span style={{ fontSize: 15 }}>✓</span>
+          <span style={{
+            fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 700,
+            color: 'var(--accent, #d97757)',
+          }}>Added to cart</span>
+        </div>
+        <button onClick={onDismiss} style={{
+          background: 'none', border: 'none', cursor: 'pointer',
+          padding: '2px 4px', borderRadius: 6,
+          fontFamily: 'var(--font-body)', fontSize: 16, lineHeight: 1,
+          color: 'var(--text-muted)', opacity: 0.6,
+        }} aria-label="Dismiss">✕</button>
+      </div>
+
+      {/* Item row */}
+      <div style={{ padding: '12px 14px', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+        {imgUrl ? (
+          <img src={imgUrl} alt={name}
+            style={{ width: 48, height: 48, borderRadius: 10, objectFit: 'contain',
+                     background: 'var(--bg-alt)', border: '1px solid var(--border)', flexShrink: 0 }}
+          />
+        ) : (
+          <div style={{ width: 48, height: 48, borderRadius: 10, background: 'var(--bg-alt)',
+                        border: '1px solid var(--border)', flexShrink: 0,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 20 }}>🛍</div>
+        )}
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{
+            fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 700,
+            color: 'var(--text)', lineHeight: 1.3,
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+          }}>{name}</div>
+          {subtitle && (
+            <div style={{
+              fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--text-muted)',
+              marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+            }}>{subtitle}</div>
+          )}
+          {(colorName || storage) && (
+            <div style={{ display: 'flex', gap: 4, marginTop: 5, flexWrap: 'wrap' }}>
+              {colorName && (
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 4,
+                  fontFamily: 'var(--font-body)', fontSize: 10, fontWeight: 500,
+                  color: 'var(--text-muted)', background: 'var(--bg-alt)',
+                  border: '1px solid var(--border)', borderRadius: 4, padding: '2px 6px',
+                }}>
+                  {colorHex && <span style={{ width: 7, height: 7, borderRadius: '50%', background: colorHex, border: '1px solid rgba(0,0,0,0.1)', flexShrink: 0 }} />}
+                  {colorName}
+                </span>
+              )}
+              {storage && (
+                <span style={{
+                  fontFamily: 'var(--font-body)', fontSize: 10, fontWeight: 500,
+                  color: 'var(--text-muted)', background: 'var(--bg-alt)',
+                  border: '1px solid var(--border)', borderRadius: 4, padding: '2px 6px',
+                }}>{storage}</span>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Cart summary + CTA */}
+      <div style={{
+        padding: '10px 14px 14px',
+        borderTop: '1px solid var(--border, #e5e2db)',
+      }}>
+        <div style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          marginBottom: 10,
+        }}>
+          <span style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)' }}>
+            {count} item{count !== 1 ? 's' : ''} in cart
+          </span>
+          <span style={{
+            fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 15,
+            color: 'var(--text)',
+          }}>{fmtUsd(totalUsd)}</span>
+        </div>
+        <button onClick={onCheckout} style={{
+          width: '100%', padding: '11px 0',
+          background: 'var(--accent, #d97757)', color: 'white',
+          border: 'none', borderRadius: 10, cursor: 'pointer',
+          fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 700,
+          letterSpacing: '0.01em',
+          boxShadow: '0 4px 12px -4px rgba(217,119,87,0.45)',
+          transition: 'transform 0.12s, box-shadow 0.12s',
+        }}
+          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 16px -4px rgba(217,119,87,0.55)'; }}
+          onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 12px -4px rgba(217,119,87,0.45)'; }}
+        >
+          Proceed to checkout →
+        </button>
+      </div>
+    </div>
+  );
+};
+
 // ─── Main nav ──────────────────────────────────────────────────────────────
 
-const NavComponent = ({ page, navigate, cartCount = 0 }) => {
-  const [menuOpen, setMenuOpen] = React.useState(false);
-  const [scrolled, setScrolled] = React.useState(false);
+const NavComponent = ({ page, navigate, cartCount = 0, lastAdded = null, cart = [] }) => {
+  const [menuOpen,  setMenuOpen]  = React.useState(false);
+  const [scrolled,  setScrolled]  = React.useState(false);
+  const [shaking,   setShaking]   = React.useState(false);
+  const [showDrop,  setShowDrop]  = React.useState(false);
+  const timerRef = React.useRef(null);
   const { isMobile } = useResponsive();
   const isDashboard = page && page.startsWith('dashboard');
+
+  // Trigger shake + dropdown whenever a new item is added
+  React.useEffect(() => {
+    if (!lastAdded) return;
+    setShaking(true);
+    setShowDrop(true);
+    setTimeout(() => setShaking(false), 600);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setShowDrop(false), 4500);
+    return () => clearTimeout(timerRef.current);
+  }, [lastAdded?._ts]);
+
+  const cartTotalUsd = cart.reduce((sum, item) => {
+    const base = item.variant?.price_usd ?? item.product?.usdPrice ?? 0;
+    return sum + base * (item.qty || 1);
+  }, 0);
 
   React.useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
@@ -293,7 +475,19 @@ const NavComponent = ({ page, navigate, cartCount = 0 }) => {
                   onMouseEnter={e => e.currentTarget.style.color = 'var(--text)'}
                   onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
                 >Track</button>
-                <CartButton onClick={() => goTo('cart')} count={cartCount} />
+                {/* Cart + dropdown */}
+                <div style={{ position: 'relative' }}>
+                  <CartButton onClick={() => { goTo('cart'); setShowDrop(false); }} count={cartCount} shaking={shaking} />
+                  {showDrop && lastAdded && (
+                    <CartDropdown
+                      item={lastAdded}
+                      count={cartCount}
+                      totalUsd={cartTotalUsd}
+                      onCheckout={() => { goTo('cart'); setShowDrop(false); }}
+                      onDismiss={() => setShowDrop(false)}
+                    />
+                  )}
+                </div>
                 <button
                   onClick={() => goTo('shop')}
                   style={{
@@ -319,7 +513,19 @@ const NavComponent = ({ page, navigate, cartCount = 0 }) => {
             {/* Mobile: cart + hamburger */}
             {!isDashboard && isMobile && (
               <>
-                <CartButton onClick={() => goTo('cart')} count={cartCount} size={22} />
+                <div style={{ position: 'relative' }}>
+                  <CartButton onClick={() => { goTo('cart'); setShowDrop(false); }} count={cartCount} size={22} shaking={shaking} />
+                  {showDrop && lastAdded && (
+                    <CartDropdown
+                      item={lastAdded}
+                      count={cartCount}
+                      totalUsd={cartTotalUsd}
+                      onCheckout={() => { goTo('cart'); setShowDrop(false); }}
+                      onDismiss={() => setShowDrop(false)}
+                      alignRight
+                    />
+                  )}
+                </div>
                 <button
                   onClick={() => setMenuOpen(m => !m)}
                   aria-label={menuOpen ? 'Close menu' : 'Open menu'}

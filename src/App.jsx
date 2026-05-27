@@ -94,8 +94,15 @@ const FooterComponent = ({ navigate }) => {
           </div>
         </div>
 
+        {/* Disclaimer */}
+        <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 20, marginBottom: 20 }}>
+          <p style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'rgba(255,255,255,0.3)', lineHeight: 1.7, margin: 0 }}>
+            Certo is not an Apple Authorized Reseller or distributor. Products are purchased directly from Apple US as retail imports. Certo is not affiliated with, endorsed by, or in any way connected to Apple Inc. Apple, iPhone, iPad, Mac, AirPods, Apple Watch, and AppleCare are trademarks of Apple Inc., registered in the US and other countries.
+          </p>
+        </div>
+
         {/* Bottom bar */}
-        <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 24, display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', gap: 12 }}>
+        <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', gap: 12 }}>
           <span style={{ fontFamily: 'var(--font-body)', fontSize: isMobile ? 11 : 13, color: 'rgba(255,255,255,0.55)' }}>© 2026 Certo Technologies. All rights reserved.</span>
           <div style={{ display: 'flex', gap: isMobile ? 14 : 20 }}>
             {[
@@ -220,6 +227,8 @@ const App = () => {
     setPageParam(param);
   };
 
+  const [lastAdded, setLastAdded] = React.useState(null);
+
   const addToCart = (item) => {
     setCart(prev => {
       const key = `${item.product.id}_${item.variant?.id || 'none'}_${item.applecare?.id || 'none'}`;
@@ -233,6 +242,7 @@ const App = () => {
       }
       return [...prev, { ...item, qty: 1 }];
     });
+    setLastAdded({ ...item, _ts: Date.now() });
   };
 
   const updateCartItemQty = (productId, variantId, applecareid, delta) => {
@@ -312,7 +322,7 @@ const App = () => {
 
   return (
     <div>
-      <NavComponent page={page} navigate={navigate} cartCount={cartCount} />
+      <NavComponent page={page} navigate={navigate} cartCount={cartCount} lastAdded={lastAdded} cart={cart} />
       <main>{renderPage()}</main>
       {!isDashboard && <FooterComponent navigate={navigate} />}
     </div>

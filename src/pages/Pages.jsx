@@ -327,6 +327,17 @@ const AboutPage = ({ navigate }) => (
         </p>
       ))}
 
+      {/* Transparency note */}
+      <div style={{ margin: '40px 0 32px', padding: '24px 28px', borderRadius: 14, background: 'var(--bg-alt)', border: '1px solid var(--border)' }}>
+        <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>In the interest of full transparency</div>
+        <p style={{ fontFamily: 'var(--font-body)', fontSize: 15, lineHeight: 1.75, color: 'var(--text-muted)', margin: '0 0 10px' }}>
+          Certo is <strong style={{ color: 'var(--text)' }}>not an Apple Authorized Reseller or distributor</strong>. We purchase genuine Apple products directly from Apple US as retail customers and import them to Nigeria. Every device is factory-sealed, serial-verified, and comes with its original Apple US warranty intact at the time of sale.
+        </p>
+        <p style={{ fontFamily: 'var(--font-body)', fontSize: 15, lineHeight: 1.75, color: 'var(--text-muted)', margin: 0 }}>
+          We do not claim to be owned by, affiliated with, endorsed by, or in any way connected to Apple Inc. Apple, iPhone, iPad, Mac, AirPods, Apple Watch, and AppleCare are trademarks of Apple Inc., registered in the US and other countries.
+        </p>
+      </div>
+
       <div style={{ borderTop: '1px solid var(--border)', paddingTop: 40, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
         <button onClick={() => navigate('shop')} style={{ background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 10, padding: '14px 28px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 700 }}>Shop now →</button>
         <button onClick={() => navigate('contact')} style={{ background: 'transparent', color: 'var(--text)', border: '1.5px solid var(--border)', borderRadius: 10, padding: '14px 28px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 15 }}>Get in touch</button>
@@ -372,8 +383,8 @@ const FAQPage = () => {
       items: [
         { q: 'What does the Certo warranty cover?', a: 'Manufacturing defects for 12 months from delivery date. If your device develops a hardware fault within 12 months of delivery that is not caused by physical damage, we cover repair or replacement.' },
         { q: 'Who are the authorized service providers in Nigeria?', a: 'Mac Center Nigeria, iStore Nigeria, and Ensure Services (Lagos, Abuja, and other locations). The full list is on apple.com/retail/authorized.' },
-        { q: 'How do I activate AppleCare+?', a: 'Download the AppleCare app or go to settings.apple.com within 60 days of receiving your device. You\'ll need your Apple ID and the serial number. If you need help, message us on WhatsApp.' },
-        { q: 'Can I use AppleCare at a service provider in Nigeria?', a: 'Yes. Apple Authorized Service Providers in Nigeria can perform AppleCare repairs. Walk in with your device and your Apple ID.' },
+        { q: 'How do I activate AppleCare+?', a: 'Download the AppleCare app or go to settings.apple.com within 60 days of receiving your device. You\'ll need your Apple ID and the serial number. Important: AppleCare purchased for a US device does not provide service coverage in Nigeria — repairs under AppleCare would need to be processed in the US. If you need help with activation, message us on WhatsApp.' },
+        { q: 'Can I use AppleCare at a service provider in Nigeria?', a: 'No. AppleCare coverage for a US-purchased device does not apply in Nigeria. This is Apple\'s regional policy and is outside our control. What does apply is Certo\'s own 12-month warranty, which covers manufacturing defects and is serviced through Apple Authorised Service Providers in Nigeria.' },
       ]
     },
     {
@@ -994,7 +1005,7 @@ const TermsOfServicePage = ({ navigate }) => {
 
         <Section title="What we do not cover">
           <P>We do not cover damage caused by accidents, drops, liquid exposure, or unauthorised repairs. We do not cover consumable parts (batteries after the first 12 months, charging cables, earphones). We do not cover software issues unrelated to hardware faults.</P>
-          <P>AppleCare+ and AppleCare One are separate products sold by Apple. They are activated by you on Apple's platform. We assist with activation but we are not responsible for Apple's decisions regarding coverage claims.</P>
+          <P>AppleCare+ and AppleCare One are separate products sold by Apple. They are activated by you on Apple's platform. We assist with activation but we are not responsible for Apple's decisions regarding coverage claims. Please note: AppleCare coverage for US-purchased devices does not apply in Nigeria. If you add AppleCare through Certo, repairs under that plan would need to be processed in the United States.</P>
         </Section>
 
         <Section title="Governing law">

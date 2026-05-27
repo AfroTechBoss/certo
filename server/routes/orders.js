@@ -1,7 +1,7 @@
 const express = require('express');
 const router  = express.Router();
 const pool    = require('../db');
-const { sendOrderConfirmation, sendStatusUpdate, sendCancellationEmail, sendPaymentPendingEmail, sendPaymentPendingNairaEmail } = require('../email');
+const { sendOrderConfirmation, sendStatusUpdate, sendCancellationEmail, sendPaymentPendingEmail, sendPaymentPendingNairaEmail, sendNewOrderNotification } = require('../email');
 const { adminAuth } = require('../adminAuth');
 const logAdminAction = require('../logAdminAction');
 const logOrderEvent  = require('../logAdminAction'); // same helper, aliased for clarity
@@ -99,6 +99,9 @@ router.post('/', async (req, res) => {
         // Non-fatal — order still created
       }
     }
+
+    // Internal notification — fire-and-forget, non-fatal
+    sendNewOrderNotification(order).catch(err => console.error('[notify] new order email failed:', err.message));
 
     // Log new order (System actor so it stands out from admin actions)
     logOrderEvent('System', 'New order placed', `${id} — ${customer_name} — ${product_name}${product_subtitle ? ' ' + product_subtitle : ''} — $${usd_price}`).catch(() => {});

@@ -1,7 +1,7 @@
 
 // Certo — Shop Page + Product Detail Page
 import React from 'react';
-import { CERTO_RATE, PRODUCTS, APPLECARE_OPTIONS, useResponsive } from '../data.js';
+import { CERTO_RATE, PRODUCTS, useResponsive } from '../data.js';
 import { ProductIcon, fmt } from './HomePage.jsx';
 
 // Strip the .v= cache-buster from Apple CDN URLs (it causes proxy encoding issues and isn't needed)
@@ -138,7 +138,7 @@ const ProductCard = ({ product, navigate, compact }) => {
   );
 };
 
-const PER_PAGE = 18;
+const PER_PAGE = 20;
 
 const ShopPage = ({ navigate, addToCart, initialType }) => {
   const { isMobile } = useResponsive();
@@ -410,8 +410,6 @@ const ProductDetailPage = ({ productId, navigate, addToCart }) => {
   const [product, setProduct] = React.useState(null);
   const [related, setRelated] = React.useState([]);
   const [loadErr, setLoadErr] = React.useState(false);
-  const [selectedCare, setSelectedCare] = React.useState('plus');
-  const [careBilling, setCareBilling] = React.useState('annual');
   const [added, setAdded] = React.useState(false);
   const [openSections, setOpenSections] = React.useState(new Set());
   const [selectedImg, setSelectedImg] = React.useState(0);
@@ -474,10 +472,7 @@ const ProductDetailPage = ({ productId, navigate, addToCart }) => {
     return next;
   });
 
-  const care = APPLECARE_OPTIONS.find(o => o.id === selectedCare);
-  const careUsd = selectedCare === 'none' ? 0
-    : careBilling === 'monthly' ? (care.monthlyUsd || 0)
-    : (care.annualUsd || 0);
+  const careUsd = 0;
   const totalUsd = displayPrice + careUsd;
 
   const handleAdd = () => {
@@ -492,7 +487,7 @@ const ProductDetailPage = ({ productId, navigate, addToCart }) => {
       storage:   activeStorage?.size      || null,
       price_usd: activeStorage?.price_usd || null,
     } : null;
-    addToCart({ product, variant, applecare: care, billing: selectedCare === 'none' ? null : careBilling });
+    addToCart({ product, variant, applecare: null, billing: null });
     setAdded(true);
     setTimeout(() => setAdded(false), 2500);
   };
@@ -678,93 +673,6 @@ const ProductDetailPage = ({ productId, navigate, addToCart }) => {
               )}
             </div>
           )}
-
-          {/* AppleCare */}
-          <div style={{ marginBottom: 28 }}>
-            <div style={{ fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 14, color: 'var(--text)', marginBottom: 12 }}>Coverage with this device</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {APPLECARE_OPTIONS.map(opt => {
-                const isSelected = selectedCare === opt.id;
-                const hasAnnual  = opt.id === 'plus';
-                const priceLabel = opt.id === 'none' ? 'Included'
-                  : isSelected
-                    ? (careBilling === 'monthly' ? `+$${opt.monthlyUsd}/mo` : `+$${opt.annualUsd}/yr`)
-                    : hasAnnual ? `from $${opt.monthlyUsd}/mo` : `+$${opt.monthlyUsd}/mo`;
-
-                return (
-                <div key={opt.id} onClick={() => {
-                  setSelectedCare(opt.id);
-                  if (opt.id === 'one') setCareBilling('monthly');
-                }} style={{
-                  border: `2px solid ${isSelected ? opt.color : 'var(--border)'}`,
-                  borderRadius: 14, padding: 16, cursor: 'pointer',
-                  background: isSelected ? `${opt.color}08` : 'var(--bg)',
-                  transition: 'all 0.15s', position: 'relative',
-                }}>
-                  {opt.recommended && (
-                    <span style={{
-                      position: 'absolute', top: -10, right: 14,
-                      background: opt.color, color: 'white', fontSize: 10, fontWeight: 700,
-                      padding: '2px 8px', borderRadius: 4, fontFamily: 'var(--font-body)',
-                    }}>RECOMMENDED</span>
-                  )}
-
-                  {/* Row: radio + name + price */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-                      <div style={{
-                        width: 18, height: 18, borderRadius: '50%', flexShrink: 0,
-                        border: `2px solid ${isSelected ? opt.color : 'var(--border)'}`,
-                        background: isSelected ? opt.color : 'transparent',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      }}>
-                        {isSelected && <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'white' }} />}
-                      </div>
-                      <span style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>{opt.name}</span>
-                      <span style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)' }}>{opt.tagline}</span>
-                    </div>
-                    <span style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 15, color: opt.id !== 'none' ? opt.color : 'var(--text-muted)', flexShrink: 0, marginLeft: 8 }}>
-                      {priceLabel}
-                    </span>
-                  </div>
-
-                  {isSelected && (
-                    <div>
-                      {/* Billing toggle — only for AppleCare+ */}
-                      {opt.id === 'plus' && (
-                        <div style={{ display: 'flex', gap: 8, marginBottom: 12, marginTop: 4 }} onClick={e => e.stopPropagation()}>
-                          {[{ key: 'monthly', label: `Monthly — $${opt.monthlyUsd}/mo` }, { key: 'annual', label: `Annual — $${opt.annualUsd}/yr` }].map(b => (
-                            <button key={b.key} onClick={() => setCareBilling(b.key)} style={{
-                              flex: 1, padding: '8px 10px', borderRadius: 8, cursor: 'pointer',
-                              border: `1.5px solid ${careBilling === b.key ? opt.color : 'var(--border)'}`,
-                              background: careBilling === b.key ? `${opt.color}12` : 'var(--bg)',
-                              fontFamily: 'var(--font-body)', fontSize: isMobile ? 11 : 12, fontWeight: careBilling === b.key ? 700 : 400,
-                              color: careBilling === b.key ? opt.color : 'var(--text-muted)',
-                            }}>{b.label}</button>
-                          ))}
-                        </div>
-                      )}
-                      {/* Monthly-only label for AppleCare One */}
-                      {opt.id === 'one' && (
-                        <div style={{ marginBottom: 10, marginTop: 2 }}>
-                          <span style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: opt.color, background: `${opt.color}12`, padding: '4px 10px', borderRadius: 6, fontWeight: 600 }}>Monthly subscription · cancel anytime</span>
-                        </div>
-                      )}
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
-                        {opt.benefits.map(b => (
-                          <span key={b} style={{ fontFamily: 'var(--font-body)', fontSize: 11, padding: '3px 8px', borderRadius: 4, background: `${opt.color}15`, color: opt.color }}>✓ {b}</span>
-                        ))}
-                      </div>
-                      <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6, borderTop: '1px solid var(--border)', paddingTop: 10 }}>
-                        <strong style={{ color: 'var(--text)' }}>How to activate:</strong> {opt.activation}
-                      </div>
-                    </div>
-                  )}
-                </div>
-                );
-              })}
-            </div>
-          </div>
 
           {/* What's included */}
           <div style={{ marginBottom: 24 }}>

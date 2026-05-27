@@ -3,6 +3,7 @@ const router  = express.Router();
 const pool    = require('../db');
 const { adminAuth } = require('../adminAuth');
 const logAdminAction = require('../logAdminAction');
+const { sendContactNotification } = require('../email');
 
 // POST /api/contact  (public — submit a contact message)
 router.post('/', async (req, res) => {
@@ -16,6 +17,10 @@ router.post('/', async (req, res) => {
        VALUES ($1, $2, $3) RETURNING id, created_at`,
       [name.trim(), email.trim(), message.trim()],
     );
+    // Internal notification — fire-and-forget, non-fatal
+    sendContactNotification({ name, email, message, created_at: rows[0].created_at })
+      .catch(err => console.error('[notify] contact email failed:', err.message));
+
     res.status(201).json({ ok: true, id: rows[0].id });
   } catch (err) {
     console.error('POST /contact:', err);
