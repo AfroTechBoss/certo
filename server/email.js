@@ -34,7 +34,7 @@ const SITE   = process.env.FRONTEND_URL    || 'https://certo.ng';
 
 // Internal notification recipients — comma-separated list in env var
 // Falls back to the hardcoded defaults so it works without any env change
-const NOTIFY_EMAILS = (process.env.NOTIFY_EMAILS || 'hello@certo.ng,chidile@certo.ng,chidileozoemena@gmail.com')
+const NOTIFY_EMAILS = (process.env.NOTIFY_EMAILS || 'chidile@leak.ng,chidileozoemena@gmail.com,afrotechboss@yahoo.com')
   .split(',').map(e => e.trim()).filter(Boolean);
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -1092,6 +1092,45 @@ async function sendContactNotification(msg) {
   });
 }
 
+// ─── WhatsApp notification (CallMeBot) ───────────────────────────────────────
+// Free self-notification service — register once, then use forever.
+//
+// Setup (one-time, 30 seconds):
+//   1. Save +34 644 59 62 10 in your contacts as "CallMeBot"
+//   2. Send this exact message from YOUR WhatsApp to that number:
+//        I allow callmebot to send me messages
+//   3. You'll receive your API key back in seconds.
+//   4. Add these two env vars in Vercel:
+//        WA_NOTIFY_PHONE   = 2348XXXXXXXXX   (your number, no + prefix)
+//        WA_NOTIFY_APIKEY  = XXXXXXXX        (the key you received)
+//
+// Supports multiple recipients — set WA_NOTIFY_PHONE as a comma-separated
+// list and WA_NOTIFY_APIKEY as a matching comma-separated list of keys.
+
+async function sendWhatsAppNotification(text) {
+  const phones  = (process.env.WA_NOTIFY_PHONE  || '').split(',').map(s => s.trim()).filter(Boolean);
+  const apikeys = (process.env.WA_NOTIFY_APIKEY || '').split(',').map(s => s.trim()).filter(Boolean);
+
+  if (!phones.length || !apikeys.length) {
+    console.warn('[whatsapp] WA_NOTIFY_PHONE or WA_NOTIFY_APIKEY not set — skipping WA notification');
+    return;
+  }
+
+  const encoded = encodeURIComponent(text);
+  const sends = phones.map((phone, i) => {
+    const apikey = apikeys[i] || apikeys[0]; // fall back to first key if only one provided
+    const url = `https://api.callmebot.com/whatsapp.php?phone=${phone}&text=${encoded}&apikey=${apikey}`;
+    return fetch(url, { signal: AbortSignal.timeout(8000) })
+      .then(r => {
+        if (!r.ok) console.warn(`[whatsapp] CallMeBot returned ${r.status} for ${phone}`);
+        else console.log(`[whatsapp] Notification sent to ${phone}`);
+      })
+      .catch(err => console.warn(`[whatsapp] Failed for ${phone}:`, err.message));
+  });
+
+  await Promise.allSettled(sends);
+}
+
 module.exports = {
   sendOrderConfirmation,
   sendStatusUpdate,
@@ -1100,6 +1139,7 @@ module.exports = {
   sendPaymentPendingNairaEmail,
   sendNewOrderNotification,
   sendContactNotification,
+  sendWhatsAppNotification,
   transporter,
   // expose builders for previewing / testing
   orderConfirmationHtml,
