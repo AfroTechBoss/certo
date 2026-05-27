@@ -227,6 +227,8 @@ const App = () => {
     setPageParam(param);
   };
 
+  const [lastAdded, setLastAdded] = React.useState(null);
+
   const addToCart = (item) => {
     setCart(prev => {
       const key = `${item.product.id}_${item.variant?.id || 'none'}_${item.applecare?.id || 'none'}`;
@@ -240,6 +242,7 @@ const App = () => {
       }
       return [...prev, { ...item, qty: 1 }];
     });
+    setLastAdded({ ...item, _ts: Date.now() });
   };
 
   const updateCartItemQty = (productId, variantId, applecareid, delta) => {
@@ -319,7 +322,7 @@ const App = () => {
 
   return (
     <div>
-      <NavComponent page={page} navigate={navigate} cartCount={cartCount} />
+      <NavComponent page={page} navigate={navigate} cartCount={cartCount} lastAdded={lastAdded} cart={cart} />
       <main>{renderPage()}</main>
       {!isDashboard && <FooterComponent navigate={navigate} />}
     </div>
