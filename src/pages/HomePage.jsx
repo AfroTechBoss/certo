@@ -1098,7 +1098,7 @@ function SectionFounder() {
               Founder &amp; sole operator · Lagos, Nigeria
             </div>
           </div>
-          <a href="https://wa.me/2348000000000" target="_blank" rel="noopener noreferrer" style={{
+          <a href="https://wa.me/2348057575906" target="_blank" rel="noopener noreferrer" style={{
             fontSize: 13, fontWeight: 600, color: 'var(--ink)',
             display: 'inline-flex', alignItems: 'center', gap: 8,
             borderBottom: '1.5px solid var(--ink)', paddingBottom: 3, textDecoration: 'none',
