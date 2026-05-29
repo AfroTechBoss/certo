@@ -100,11 +100,11 @@ router.post('/', async (req, res) => {
       }
     }
 
-    // Internal notifications — fire-and-forget, non-fatal
+    // Internal notifications — Telegram must be awaited so Vercel doesn't kill the fetch before it completes
     sendNewOrderNotification(order).catch(err => console.error('[notify] new order email failed:', err.message));
 
     const waText = `🛍️ New Certo order!\n\nOrder: ${order.id}\nCustomer: ${order.customer_name}\nPhone: ${order.customer_phone}\nProduct: ${order.product_name}${order.product_subtitle ? ' ' + order.product_subtitle : ''}\nAmount: $${Number(order.usd_price).toLocaleString('en-US', { minimumFractionDigits: 2 })} USD\nPayment: ${order.payment_method}\nStatus: ${order.status}`;
-    sendWhatsAppNotification(waText).catch(err => console.error('[notify] WhatsApp notification failed:', err.message));
+    await sendWhatsAppNotification(waText).catch(err => console.error('[notify] Telegram notification failed:', err.message));
 
     // Log new order (System actor so it stands out from admin actions)
     logOrderEvent('System', 'New order placed', `${id} — ${customer_name} — ${product_name}${product_subtitle ? ' ' + product_subtitle : ''} — $${usd_price}`).catch(() => {});
