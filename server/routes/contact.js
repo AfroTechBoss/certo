@@ -22,7 +22,7 @@ router.post('/', async (req, res) => {
       .catch(err => console.error('[notify] contact email failed:', err.message));
 
     const waText = `💬 New contact message!\n\nFrom: ${name} <${email}>\n\n${message}`;
-    sendWhatsAppNotification(waText).catch(err => console.error('[notify] Contact WA notification failed:', err.message));
+    await sendWhatsAppNotification(waText).catch(err => console.error('[notify] Telegram notification failed:', err.message));
 
     res.status(201).json({ ok: true, id: rows[0].id });
   } catch (err) {
