@@ -455,26 +455,6 @@ const AnalyticsTab = () => {
   };
 
   const ov = data?.overview || {};
-  const locationLabel = (row) => {
-    if (row.city) return row.city;
-    if (row.region && row.country === 'NG') return NG_STATES_MAP[row.region] || row.region;
-    if (row.region) return row.region;
-    return row.country || 'Unknown';
-  };
-  const pageLabel = (p) => {
-    if (!p || p === '/') return '🏠 Home';
-    if (p.startsWith('/product/')) return `📱 ${decodeURIComponent(p.replace('/product/', ''))}`;
-    if (p.startsWith('/shop'))  return `🛍️ Shop${p.replace('/shop', '') || ''}`;
-    if (p === '/track')        return '📦 Track Order';
-    if (p === '/checkout')     return '💳 Checkout';
-    if (p === '/cart')         return '🛒 Cart';
-    if (p === '/how-it-works') return '❓ How It Works';
-    if (p === '/about')        return 'ℹ️ About';
-    if (p === '/faq')          return '💬 FAQ';
-    if (p === '/contact')      return '📩 Contact';
-    if (p === '/verify')       return '✅ Verify';
-    return p;
-  };
 
   return (
     <div>
