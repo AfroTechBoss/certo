@@ -299,6 +299,222 @@ const VariantsEditor = ({ editDraft, setEditDraft, fld, lbl, focus, blur }) => {
   );
 };
 
+// ── AnalyticsTab — must live at module level so React hooks work correctly ─────
+const NG_STATES_MAP = { LA:'Lagos', FC:'Abuja (FCT)', KN:'Kano', RV:'Rivers', OY:'Oyo', AN:'Anambra', IM:'Imo', KD:'Kaduna', OG:'Ogun', ON:'Ondo', OS:'Osun', EK:'Ekiti', ED:'Edo', DE:'Delta', AK:'Akwa Ibom', KW:'Kwara', PL:'Plateau', BO:'Borno', SO:'Sokoto', ZA:'Zamfara', KE:'Kebbi', NU:'Niger', KO:'Kogi', BE:'Benue', NI:'Nassarawa', GB:'Gombe', AD:'Adamawa', BA:'Bauchi', YO:'Yobe', TY:'Taraba', JI:'Jigawa', KT:'Katsina', EB:'Ebonyi', EN:'Enugu', AB:'Abia', CR:'Cross River', BY:'Bayelsa' };
+
+const AnalyticsTab = () => {
+  const { isMobile } = useResponsive();
+  const [data,      setData]      = React.useState(null);
+  const [loading,   setLoading]   = React.useState(true);
+  const [error,     setError]     = React.useState(null);
+  const [timeframe, setTimeframe] = React.useState('7days');
+  const [status,    setStatus]    = React.useState(null);
+
+  React.useEffect(() => {
+    setLoading(true); setError(null);
+    authFetch(`/api/analytics?timeframe=${timeframe}`)
+      .then(r => r.json())
+      .then(d => { setData(d); setLoading(false); })
+      .catch(() => { setError('Failed to load analytics'); setLoading(false); });
+  }, [timeframe]);
+
+  React.useEffect(() => {
+    const check = () => {
+      const t0 = Date.now();
+      fetch('/api/health')
+        .then(r => r.ok ? setStatus({ online: true, latency: Date.now() - t0, checked: new Date() }) : setStatus({ online: false, latency: null, checked: new Date() }))
+        .catch(() => setStatus({ online: false, latency: null, checked: new Date() }));
+    };
+    check();
+    const iv = setInterval(check, 60000);
+    return () => clearInterval(iv);
+  }, []);
+
+  const TF_OPTS = [
+    { key: 'today', label: 'Today' }, { key: '7days', label: '7 days' },
+    { key: '30days', label: '30 days' }, { key: '90days', label: '90 days' },
+  ];
+  const fmt = n => (n || 0).toLocaleString();
+  const MiniBar = ({ value, max, color = 'var(--accent)' }) => (
+    <div style={{ flex: 1, height: 6, background: 'var(--border)', borderRadius: 4, overflow: 'hidden' }}>
+      <div style={{ height: '100%', width: `${max ? Math.round((value / max) * 100) : 0}%`, background: color, borderRadius: 4, transition: 'width 0.4s' }} />
+    </div>
+  );
+  const StatCard = ({ label, value, sub, color = 'var(--accent)' }) => (
+    <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 14, padding: isMobile ? '16px 18px' : '20px 24px' }}>
+      <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 8 }}>{label}</div>
+      <div style={{ fontFamily: 'var(--font-head)', fontSize: isMobile ? 28 : 34, fontWeight: 800, color, letterSpacing: '-0.02em', lineHeight: 1 }}>{value}</div>
+      {sub && <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginTop: 6 }}>{sub}</div>}
+    </div>
+  );
+  const locationLabel = (row) => {
+    if (row.city) return row.city;
+    if (row.region && row.country === 'NG') return NG_STATES_MAP[row.region] || row.region;
+    if (row.region) return row.region;
+    return row.country || 'Unknown';
+  };
+  const pageLabel = (p) => {
+    if (!p || p === '/') return '🏠 Home';
+    if (p.startsWith('/product/')) return `📱 ${decodeURIComponent(p.replace('/product/', ''))}`;
+    if (p.startsWith('/shop'))    return `🛍️ Shop${p.replace('/shop', '') || ''}`;
+    if (p === '/track')     return '📦 Track Order';
+    if (p === '/checkout')  return '💳 Checkout';
+    if (p === '/cart')      return '🛒 Cart';
+    if (p === '/how-it-works') return '❓ How It Works';
+    if (p === '/about')     return 'ℹ️ About';
+    if (p === '/faq')       return '💬 FAQ';
+    if (p === '/contact')   return '📩 Contact';
+    if (p === '/verify')    return '✅ Verify';
+    return p;
+  };
+
+  const ov = data?.overview || {};
+  const dailyMax = Math.max(...(data?.daily || []).map(d => d.views), 1);
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+        <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: isMobile ? 18 : 22, color: 'var(--text)', margin: 0 }}>Analytics</h2>
+        <div style={{ display: 'flex', gap: 4, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, padding: 4 }}>
+          {TF_OPTS.map(o => (
+            <button key={o.key} onClick={() => setTimeframe(o.key)} style={{
+              padding: '6px 14px', borderRadius: 7, border: 'none', cursor: 'pointer',
+              background: timeframe === o.key ? 'var(--accent)' : 'transparent',
+              color: timeframe === o.key ? 'white' : 'var(--text-muted)',
+              fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, transition: 'all 0.15s',
+            }}>{o.label}</button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24,
+        padding: '10px 16px', borderRadius: 10,
+        background: status?.online ? 'oklch(93% 0.06 155)' : status ? 'oklch(94% 0.02 0)' : 'var(--bg-alt)',
+        border: `1px solid ${status?.online ? 'oklch(80% 0.1 155)' : status ? 'oklch(80% 0.06 0)' : 'var(--border)'}`,
+      }}>
+        <span style={{ fontSize: 16 }}>{status ? (status.online ? '🟢' : '🔴') : '⚪'}</span>
+        <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, color: status?.online ? 'oklch(35% 0.15 155)' : status ? 'oklch(40% 0.12 0)' : 'var(--text-muted)' }}>
+          {!status ? 'Checking server…' : status.online ? `Server Online — ${status.latency}ms response time` : 'Server Offline'}
+        </span>
+        {status?.checked && (
+          <span style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--text-muted)', marginLeft: 'auto' }}>
+            Last checked {status.checked.toLocaleTimeString()}
+          </span>
+        )}
+      </div>
+
+      {loading && <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-muted)', fontFamily: 'var(--font-body)' }}>Loading analytics…</div>}
+      {error   && <div style={{ textAlign: 'center', padding: 60, color: 'oklch(50% 0.18 25)', fontFamily: 'var(--font-body)' }}>{error}</div>}
+
+      {!loading && !error && data && (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
+            <StatCard label="Page Views"      value={fmt(ov.pageviews)}        sub={`${fmt(ov.unique_sessions)} unique visitors`} />
+            <StatCard label="Product Views"   value={fmt(ov.product_views)}    sub="Products explored"   color="oklch(50% 0.18 250)" />
+            <StatCard label="Add to Cart"     value={fmt(ov.add_to_cart)}      sub="Items added"         color="oklch(45% 0.18 155)" />
+            <StatCard label="Checkout Starts" value={fmt(ov.checkout_starts)}  sub="Initiated checkout"  color="oklch(48% 0.18 55)"  />
+            <StatCard label="Total Events"    value={fmt(ov.total_events)}     sub="All tracked actions" color="var(--text-muted)"   />
+            <StatCard label="Unique Sessions" value={fmt(ov.unique_sessions)}  sub="Browser sessions"    color="oklch(48% 0.15 310)" />
+          </div>
+
+          {data.daily?.length > 0 && (
+            <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 14, padding: isMobile ? 16 : 24, marginBottom: 20 }}>
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 16 }}>Daily Views</div>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 80 }}>
+                {data.daily.map(d => {
+                  const pct = dailyMax ? (d.views / dailyMax) : 0;
+                  const dt  = new Date(d.day + 'T00:00:00');
+                  return (
+                    <div key={d.day} title={`${d.day}: ${d.views} views, ${d.sessions} sessions`}
+                      style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                      <div style={{ width: '100%', height: Math.max(4, pct * 64), background: 'var(--accent)', borderRadius: '3px 3px 0 0', opacity: 0.85, transition: 'height 0.3s' }} />
+                      <div style={{ fontFamily: 'var(--font-body)', fontSize: 9, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                        {dt.toLocaleDateString('en-NG', { month: 'short', day: 'numeric' })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16, marginBottom: 20 }}>
+            <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 14, padding: isMobile ? 16 : 20 }}>
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 14 }}>Top Pages</div>
+              {data.topPages?.length === 0 && <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)' }}>No data yet</div>}
+              {data.topPages?.map((p, i) => {
+                const max = data.topPages[0]?.views || 1;
+                return (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                    <div style={{ width: 20, fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--text-muted)', textAlign: 'right', flexShrink: 0 }}>{i + 1}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: 3 }}>{pageLabel(p.page)}</div>
+                      <MiniBar value={p.views} max={max} />
+                    </div>
+                    <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, color: 'var(--text)', flexShrink: 0 }}>{fmt(p.views)}</div>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 14, padding: isMobile ? 16 : 20 }}>
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 14 }}>Top Products</div>
+              {data.topProducts?.length === 0 && <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)' }}>No data yet</div>}
+              {data.topProducts?.map((p, i) => {
+                const max = data.topProducts[0]?.views || 1;
+                return (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                    <div style={{ width: 20, fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--text-muted)', textAlign: 'right', flexShrink: 0 }}>{i + 1}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: 3 }}>{p.product_name || p.product_id}</div>
+                      <MiniBar value={p.views} max={max} color="oklch(50% 0.18 250)" />
+                    </div>
+                    <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, color: 'var(--text)', flexShrink: 0 }}>{fmt(p.views)}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 14, padding: isMobile ? 16 : 20, marginBottom: 20 }}>
+            <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 14 }}>Visitor Locations</div>
+            {data.locations?.length === 0 && <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)' }}>No location data yet — detected automatically from visitor IP on Vercel.</div>}
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: '6px 24px' }}>
+              {data.locations?.map((loc, i) => {
+                const max = data.locations[0]?.sessions || 1;
+                return (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text)', whiteSpace: 'nowrap', minWidth: 110 }}>
+                      {loc.country === 'NG' ? '🇳🇬 ' : loc.country ? '🌍 ' : ''}{locationLabel(loc)}
+                    </div>
+                    <MiniBar value={loc.sessions} max={max} color="oklch(48% 0.15 310)" />
+                    <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, color: 'var(--text)', flexShrink: 0, minWidth: 28, textAlign: 'right' }}>{fmt(loc.sessions)}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {data.eventBreakdown?.length > 0 && (
+            <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 14, padding: isMobile ? 16 : 20 }}>
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 14 }}>Event Breakdown</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                {data.eventBreakdown.map(e => (
+                  <div key={e.event_type} style={{ background: 'var(--bg-alt)', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 16px', display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <span style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)' }}>{e.event_type.replace(/_/g, ' ')}</span>
+                    <span style={{ fontFamily: 'var(--font-head)', fontSize: 16, fontWeight: 700, color: 'var(--accent)' }}>{fmt(e.count)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+};
+// ─────────────────────────────────────────────────────────────────────────────
+
 const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
   const { isMobile } = useResponsive();
 
@@ -2658,13 +2874,13 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
     );
   };
 
-  // ── Analytics Tab ────────────────────────────────────────────────────────────
-  const AnalyticsTab = () => {
+  // ── Analytics Tab — rendered as JSX below (defined at module level) ──────────
+  const _deadcode_start = () => {
     const [data,      setData]      = React.useState(null);
     const [loading,   setLoading]   = React.useState(true);
     const [error,     setError]     = React.useState(null);
     const [timeframe, setTimeframe] = React.useState('7days');
-    const [status,    setStatus]    = React.useState(null); // { online, latency, checked }
+    const [status,    setStatus]    = React.useState(null);
 
     // Fetch analytics
     React.useEffect(() => {
@@ -2895,6 +3111,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
       </div>
     );
   };
+  // ────────────────────────────────────────────────────────────────────────────
 
   const tabContent = {
     orders:       OrdersTab(),
@@ -2906,7 +3123,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
     forex:        ForexTab(),
     revenue:      RevenueTab(),
     customers:    CustomersTab(),
-    analytics:    AnalyticsTab(),
+    analytics:    <AnalyticsTab />,
   };
 
   return (
