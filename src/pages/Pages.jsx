@@ -750,7 +750,7 @@ const ContactPage = () => {
                 "If you message me at 11pm, I'll probably reply at 11pm."
               </div>
               <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)' }}>
-                — Founder &amp; sole operator, Lagos
+                — Chidile, Founder &amp; sole operator, Lagos
               </div>
             </div>
           </div>
