@@ -216,7 +216,7 @@ function SectionHero({ navigate }) {
           fontSize: 11, fontWeight: 700, letterSpacing: '0.18em',
           color: 'var(--accent)', textTransform: 'uppercase', marginBottom: 28,
         }}>
-          A manifesto · Lagos, 2024
+          A manifesto · Lagos, 2026
         </div>
 
         <h1 style={{
@@ -1093,7 +1093,7 @@ function SectionFounder() {
               fontWeight: 600, fontSize: 32, color: 'var(--ink)',
               letterSpacing: '-0.02em', lineHeight: 1, marginBottom: 12,
               borderBottom: '1px solid var(--ink)', display: 'inline-block', paddingBottom: 8,
-            }}>Certo</div>
+            }}>Chidile</div>
             <div style={{ fontSize: 13, color: 'var(--muted)' }}>
               Founder &amp; sole operator · Lagos, Nigeria
             </div>
