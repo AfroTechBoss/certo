@@ -218,6 +218,34 @@ const App = () => {
     window.scrollTo({ top: 0, behavior: 'instant' });
   }, [page]);
 
+  // ── Anonymous analytics ────────────────────────────────────────────────────
+  // Session ID persists for the browser tab — no cookies, no PII stored
+  const sessionId = React.useMemo(() => {
+    try {
+      let id = sessionStorage.getItem('certo_sid');
+      if (!id) { id = Math.random().toString(36).slice(2) + Date.now().toString(36); sessionStorage.setItem('certo_sid', id); }
+      return id;
+    } catch(_) { return Math.random().toString(36).slice(2); }
+  }, []);
+
+  const trackEvent = React.useCallback((eventType, extra = {}) => {
+    // Don't track admin dashboard activity
+    if (page && page.startsWith('dashboard')) return;
+    fetch('/api/analytics', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event_type: eventType, session_id: sessionId, referrer: document.referrer || null, ...extra }),
+    }).catch(() => {});
+  }, [sessionId, page]);
+
+  // Fire pageview on every route change
+  React.useEffect(() => {
+    if (!page.startsWith('dashboard')) {
+      trackEvent('pageview', { page: window.location.pathname });
+    }
+  }, [page]); // eslint-disable-line react-hooks/exhaustive-deps
+  // ──────────────────────────────────────────────────────────────────────────
+
   const navigate = (target, param = null) => {
     const path = toPath(target, param);
     if (window.location.pathname !== path) {
@@ -243,6 +271,7 @@ const App = () => {
       return [...prev, { ...item, qty: 1 }];
     });
     setLastAdded({ ...item, _ts: Date.now() });
+    trackEvent('add_to_cart', { product_id: item.product?.id, product_name: item.product?.name, page: window.location.pathname });
   };
 
   const updateCartItemQty = (productId, variantId, applecareid, delta) => {
@@ -271,7 +300,7 @@ const App = () => {
         return <ShopPage navigate={navigate} addToCart={addToCart} initialType={pageParam} />;
 
       case 'product':
-        return <ProductDetailPage productId={pageParam} navigate={navigate} addToCart={addToCart} />;
+        return <ProductDetailPage productId={pageParam} navigate={navigate} addToCart={addToCart} trackEvent={trackEvent} />;
 
       case 'how-it-works':
         return <HowItWorksPage navigate={navigate} />;

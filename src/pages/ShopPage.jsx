@@ -405,7 +405,7 @@ const ShopPage = ({ navigate, addToCart, initialType }) => {
 
 // ─── Product Detail ────────────────────────────────────────────────────────────
 
-const ProductDetailPage = ({ productId, navigate, addToCart }) => {
+const ProductDetailPage = ({ productId, navigate, addToCart, trackEvent }) => {
   const { isMobile } = useResponsive();
   const [product, setProduct] = React.useState(null);
   const [related, setRelated] = React.useState([]);
@@ -423,6 +423,8 @@ const ProductDetailPage = ({ productId, navigate, addToCart }) => {
       .then(data => {
         const p = normaliseProduct(data);
         setProduct(p);
+        // Track product view
+        if (trackEvent) trackEvent('product_view', { product_id: p.id, product_name: p.name, page: window.location.pathname });
         // Auto-select first color and first storage independently
         setSelectedColor(p.variants?.colors?.[0]?.id || null);
         setSelectedStorage(p.variants?.storages?.[0]?.id || null);

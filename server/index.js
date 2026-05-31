@@ -92,6 +92,7 @@ app.use('/api/orders',        publicLimiter, require('./routes/orders'));
 app.use('/api/coupons',       publicLimiter, require('./routes/coupons'));
 app.use('/api/contact',       publicLimiter, require('./routes/contact'));
 app.use('/api/certificates',  publicLimiter, require('./routes/certificates'));
+app.use('/api/analytics',     publicLimiter, require('./routes/analytics'));
 app.use('/api/admin/logs',    require('./routes/adminLog'));
 
 // POST /api/admin/event  — lightweight client-side event logger
@@ -104,6 +105,11 @@ app.post('/api/admin/event', _adminAuth, (req, res) => {
   if (!action) return res.status(400).json({ error: 'action required' });
   _logEvent(req.adminName, action, details || '').catch(() => {});
   res.json({ ok: true });
+});
+
+// Health check — used by dashboard uptime monitor
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', ts: Date.now() });
 });
 
 // Public config — exposes non-secret keys needed by the frontend
@@ -150,6 +156,27 @@ async function runMigrations() {
         forex_rate        NUMERIC NOT NULL DEFAULT 0
       )
     `);
+
+    // Analytics events table
+    await pool.queryR(`
+      CREATE TABLE IF NOT EXISTS analytics_events (
+        id           BIGSERIAL PRIMARY KEY,
+        event_type   VARCHAR(50)  NOT NULL,
+        page         VARCHAR(500),
+        product_id   VARCHAR(100),
+        product_name VARCHAR(255),
+        session_id   VARCHAR(100),
+        country      VARCHAR(10),
+        region       VARCHAR(100),
+        city         VARCHAR(150),
+        referrer     VARCHAR(500),
+        created_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+      )
+    `);
+    await pool.queryR(`CREATE INDEX IF NOT EXISTS ae_created_idx  ON analytics_events (created_at DESC)`);
+    await pool.queryR(`CREATE INDEX IF NOT EXISTS ae_type_idx     ON analytics_events (event_type)`);
+    await pool.queryR(`CREATE INDEX IF NOT EXISTS ae_session_idx  ON analytics_events (session_id)`);
+    await pool.queryR(`CREATE INDEX IF NOT EXISTS ae_page_idx     ON analytics_events (page)`);
 
     console.log('[migrations] ✓ schema up to date');
   } catch (err) {
