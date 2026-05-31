@@ -45,7 +45,7 @@ router.get('/', adminAuth, async (req, res) => {
   const where     = `created_at >= NOW() - INTERVAL '${interval}'`;
 
   try {
-    const [overview, topPages, topProducts, locations, daily, eventBreakdown] = await Promise.all([
+    const [overview, topPages, topProducts, locations, daily, eventBreakdown, topSearches] = await Promise.all([
 
       // ── Overview numbers ──────────────────────────────────────────────────
       pool.queryR(`
@@ -103,15 +103,25 @@ router.get('/', adminAuth, async (req, res) => {
         FROM analytics_events WHERE ${where}
         GROUP BY event_type ORDER BY count DESC
       `),
+
+      // ── Most searched terms ───────────────────────────────────────────────
+      pool.queryR(`
+        SELECT product_name AS query, COUNT(*)::int AS count
+        FROM analytics_events
+        WHERE ${where} AND event_type = 'product_search'
+          AND product_name IS NOT NULL AND product_name != ''
+        GROUP BY product_name ORDER BY count DESC LIMIT 10
+      `),
     ]);
 
     res.json({
-      overview:        overview.rows[0],
-      topPages:        topPages.rows,
-      topProducts:     topProducts.rows,
-      locations:       locations.rows,
-      daily:           daily.rows,
-      eventBreakdown:  eventBreakdown.rows,
+      overview:       overview.rows[0],
+      topPages:       topPages.rows,
+      topProducts:    topProducts.rows,
+      locations:      locations.rows,
+      daily:          daily.rows,
+      eventBreakdown: eventBreakdown.rows,
+      topSearches:    topSearches.rows,
     });
   } catch (err) {
     console.error('GET /analytics:', err.message);

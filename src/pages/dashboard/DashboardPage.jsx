@@ -302,13 +302,98 @@ const VariantsEditor = ({ editDraft, setEditDraft, fld, lbl, focus, blur }) => {
 // ── AnalyticsTab — must live at module level so React hooks work correctly ─────
 const NG_STATES_MAP = { LA:'Lagos', FC:'Abuja (FCT)', KN:'Kano', RV:'Rivers', OY:'Oyo', AN:'Anambra', IM:'Imo', KD:'Kaduna', OG:'Ogun', ON:'Ondo', OS:'Osun', EK:'Ekiti', ED:'Edo', DE:'Delta', AK:'Akwa Ibom', KW:'Kwara', PL:'Plateau', BO:'Borno', SO:'Sokoto', ZA:'Zamfara', KE:'Kebbi', NU:'Niger', KO:'Kogi', BE:'Benue', NI:'Nassarawa', GB:'Gombe', AD:'Adamawa', BA:'Bauchi', YO:'Yobe', TY:'Taraba', JI:'Jigawa', KT:'Katsina', EB:'Ebonyi', EN:'Enugu', AB:'Abia', CR:'Cross River', BY:'Bayelsa' };
 
+// SVG Area Chart
+const AreaChart = ({ daily }) => {
+  if (!daily?.length) return <div style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: 13, padding: '24px 0', textAlign: 'center' }}>No data yet for this period</div>;
+  const W = 560; const H = 80; const PL = 36; const PB = 22;
+  const maxV = Math.max(...daily.map(d => d.views), 1);
+  const pts = daily.map((d, i) => ({
+    x: PL + (i / Math.max(daily.length - 1, 1)) * W,
+    y: (H - (d.views / maxV) * H),
+    ...d,
+  }));
+  const line = pts.map((p, i) => `${i ? 'L' : 'M'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+  const area = `${line} L${pts[pts.length - 1].x.toFixed(1)},${H} L${pts[0].x.toFixed(1)},${H} Z`;
+  const skip = Math.ceil(daily.length / 7);
+  return (
+    <svg viewBox={`0 0 ${W + PL} ${H + PB}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
+      <defs>
+        <linearGradient id="ag" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.25" />
+          <stop offset="100%" stopColor="var(--accent)" stopOpacity="0.02" />
+        </linearGradient>
+      </defs>
+      {/* Y grid lines */}
+      {[0, 0.25, 0.5, 0.75, 1].map(t => (
+        <line key={t} x1={PL} y1={(H * (1 - t)).toFixed(1)} x2={W + PL} y2={(H * (1 - t)).toFixed(1)}
+          stroke="oklch(90% 0 0)" strokeWidth="0.5" />
+      ))}
+      <path d={area} fill="url(#ag)" />
+      <path d={line} fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+      {pts.map((p, i) => (
+        <g key={i}>
+          <circle cx={p.x} cy={p.y} r="3" fill="white" stroke="var(--accent)" strokeWidth="1.5" />
+          {i % skip === 0 && (
+            <text x={p.x} y={H + PB - 4} textAnchor="middle" fontSize="9" fill="oklch(55% 0 0)">
+              {new Date(p.day + 'T12:00:00').toLocaleDateString('en-NG', { month: 'short', day: 'numeric' })}
+            </text>
+          )}
+        </g>
+      ))}
+      {/* Y axis labels */}
+      <text x={PL - 4} y={H} textAnchor="end" fontSize="9" fill="oklch(55% 0 0)">0</text>
+      <text x={PL - 4} y="6"  textAnchor="end" fontSize="9" fill="oklch(55% 0 0)">{maxV}</text>
+    </svg>
+  );
+};
+
+// SVG Donut Chart
+const CHART_COLORS = ['oklch(55% 0.22 265)', 'oklch(58% 0.18 155)', 'oklch(60% 0.20 55)', 'oklch(52% 0.18 310)', 'oklch(55% 0.15 25)', 'oklch(50% 0.10 200)'];
+const DonutChart = ({ segments }) => {
+  if (!segments?.length) return null;
+  const total = segments.reduce((s, e) => s + e.value, 0) || 1;
+  const R = 38; const C = 2 * Math.PI * R;
+  let cum = 0;
+  const slices = segments.map((seg, i) => {
+    const arc = (seg.value / total) * C;
+    const slice = { ...seg, arc, offset: C / 4 - cum, color: CHART_COLORS[i % CHART_COLORS.length] };
+    cum += arc;
+    return slice;
+  });
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
+      <svg viewBox="0 0 100 100" style={{ width: 100, height: 100, flexShrink: 0 }}>
+        {slices.map((s, i) => (
+          <circle key={i} cx="50" cy="50" r={R} fill="none"
+            stroke={s.color} strokeWidth="18"
+            strokeDasharray={`${s.arc.toFixed(2)} ${(C - s.arc).toFixed(2)}`}
+            strokeDashoffset={s.offset.toFixed(2)} />
+        ))}
+        <circle cx="50" cy="50" r="25" fill="var(--bg)" />
+        <text x="50" y="54" textAnchor="middle" fontSize="10" fontWeight="700" fill="var(--text)">{total.toLocaleString()}</text>
+      </svg>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
+        {slices.map((s, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ width: 10, height: 10, borderRadius: 3, background: s.color, flexShrink: 0 }} />
+            <span style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', flex: 1, textTransform: 'capitalize' }}>{s.label.replace(/_/g, ' ')}</span>
+            <span style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>{s.value.toLocaleString()}</span>
+            <span style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--text-muted)', minWidth: 32, textAlign: 'right' }}>{Math.round((s.value / total) * 100)}%</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 const AnalyticsTab = () => {
   const { isMobile } = useResponsive();
-  const [data,      setData]      = React.useState(null);
-  const [loading,   setLoading]   = React.useState(true);
-  const [error,     setError]     = React.useState(null);
-  const [timeframe, setTimeframe] = React.useState('7days');
-  const [status,    setStatus]    = React.useState(null);
+  const [data,        setData]        = React.useState(null);
+  const [loading,     setLoading]     = React.useState(true);
+  const [error,       setError]       = React.useState(null);
+  const [timeframe,   setTimeframe]   = React.useState('7days');
+  const [status,      setStatus]      = React.useState(null);
+  const [refreshTick, setRefreshTick] = React.useState(0);
 
   React.useEffect(() => {
     setLoading(true); setError(null);
@@ -316,7 +401,7 @@ const AnalyticsTab = () => {
       .then(r => r.json())
       .then(d => { setData(d); setLoading(false); })
       .catch(() => { setError('Failed to load analytics'); setLoading(false); });
-  }, [timeframe]);
+  }, [timeframe, refreshTick]);
 
   React.useEffect(() => {
     const check = () => {
@@ -340,8 +425,9 @@ const AnalyticsTab = () => {
       <div style={{ height: '100%', width: `${max ? Math.round((value / max) * 100) : 0}%`, background: color, borderRadius: 4, transition: 'width 0.4s' }} />
     </div>
   );
-  const StatCard = ({ label, value, sub, color = 'var(--accent)' }) => (
+  const StatCard = ({ label, value, sub, color = 'var(--accent)', icon }) => (
     <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 14, padding: isMobile ? '16px 18px' : '20px 24px' }}>
+      {icon && <div style={{ fontSize: 20, marginBottom: 8 }}>{icon}</div>}
       <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 8 }}>{label}</div>
       <div style={{ fontFamily: 'var(--font-head)', fontSize: isMobile ? 28 : 34, fontWeight: 800, color, letterSpacing: '-0.02em', lineHeight: 1 }}>{value}</div>
       {sub && <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginTop: 6 }}>{sub}</div>}
@@ -369,24 +455,56 @@ const AnalyticsTab = () => {
   };
 
   const ov = data?.overview || {};
-  const dailyMax = Math.max(...(data?.daily || []).map(d => d.views), 1);
+  const locationLabel = (row) => {
+    if (row.city) return row.city;
+    if (row.region && row.country === 'NG') return NG_STATES_MAP[row.region] || row.region;
+    if (row.region) return row.region;
+    return row.country || 'Unknown';
+  };
+  const pageLabel = (p) => {
+    if (!p || p === '/') return '🏠 Home';
+    if (p.startsWith('/product/')) return `📱 ${decodeURIComponent(p.replace('/product/', ''))}`;
+    if (p.startsWith('/shop'))  return `🛍️ Shop${p.replace('/shop', '') || ''}`;
+    if (p === '/track')        return '📦 Track Order';
+    if (p === '/checkout')     return '💳 Checkout';
+    if (p === '/cart')         return '🛒 Cart';
+    if (p === '/how-it-works') return '❓ How It Works';
+    if (p === '/about')        return 'ℹ️ About';
+    if (p === '/faq')          return '💬 FAQ';
+    if (p === '/contact')      return '📩 Contact';
+    if (p === '/verify')       return '✅ Verify';
+    return p;
+  };
 
   return (
     <div>
+      {/* Header: title + timeframe + refresh */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
         <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: isMobile ? 18 : 22, color: 'var(--text)', margin: 0 }}>Analytics</h2>
-        <div style={{ display: 'flex', gap: 4, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, padding: 4 }}>
-          {TF_OPTS.map(o => (
-            <button key={o.key} onClick={() => setTimeframe(o.key)} style={{
-              padding: '6px 14px', borderRadius: 7, border: 'none', cursor: 'pointer',
-              background: timeframe === o.key ? 'var(--accent)' : 'transparent',
-              color: timeframe === o.key ? 'white' : 'var(--text-muted)',
-              fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, transition: 'all 0.15s',
-            }}>{o.label}</button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 4, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, padding: 4 }}>
+            {TF_OPTS.map(o => (
+              <button key={o.key} onClick={() => setTimeframe(o.key)} style={{
+                padding: '6px 14px', borderRadius: 7, border: 'none', cursor: 'pointer',
+                background: timeframe === o.key ? 'var(--accent)' : 'transparent',
+                color: timeframe === o.key ? 'white' : 'var(--text-muted)',
+                fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, transition: 'all 0.15s',
+              }}>{o.label}</button>
           ))}
+          </div>
+          <button onClick={() => setRefreshTick(t => t + 1)} disabled={loading} title="Refresh analytics" style={{
+            padding: '7px 14px', borderRadius: 9, border: '1px solid var(--border)', background: 'var(--bg)',
+            color: loading ? 'var(--text-muted)' : 'var(--text)', cursor: loading ? 'not-allowed' : 'pointer',
+            fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6,
+            transition: 'all 0.15s',
+          }}>
+            <span style={{ display: 'inline-block', animation: loading ? 'spin 1s linear infinite' : 'none' }}>↻</span>
+            {loading ? 'Loading…' : 'Refresh'}
+          </button>
         </div>
       </div>
 
+      {/* Server status banner */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24,
         padding: '10px 16px', borderRadius: 10,
@@ -409,40 +527,29 @@ const AnalyticsTab = () => {
 
       {!loading && !error && data && (
         <>
+          {/* Stat cards */}
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
-            <StatCard label="Page Views"      value={fmt(ov.pageviews)}        sub={`${fmt(ov.unique_sessions)} unique visitors`} />
-            <StatCard label="Product Views"   value={fmt(ov.product_views)}    sub="Products explored"   color="oklch(50% 0.18 250)" />
-            <StatCard label="Add to Cart"     value={fmt(ov.add_to_cart)}      sub="Items added"         color="oklch(45% 0.18 155)" />
-            <StatCard label="Checkout Starts" value={fmt(ov.checkout_starts)}  sub="Initiated checkout"  color="oklch(48% 0.18 55)"  />
-            <StatCard label="Total Events"    value={fmt(ov.total_events)}     sub="All tracked actions" color="var(--text-muted)"   />
-            <StatCard label="Unique Sessions" value={fmt(ov.unique_sessions)}  sub="Browser sessions"    color="oklch(48% 0.15 310)" />
+            <StatCard label="Page Views"      value={fmt(ov.pageviews)}       sub={`${fmt(ov.unique_sessions)} unique visitors`} icon="👁️" />
+            <StatCard label="Product Views"   value={fmt(ov.product_views)}   sub="Products explored"   color="oklch(50% 0.18 250)" icon="📱" />
+            <StatCard label="Add to Cart"     value={fmt(ov.add_to_cart)}     sub="Items added"         color="oklch(45% 0.18 155)" icon="🛒" />
+            <StatCard label="Checkout Starts" value={fmt(ov.checkout_starts)} sub="Initiated checkout"  color="oklch(48% 0.18 55)"  icon="💳" />
+            <StatCard label="Unique Sessions" value={fmt(ov.unique_sessions)} sub="Browser sessions"    color="oklch(48% 0.15 310)" icon="👤" />
+            <StatCard label="Total Events"    value={fmt(ov.total_events)}    sub="All tracked actions" color="var(--text-muted)"   icon="📊" />
           </div>
 
-          {data.daily?.length > 0 && (
-            <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 14, padding: isMobile ? 16 : 24, marginBottom: 20 }}>
-              <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 16 }}>Daily Views</div>
-              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 80 }}>
-                {data.daily.map(d => {
-                  const pct = dailyMax ? (d.views / dailyMax) : 0;
-                  const dt  = new Date(d.day + 'T00:00:00');
-                  return (
-                    <div key={d.day} title={`${d.day}: ${d.views} views, ${d.sessions} sessions`}
-                      style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                      <div style={{ width: '100%', height: Math.max(4, pct * 64), background: 'var(--accent)', borderRadius: '3px 3px 0 0', opacity: 0.85, transition: 'height 0.3s' }} />
-                      <div style={{ fontFamily: 'var(--font-body)', fontSize: 9, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                        {dt.toLocaleDateString('en-NG', { month: 'short', day: 'numeric' })}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+          {/* SVG Area Chart — Daily Views */}
+          <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 14, padding: isMobile ? 16 : 24, marginBottom: 20 }}>
+            <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 16 }}>
+              📈 Daily Page Views
             </div>
-          )}
+            <AreaChart daily={data.daily} />
+          </div>
 
+          {/* Top Pages + Top Products */}
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16, marginBottom: 20 }}>
             <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 14, padding: isMobile ? 16 : 20 }}>
-              <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 14 }}>Top Pages</div>
-              {data.topPages?.length === 0 && <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)' }}>No data yet</div>}
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 14 }}>🔝 Top Pages</div>
+              {!data.topPages?.length && <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)' }}>No data yet</div>}
               {data.topPages?.map((p, i) => {
                 const max = data.topPages[0]?.views || 1;
                 return (
@@ -457,9 +564,10 @@ const AnalyticsTab = () => {
                 );
               })}
             </div>
+
             <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 14, padding: isMobile ? 16 : 20 }}>
-              <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 14 }}>Top Products</div>
-              {data.topProducts?.length === 0 && <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)' }}>No data yet</div>}
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 14 }}>📱 Top Viewed Products</div>
+              {!data.topProducts?.length && <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)' }}>No data yet</div>}
               {data.topProducts?.map((p, i) => {
                 const max = data.topProducts[0]?.views || 1;
                 return (
@@ -476,36 +584,53 @@ const AnalyticsTab = () => {
             </div>
           </div>
 
-          <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 14, padding: isMobile ? 16 : 20, marginBottom: 20 }}>
-            <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 14 }}>Visitor Locations</div>
-            {data.locations?.length === 0 && <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)' }}>No location data yet — detected automatically from visitor IP on Vercel.</div>}
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: '6px 24px' }}>
-              {data.locations?.map((loc, i) => {
-                const max = data.locations[0]?.sessions || 1;
-                return (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text)', whiteSpace: 'nowrap', minWidth: 110 }}>
-                      {loc.country === 'NG' ? '🇳🇬 ' : loc.country ? '🌍 ' : ''}{locationLabel(loc)}
+          {/* Most Searched + Visitor Locations */}
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16, marginBottom: 20 }}>
+            <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 14, padding: isMobile ? 16 : 20 }}>
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 14 }}>🔍 Most Searched</div>
+              {!data.topSearches?.length
+                ? <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6 }}>No searches yet. Customers' shop searches are tracked automatically once they start using the search bar.</div>
+                : data.topSearches.map((s, i) => {
+                    const max = data.topSearches[0]?.count || 1;
+                    return (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                        <div style={{ width: 20, fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--text-muted)', textAlign: 'right', flexShrink: 0 }}>{i + 1}</div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: 3, textTransform: 'capitalize' }}>{s.query}</div>
+                          <MiniBar value={s.count} max={max} color="oklch(55% 0.18 55)" />
+                        </div>
+                        <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, color: 'var(--text)', flexShrink: 0 }}>{fmt(s.count)}</div>
+                      </div>
+                    );
+                  })
+              }
+            </div>
+
+            <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 14, padding: isMobile ? 16 : 20 }}>
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 14 }}>📍 Visitor Locations</div>
+              {!data.locations?.length && <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)' }}>No location data yet.</div>}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {data.locations?.map((loc, i) => {
+                  const max = data.locations[0]?.sessions || 1;
+                  return (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text)', whiteSpace: 'nowrap', minWidth: 100 }}>
+                        {loc.country === 'NG' ? '🇳🇬 ' : loc.country ? '🌍 ' : ''}{locationLabel(loc)}
+                      </div>
+                      <MiniBar value={loc.sessions} max={max} color="oklch(48% 0.15 310)" />
+                      <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, color: 'var(--text)', flexShrink: 0, minWidth: 24, textAlign: 'right' }}>{fmt(loc.sessions)}</div>
                     </div>
-                    <MiniBar value={loc.sessions} max={max} color="oklch(48% 0.15 310)" />
-                    <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, color: 'var(--text)', flexShrink: 0, minWidth: 28, textAlign: 'right' }}>{fmt(loc.sessions)}</div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           </div>
 
+          {/* Donut chart — Event breakdown */}
           {data.eventBreakdown?.length > 0 && (
-            <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 14, padding: isMobile ? 16 : 20 }}>
-              <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 14 }}>Event Breakdown</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-                {data.eventBreakdown.map(e => (
-                  <div key={e.event_type} style={{ background: 'var(--bg-alt)', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 16px', display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <span style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)' }}>{e.event_type.replace(/_/g, ' ')}</span>
-                    <span style={{ fontFamily: 'var(--font-head)', fontSize: 16, fontWeight: 700, color: 'var(--accent)' }}>{fmt(e.count)}</span>
-                  </div>
-                ))}
-              </div>
+            <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 14, padding: isMobile ? 16 : 24 }}>
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 16 }}>🍩 Event Breakdown</div>
+              <DonutChart segments={data.eventBreakdown.map(e => ({ label: e.event_type, value: e.count }))} />
             </div>
           )}
         </>
@@ -3128,6 +3253,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-alt)', paddingTop: 64 }}>
+      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
       {renderEditModal()}
       {renderPublishModal()}
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? '24px 16px 80px' : '40px 24px 80px' }}>

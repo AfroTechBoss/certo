@@ -165,6 +165,18 @@ const ShopPage = ({ navigate, addToCart, initialType }) => {
     return () => clearTimeout(t);
   }, [searchInput]);
 
+  // Track search queries for analytics (fires after debounce settles, min 2 chars)
+  React.useEffect(() => {
+    if (!search || search.trim().length < 2) return;
+    let sid = '';
+    try { sid = sessionStorage.getItem('certo_sid') || ''; } catch(_) {}
+    fetch('/api/analytics', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event_type: 'product_search', product_name: search.trim().toLowerCase(), page: '/shop', session_id: sid }),
+    }).catch(() => {});
+  }, [search]);
+
   // Close filter panel on outside click
   React.useEffect(() => {
     if (!filterOpen) return;
