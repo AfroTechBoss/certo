@@ -1,9 +1,9 @@
-
-// Certo — Internal Dashboard
+﻿
+// Certo â€” Internal Dashboard
 import React from 'react';
 import { CERTO_RATE, setCERTO_RATE, PRODUCTS, useResponsive } from '../../data.js';
 
-// Auth helper — reads the token from sessionStorage on every call so it never goes stale
+// Auth helper â€” reads the token from sessionStorage on every call so it never goes stale
 function authFetch(url, opts = {}) {
   let token = '';
   try { token = sessionStorage.getItem('certo_admin_token') || ''; } catch(e) {}
@@ -13,7 +13,7 @@ function authFetch(url, opts = {}) {
   });
 }
 
-// Fire-and-forget client-side event logger — records actions that happen purely in the browser
+// Fire-and-forget client-side event logger â€” records actions that happen purely in the browser
 function logEvent(action, details = '') {
   authFetch('/api/admin/event', {
     method: 'POST',
@@ -37,9 +37,9 @@ function normaliseDashProduct(p) {
     usdPrice,
     ngnPrice:      Math.round(usdPrice * rate),
     images:        (p.image_urls || []).map(u => u ? `/api/img?url=${encodeURIComponent(u.replace(/[&?]\.v=[^&]*/, ''))}` : null).filter(Boolean),
-    rawImages:     (p.image_urls || []),  // un-proxied originals — used for editing and saving
+    rawImages:     (p.image_urls || []),  // un-proxied originals â€” used for editing and saving
     badge:         p.badge || '',
-    deliveryDays:  p.delivery_days || '10–18 business days',
+    deliveryDays:  p.delivery_days || '10â€“18 business days',
     listingStatus,
     inStock:       listingStatus === 'live',
     featured:      p.featured,
@@ -62,7 +62,7 @@ function normaliseOrder(o) {
     email:    o.customer_email,
     phone:    o.customer_phone,
     address:  o.address + (o.state ? `, ${o.state}` : ''),
-    product:  o.product_name + (o.product_subtitle ? ` · ${o.product_subtitle}` : ''),
+    product:  o.product_name + (o.product_subtitle ? ` Â· ${o.product_subtitle}` : ''),
     product_id:    o.product_id,
     product_image: o.product_image_url,
     apple_url:     o.apple_url,
@@ -108,7 +108,7 @@ const statusColor = (s) => {
   return { bg: 'oklch(94% 0.03 250)', color: 'oklch(45% 0.12 250)' };
 };
 
-// Module-level style constants used by the edit modal — stable references prevent remounts
+// Module-level style constants used by the edit modal â€” stable references prevent remounts
 const MODAL_FLD = {
   padding: '9px 13px', borderRadius: 8, border: '1.5px solid var(--border)',
   background: 'var(--bg-alt)', fontFamily: 'var(--font-body)', fontSize: 13,
@@ -128,7 +128,7 @@ const ListEditor = ({ label, listKey, blank = '', editDraft, setListItem, addLis
           onFocus={modalFocus} onBlur={modalBlur}
           style={{ ...MODAL_FLD, flex: 1 }} />
         <button onClick={() => removeListItem(listKey, i)} aria-label="Remove"
-          style={{ padding: '0 10px', border: '1px solid var(--border)', borderRadius: 7, background: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 16, flexShrink: 0 }} aria-hidden="false">×</button>
+          style={{ padding: '0 10px', border: '1px solid var(--border)', borderRadius: 7, background: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 16, flexShrink: 0 }} aria-hidden="false">Ã—</button>
       </div>
     ))}
     <button onClick={() => addListItem(listKey, blank)}
@@ -155,7 +155,7 @@ const ConditionBadge = ({ condition }) => {
 
 const WHATSAPP_NUMBER = '2348057575906';
 
-// ── VariantsEditor — standalone so identity is stable across renders ──────────
+// â”€â”€ VariantsEditor â€” standalone so identity is stable across renders â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const BLANK_COLOR   = () => ({ id: 'c_' + Math.random().toString(36).slice(2, 9), name: '', hex: '#888888', images: [] });
 const BLANK_STORAGE = () => ({ id: 's_' + Math.random().toString(36).slice(2, 9), size: '', price_usd: 0, in_stock: true });
 
@@ -199,7 +199,7 @@ const VariantsEditor = ({ editDraft, setEditDraft, fld, lbl, focus, blur }) => {
         Define colors and storage sizes separately. Customers choose their preferred color (which shows that color's images) and their storage size (which sets the price). Leave both empty for products with no variants.
       </p>
 
-      {/* ── COLORS ── */}
+      {/* â”€â”€ COLORS â”€â”€ */}
       <div style={{ marginBottom: 28 }}>
         <SectionHead>Colors</SectionHead>
 
@@ -256,14 +256,14 @@ const VariantsEditor = ({ editDraft, setEditDraft, fld, lbl, focus, blur }) => {
         </div>
       </div>
 
-      {/* ── STORAGE SIZES ── */}
+      {/* â”€â”€ STORAGE SIZES â”€â”€ */}
       <div>
         <SectionHead>Storage sizes &amp; prices</SectionHead>
 
         {storages.map((s, i) => (
           <div key={s.id || i} style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 14, marginBottom: 10 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-              <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{s.size || 'Unnamed'} — ${s.price_usd}</span>
+              <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{s.size || 'Unnamed'} â€” ${s.price_usd}</span>
               <RemoveBtn onClick={() => removeStorage(i)} />
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
@@ -299,7 +299,7 @@ const VariantsEditor = ({ editDraft, setEditDraft, fld, lbl, focus, blur }) => {
   );
 };
 
-// ── AnalyticsTab — must live at module level so React hooks work correctly ─────
+// â”€â”€ AnalyticsTab â€” must live at module level so React hooks work correctly â”€â”€â”€â”€â”€
 const NG_STATES_MAP = { LA:'Lagos', FC:'Abuja (FCT)', KN:'Kano', RV:'Rivers', OY:'Oyo', AN:'Anambra', IM:'Imo', KD:'Kaduna', OG:'Ogun', ON:'Ondo', OS:'Osun', EK:'Ekiti', ED:'Edo', DE:'Delta', AK:'Akwa Ibom', KW:'Kwara', PL:'Plateau', BO:'Borno', SO:'Sokoto', ZA:'Zamfara', KE:'Kebbi', NU:'Niger', KO:'Kogi', BE:'Benue', NI:'Nassarawa', GB:'Gombe', AD:'Adamawa', BA:'Bauchi', YO:'Yobe', TY:'Taraba', JI:'Jigawa', KT:'Katsina', EB:'Ebonyi', EN:'Enugu', AB:'Abia', CR:'Cross River', BY:'Bayelsa' };
 
 // SVG Area Chart
@@ -440,17 +440,17 @@ const AnalyticsTab = () => {
     return row.country || 'Unknown';
   };
   const pageLabel = (p) => {
-    if (!p || p === '/') return '🏠 Home';
-    if (p.startsWith('/product/')) return `📱 ${decodeURIComponent(p.replace('/product/', ''))}`;
-    if (p.startsWith('/shop'))    return `🛍️ Shop${p.replace('/shop', '') || ''}`;
-    if (p === '/track')     return '📦 Track Order';
-    if (p === '/checkout')  return '💳 Checkout';
-    if (p === '/cart')      return '🛒 Cart';
-    if (p === '/how-it-works') return '❓ How It Works';
-    if (p === '/about')     return 'ℹ️ About';
-    if (p === '/faq')       return '💬 FAQ';
-    if (p === '/contact')   return '📩 Contact';
-    if (p === '/verify')    return '✅ Verify';
+    if (!p || p === '/') return 'ðŸ  Home';
+    if (p.startsWith('/product/')) return `ðŸ“± ${decodeURIComponent(p.replace('/product/', ''))}`;
+    if (p.startsWith('/shop'))    return `ðŸ›ï¸ Shop${p.replace('/shop', '') || ''}`;
+    if (p === '/track')     return 'ðŸ“¦ Track Order';
+    if (p === '/checkout')  return 'ðŸ’³ Checkout';
+    if (p === '/cart')      return 'ðŸ›’ Cart';
+    if (p === '/how-it-works') return 'â“ How It Works';
+    if (p === '/about')     return 'â„¹ï¸ About';
+    if (p === '/faq')       return 'ðŸ’¬ FAQ';
+    if (p === '/contact')   return 'ðŸ“© Contact';
+    if (p === '/verify')    return 'âœ… Verify';
     return p;
   };
 
@@ -478,8 +478,8 @@ const AnalyticsTab = () => {
             fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6,
             transition: 'all 0.15s',
           }}>
-            <span style={{ display: 'inline-block', animation: loading ? 'spin 1s linear infinite' : 'none' }}>↻</span>
-            {loading ? 'Loading…' : 'Refresh'}
+            <span style={{ display: 'inline-block', animation: loading ? 'spin 1s linear infinite' : 'none' }}>â†»</span>
+            {loading ? 'Loadingâ€¦' : 'Refresh'}
           </button>
         </div>
       </div>
@@ -491,9 +491,9 @@ const AnalyticsTab = () => {
         background: status?.online ? 'oklch(93% 0.06 155)' : status ? 'oklch(94% 0.02 0)' : 'var(--bg-alt)',
         border: `1px solid ${status?.online ? 'oklch(80% 0.1 155)' : status ? 'oklch(80% 0.06 0)' : 'var(--border)'}`,
       }}>
-        <span style={{ fontSize: 16 }}>{status ? (status.online ? '🟢' : '🔴') : '⚪'}</span>
+        <span style={{ fontSize: 16 }}>{status ? (status.online ? 'ðŸŸ¢' : 'ðŸ”´') : 'âšª'}</span>
         <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, color: status?.online ? 'oklch(35% 0.15 155)' : status ? 'oklch(40% 0.12 0)' : 'var(--text-muted)' }}>
-          {!status ? 'Checking server…' : status.online ? `Server Online — ${status.latency}ms response time` : 'Server Offline'}
+          {!status ? 'Checking serverâ€¦' : status.online ? `Server Online â€” ${status.latency}ms response time` : 'Server Offline'}
         </span>
         {status?.checked && (
           <span style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--text-muted)', marginLeft: 'auto' }}>
@@ -502,25 +502,25 @@ const AnalyticsTab = () => {
         )}
       </div>
 
-      {loading && <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-muted)', fontFamily: 'var(--font-body)' }}>Loading analytics…</div>}
+      {loading && <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-muted)', fontFamily: 'var(--font-body)' }}>Loading analyticsâ€¦</div>}
       {error   && <div style={{ textAlign: 'center', padding: 60, color: 'oklch(50% 0.18 25)', fontFamily: 'var(--font-body)' }}>{error}</div>}
 
       {!loading && !error && data && (
         <>
           {/* Stat cards */}
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
-            <StatCard label="Page Views"      value={fmt(ov.pageviews)}       sub={`${fmt(ov.unique_sessions)} unique visitors`} icon="👁️" />
-            <StatCard label="Product Views"   value={fmt(ov.product_views)}   sub="Products explored"   color="oklch(50% 0.18 250)" icon="📱" />
-            <StatCard label="Add to Cart"     value={fmt(ov.add_to_cart)}     sub="Items added"         color="oklch(45% 0.18 155)" icon="🛒" />
-            <StatCard label="Checkout Starts" value={fmt(ov.checkout_starts)} sub="Initiated checkout"  color="oklch(48% 0.18 55)"  icon="💳" />
-            <StatCard label="Unique Sessions" value={fmt(ov.unique_sessions)} sub="Browser sessions"    color="oklch(48% 0.15 310)" icon="👤" />
-            <StatCard label="Total Events"    value={fmt(ov.total_events)}    sub="All tracked actions" color="var(--text-muted)"   icon="📊" />
+            <StatCard label="Page Views"      value={fmt(ov.pageviews)}       sub={`${fmt(ov.unique_sessions)} unique visitors`} icon="ðŸ‘ï¸" />
+            <StatCard label="Product Views"   value={fmt(ov.product_views)}   sub="Products explored"   color="oklch(50% 0.18 250)" icon="ðŸ“±" />
+            <StatCard label="Add to Cart"     value={fmt(ov.add_to_cart)}     sub="Items added"         color="oklch(45% 0.18 155)" icon="ðŸ›’" />
+            <StatCard label="Checkout Starts" value={fmt(ov.checkout_starts)} sub="Initiated checkout"  color="oklch(48% 0.18 55)"  icon="ðŸ’³" />
+            <StatCard label="Unique Sessions" value={fmt(ov.unique_sessions)} sub="Browser sessions"    color="oklch(48% 0.15 310)" icon="ðŸ‘¤" />
+            <StatCard label="Total Events"    value={fmt(ov.total_events)}    sub="All tracked actions" color="var(--text-muted)"   icon="ðŸ“Š" />
           </div>
 
-          {/* SVG Area Chart — Daily Views */}
+          {/* SVG Area Chart â€” Daily Views */}
           <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 14, padding: isMobile ? 16 : 24, marginBottom: 20 }}>
             <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 16 }}>
-              📈 Daily Page Views
+              ðŸ“ˆ Daily Page Views
             </div>
             <AreaChart daily={data.daily} />
           </div>
@@ -528,7 +528,7 @@ const AnalyticsTab = () => {
           {/* Top Pages + Top Products */}
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16, marginBottom: 20 }}>
             <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 14, padding: isMobile ? 16 : 20 }}>
-              <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 14 }}>🔝 Top Pages</div>
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 14 }}>ðŸ” Top Pages</div>
               {!data.topPages?.length && <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)' }}>No data yet</div>}
               {data.topPages?.map((p, i) => {
                 const max = data.topPages[0]?.views || 1;
@@ -546,7 +546,7 @@ const AnalyticsTab = () => {
             </div>
 
             <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 14, padding: isMobile ? 16 : 20 }}>
-              <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 14 }}>📱 Top Viewed Products</div>
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 14 }}>ðŸ“± Top Viewed Products</div>
               {!data.topProducts?.length && <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)' }}>No data yet</div>}
               {data.topProducts?.map((p, i) => {
                 const max = data.topProducts[0]?.views || 1;
@@ -567,7 +567,7 @@ const AnalyticsTab = () => {
           {/* Most Searched + Visitor Locations */}
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16, marginBottom: 20 }}>
             <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 14, padding: isMobile ? 16 : 20 }}>
-              <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 14 }}>🔍 Most Searched</div>
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 14 }}>ðŸ” Most Searched</div>
               {!data.topSearches?.length
                 ? <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6 }}>No searches yet. Customers' shop searches are tracked automatically once they start using the search bar.</div>
                 : data.topSearches.map((s, i) => {
@@ -587,7 +587,7 @@ const AnalyticsTab = () => {
             </div>
 
             <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 14, padding: isMobile ? 16 : 20 }}>
-              <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 14 }}>📍 Visitor Locations</div>
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 14 }}>ðŸ“ Visitor Locations</div>
               {!data.locations?.length && <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)' }}>No location data yet.</div>}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {data.locations?.map((loc, i) => {
@@ -595,7 +595,7 @@ const AnalyticsTab = () => {
                   return (
                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text)', whiteSpace: 'nowrap', minWidth: 100 }}>
-                        {loc.country === 'NG' ? '🇳🇬 ' : loc.country ? '🌍 ' : ''}{locationLabel(loc)}
+                        {loc.country === 'NG' ? 'ðŸ‡³ðŸ‡¬ ' : loc.country ? 'ðŸŒ ' : ''}{locationLabel(loc)}
                       </div>
                       <MiniBar value={loc.sessions} max={max} color="oklch(48% 0.15 310)" />
                       <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, color: 'var(--text)', flexShrink: 0, minWidth: 24, textAlign: 'right' }}>{fmt(loc.sessions)}</div>
@@ -606,10 +606,10 @@ const AnalyticsTab = () => {
             </div>
           </div>
 
-          {/* Donut chart — Event breakdown */}
+          {/* Donut chart â€” Event breakdown */}
           {data.eventBreakdown?.length > 0 && (
             <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 14, padding: isMobile ? 16 : 24 }}>
-              <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 16 }}>🍩 Event Breakdown</div>
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 16 }}>ðŸ© Event Breakdown</div>
               <DonutChart segments={data.eventBreakdown.map(e => ({ label: e.event_type, value: e.count }))} />
             </div>
           )}
@@ -618,12 +618,12 @@ const AnalyticsTab = () => {
     </div>
   );
 };
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
   const { isMobile } = useResponsive();
 
-  // ── Auth gate ──────────────────────────────────────────────────────────────
+  // â”€â”€ Auth gate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [adminToken,    setAdminToken]    = React.useState(() => {
     try { return sessionStorage.getItem('certo_admin_token') || ''; } catch(e) { return ''; }
   });
@@ -646,7 +646,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
         body: JSON.stringify({ password: loginPwd }),
       });
       let d;
-      try { d = await r.json(); } catch { throw new Error('Server error — could not connect. Please try again.'); }
+      try { d = await r.json(); } catch { throw new Error('Server error â€” could not connect. Please try again.'); }
       if (!r.ok) throw new Error(d.error || 'Login failed');
       try {
         sessionStorage.setItem('certo_admin_token', d.token);
@@ -655,7 +655,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
       setAdminToken(d.token);
       setAdminName(d.name || '');
       setLoginPwd('');
-      // Immediately load all dashboard data — token is in sessionStorage so authFetch works now
+      // Immediately load all dashboard data â€” token is in sessionStorage so authFetch works now
       fetchOrders();
       fetchProducts();
       fetchMessages();
@@ -678,7 +678,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
     setAdminName('');
   };
 
-  // ── Login screen JSX (rendered at the bottom after all hooks — see rules-of-hooks note) ──
+  // â”€â”€ Login screen JSX (rendered at the bottom after all hooks â€” see rules-of-hooks note) â”€â”€
 
   const [activeTab,    setActiveTab]    = React.useState(subPage);
   const [forexRate,    setForexRate]    = React.useState(liveRate || CERTO_RATE);
@@ -710,7 +710,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
       .catch(() => {});
   }, []);
 
-  // Orders — API-driven
+  // Orders â€” API-driven
   const [orders,          setOrders]          = React.useState([]);
   const [ordersLoading,   setOrdersLoading]   = React.useState(true);
   const [selectedOrder,   setSelectedOrder]   = React.useState(null);
@@ -757,7 +757,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
 
   React.useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
-  // Orders — filter + search state
+  // Orders â€” filter + search state
   const [orderSearch,          setOrderSearch]          = React.useState('');
   const [orderStatusFilter,    setOrderStatusFilter]     = React.useState('all');
   const [orderFlaggedOnly,     setOrderFlaggedOnly]      = React.useState(false);
@@ -816,13 +816,15 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
 
   React.useEffect(() => { fetchCertificates(); }, [fetchCertificates]);
 
-  // ── Tab-local state lifted here so hook count is stable across renders ────────
+  // â”€â”€ Tab-local state lifted here so hook count is stable across renders â”€â”€â”€â”€â”€â”€â”€â”€
   // MessagesTab selected message
   const [selectedMessage, setSelectedMessage] = React.useState(null);
   // ActivityTab clear-log confirm dialog
   const [clearConfirm, setClearConfirm] = React.useState(false);
   const [clearing,     setClearing]     = React.useState(false);
-  // ─────────────────────────────────────────────────────────────────────────────
+  // Mobile "More" sheet toggle
+  const [showMore,     setShowMore]     = React.useState(false);
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   // Certificates
   const [certificates,  setCertificates]  = React.useState([]);
@@ -1011,7 +1013,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
       fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600,
       color: 'var(--text-muted)', cursor: loading ? 'default' : 'pointer',
       opacity: loading ? 0.55 : 1, flexShrink: 0, whiteSpace: 'nowrap',
-    }}>{loading ? '↻ …' : '↻ Refresh'}</button>
+    }}>{loading ? 'â†» â€¦' : 'â†» Refresh'}</button>
   );
 
   const OrdersTab = () => (
@@ -1024,14 +1026,14 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
         <StatCard label="Active Orders"   value={active}         accent="var(--accent)" />
         <StatCard label="Delivered"       value={delivered}      accent="oklch(45% 0.15 155)" />
         <StatCard label="Awaiting Payment" value={pendingPayment} accent="oklch(42% 0.18 55)"
-          sub={pendingPayment > 0 ? 'Crypto — payment not confirmed' : 'None outstanding'} />
+          sub={pendingPayment > 0 ? 'Crypto â€” payment not confirmed' : 'None outstanding'} />
         <StatCard label="Flagged"         value={orders.filter(o => o.flag).length} accent="oklch(50% 0.18 25)" />
       </div>
 
       {selectedOrder ? (
         <div>
           <button onClick={() => { setSelectedOrder(null); setFlagReason(''); setEditingFlagReason(false); setEditFlagReasonText(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--accent)', marginBottom: 20, padding: 0 }}>
-            ← Back to orders
+            â† Back to orders
           </button>
           <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 20, padding: isMobile ? 20 : 32 }}>
             {/* Header row */}
@@ -1039,7 +1041,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
               <div>
                 <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>ORDER</div>
                 <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 24, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                  {selectedOrder.flag && <span style={{ fontSize: 18 }} title={selectedOrder.flag_reason}>🚩</span>}
+                  {selectedOrder.flag && <span style={{ fontSize: 18 }} title={selectedOrder.flag_reason}>ðŸš©</span>}
                   {selectedOrder.id}
                 </div>
               </div>
@@ -1057,24 +1059,24 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
                 { label: 'Phone',      value: selectedOrder.phone    },
                 { label: 'Order Date', value: selectedOrder.date     },
                 { label: 'USD Total',  value: `$${Number(selectedOrder.usd).toLocaleString()}` },
-                { label: 'NGN Total',  value: `₦${Number(selectedOrder.ngn).toLocaleString()}` },
+                { label: 'NGN Total',  value: `â‚¦${Number(selectedOrder.ngn).toLocaleString()}` },
                 { label: 'Status',     value: selectedOrder.status          },
                 { label: 'Payment Via', value: selectedOrder.payment_method || 'Flutterwave' },
                 { label: 'Address',    value: selectedOrder.address  },
               ].map(f => (
                 <div key={f.label}>
                   <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>{f.label}</div>
-                  <div style={{ fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 600, color: 'var(--text)', wordBreak: 'break-all' }}>{f.value || '—'}</div>
+                  <div style={{ fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 600, color: 'var(--text)', wordBreak: 'break-all' }}>{f.value || 'â€”'}</div>
                 </div>
               ))}
             </div>
 
-            {/* Legacy fallback — only shown for old orders that pre-date the items JSONB column */}
+            {/* Legacy fallback â€” only shown for old orders that pre-date the items JSONB column */}
             {(!selectedOrder.items || selectedOrder.items.length === 0) && (
               <div style={{ marginBottom: 20, padding: '16px', background: 'var(--bg-alt)', borderRadius: 12, border: '1px solid var(--border)' }}>
                 <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>Product</div>
                 <div style={{ fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
-                  {selectedOrder.product || '—'}
+                  {selectedOrder.product || 'â€”'}
                 </div>
                 {(selectedOrder.variant_color || selectedOrder.variant_storage) && (
                   <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
@@ -1095,13 +1097,13 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
                   {selectedOrder.apple_url && (
                     <a href={selectedOrder.apple_url} target="_blank" rel="noreferrer"
                       style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap' }}>
-                      🍎 Apple Page
+                      ðŸŽ Apple Page
                     </a>
                   )}
                   {selectedOrder.product_id && (
                     <button onClick={() => navigate('product', selectedOrder.product_id)}
                       style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                      🔗 Certo Page
+                      ðŸ”— Certo Page
                     </button>
                   )}
                 </div>
@@ -1117,7 +1119,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
                     const lineCount  = selectedOrder.items.length;
                     return totalUnits === lineCount
                       ? `Order Items (${lineCount})`
-                      : `Order Items (${lineCount} line${lineCount !== 1 ? 's' : ''} · ${totalUnits} units)`;
+                      : `Order Items (${lineCount} line${lineCount !== 1 ? 's' : ''} Â· ${totalUnits} units)`;
                   })()}
                 </div>
                 {selectedOrder.items.map((item, i) => {
@@ -1129,7 +1131,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
-                            {qty > 1 && <span style={{ display: 'inline-block', background: 'var(--border)', borderRadius: 4, padding: '1px 6px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginRight: 6 }}>{qty}×</span>}
+                            {qty > 1 && <span style={{ display: 'inline-block', background: 'var(--border)', borderRadius: 4, padding: '1px 6px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginRight: 6 }}>{qty}Ã—</span>}
                             {item.name}
                           </div>
                           {item.subtitle && <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginTop: 1 }}>{item.subtitle}</div>}
@@ -1157,25 +1159,25 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
                             ${lineTotal.toLocaleString()}
                           </div>
                           {qty > 1 && (
-                            <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--text-muted)' }}>{qty} × ${Number(item.usd_price).toLocaleString()}</div>
+                            <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--text-muted)' }}>{qty} Ã— ${Number(item.usd_price).toLocaleString()}</div>
                           )}
                         </div>
                       </div>
-                      {/* Link buttons — always shown; fall back to Apple search if no direct URL */}
+                      {/* Link buttons â€” always shown; fall back to Apple search if no direct URL */}
                       <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
                         <a
                           href={item.apple_url || `https://www.apple.com/search/${encodeURIComponent((item.name || '') + ' ' + (item.subtitle || ''))}`}
                           target="_blank" rel="noreferrer"
                           style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap' }}
                         >
-                          🍎 {item.apple_url ? 'Apple Page' : 'Search Apple'}
+                          ðŸŽ {item.apple_url ? 'Apple Page' : 'Search Apple'}
                         </a>
                         {item.product_id && (
                           <button
                             onClick={() => navigate('product', item.product_id)}
                             style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
                           >
-                            🔗 Certo Page
+                            ðŸ”— Certo Page
                           </button>
                         )}
                       </div>
@@ -1189,12 +1191,12 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
             {selectedOrder.status === 'Payment Pending' && (
               <div style={{ padding: '14px 18px', borderRadius: 12, background: 'oklch(95% 0.08 70)', border: '1.5px solid oklch(75% 0.15 60)', marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
                 <div>
-                  <div style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 14, color: 'oklch(38% 0.18 55)', marginBottom: 2 }}>⏳ Awaiting payment</div>
+                  <div style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 14, color: 'oklch(38% 0.18 55)', marginBottom: 2 }}>â³ Awaiting payment</div>
                   <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'oklch(45% 0.15 55)' }}>Payment has not been confirmed yet. Once you've verified the payment, click Mark as Paid to confirm the order and notify the customer.</div>
                 </div>
                 <button onClick={() => updateStatus(selectedOrder.id, 'Order Confirmed')}
                   style={{ padding: '10px 20px', borderRadius: 10, border: 'none', background: 'oklch(42% 0.18 55)', color: 'white', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
-                  ✓ Mark as Paid
+                  âœ“ Mark as Paid
                 </button>
               </div>
             )}
@@ -1204,7 +1206,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
               {selectedOrder.phone && (
                 <a href={`https://wa.me/${selectedOrder.phone.replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer"
                   style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 18px', borderRadius: 10, background: 'oklch(93% 0.08 145)', border: '1px solid oklch(80% 0.12 145)', color: 'oklch(35% 0.15 145)', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 700, textDecoration: 'none', cursor: 'pointer' }}>
-                  💬 WhatsApp Customer
+                  ðŸ’¬ WhatsApp Customer
                 </a>
               )}
               {(() => {
@@ -1221,17 +1223,17 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
                       background: isOk ? 'oklch(93% 0.06 145)' : isError ? 'oklch(96% 0.07 25)' : 'var(--bg)',
                       color: isOk ? 'oklch(35% 0.15 145)' : isError ? 'oklch(45% 0.18 25)' : 'var(--text-muted)',
                       fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, cursor: isLoading ? 'default' : 'pointer' }}>
-                    {isLoading ? '⏳ Sending…' : isOk ? '✓ Email sent!' : isError ? `✗ ${rs.slice(6)}` : '✉ Resend Confirmation Email'}
+                    {isLoading ? 'â³ Sendingâ€¦' : isOk ? 'âœ“ Email sent!' : isError ? `âœ— ${rs.slice(6)}` : 'âœ‰ Resend Confirmation Email'}
                   </button>
                 );
               })()}
               <button onClick={() => toggleFlag(selectedOrder.id, selectedOrder.flag)}
                 style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 18px', borderRadius: 10, border: '1px solid var(--border)', background: selectedOrder.flag ? 'oklch(96% 0.07 25)' : 'var(--bg)', color: selectedOrder.flag ? 'oklch(45% 0.18 25)' : 'var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-                🚩 {selectedOrder.flag ? 'Unflag Order' : 'Flag Order'}
+                ðŸš© {selectedOrder.flag ? 'Unflag Order' : 'Flag Order'}
               </button>
             </div>
 
-            {/* ── Certificates section ───────────────────────────────── */}
+            {/* â”€â”€ Certificates section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
             {(() => {
               const orderCerts = certificates.filter(c => c.order_id === selectedOrder.id);
               const productList = selectedOrder.items && selectedOrder.items.length > 0
@@ -1248,16 +1250,16 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
                     return (
                       <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', padding: '8px 0', borderBottom: idx < productList.length - 1 ? '1px solid var(--border)' : 'none' }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}{subtitle ? ` · ${subtitle}` : ''}</div>
+                          <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}{subtitle ? ` Â· ${subtitle}` : ''}</div>
                           <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap', alignItems: 'center' }}>
                             {isPublished && (
                               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 10px', borderRadius: 20, background: 'oklch(93% 0.06 155)', color: 'oklch(35% 0.15 155)', fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700 }}>
-                                ✓ Published
+                                âœ“ Published
                               </span>
                             )}
                             {isDraft && (
                               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 10px', borderRadius: 20, background: 'oklch(95% 0.08 70)', color: 'oklch(42% 0.18 55)', fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700 }}>
-                                ⏳ Pending / Draft
+                                â³ Pending / Draft
                               </span>
                             )}
                             {cert && <span style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--text-muted)' }}>{cert.id}</span>}
@@ -1276,7 +1278,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
                               setPublishError('');
                             }}
                             style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, border: '1.5px solid var(--accent)', background: 'var(--accent-tint)', color: 'var(--accent)', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
-                            {isDraft ? '✏ Edit / Publish' : '＋ Publish Certificate'}
+                            {isDraft ? 'âœ Edit / Publish' : 'ï¼‹ Publish Certificate'}
                           </button>
                         )}
                         {isPublished && (
@@ -1284,7 +1286,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
                             href={`/verify/${selectedOrder.id}`}
                             target="_blank" rel="noreferrer"
                             style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '8px 16px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, textDecoration: 'none', flexShrink: 0 }}>
-                            View →
+                            View â†’
                           </a>
                         )}
                       </div>
@@ -1294,9 +1296,9 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
               );
             })()}
 
-            {/* ── Flag section ─────────────────────────────────────────── */}
+            {/* â”€â”€ Flag section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
             {!selectedOrder.flag ? (
-              /* Not yet flagged — show reason textarea above the Flag button */
+              /* Not yet flagged â€” show reason textarea above the Flag button */
               <div style={{ marginBottom: 4, padding: '16px', background: 'var(--bg-alt)', borderRadius: 12, border: '1px solid var(--border)' }}>
                 <label style={{ display: 'block', fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
                   Reason for flagging
@@ -1304,7 +1306,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
                 <textarea
                   value={flagReason}
                   onChange={e => setFlagReason(e.target.value)}
-                  placeholder="e.g. Can't reach customer · Suspicious payment · Wrong address confirmed · Hold pending investigation…"
+                  placeholder="e.g. Can't reach customer Â· Suspicious payment Â· Wrong address confirmed Â· Hold pending investigationâ€¦"
                   rows={3}
                   style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg)', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text)', outline: 'none', resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.6 }}
                   onFocus={e => e.target.style.borderColor = 'oklch(65% 0.18 25)'}
@@ -1315,11 +1317,11 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
                 </p>
               </div>
             ) : (
-              /* Already flagged — show reason card with edit capability */
+              /* Already flagged â€” show reason card with edit capability */
               <div style={{ marginBottom: 16, padding: '16px', background: 'oklch(97% 0.03 25)', border: '1.5px solid oklch(85% 0.1 25)', borderRadius: 12 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: editingFlagReason ? 10 : 0 }}>
                   <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700, color: 'oklch(45% 0.18 25)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                    🚩 Flag reason
+                    ðŸš© Flag reason
                   </div>
                   {!editingFlagReason && (
                     <button
@@ -1353,7 +1355,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
                   </div>
                 ) : (
                   <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'oklch(35% 0.15 25)', lineHeight: 1.65, marginTop: 6, whiteSpace: 'pre-wrap' }}>
-                    {selectedOrder.flag_reason || <span style={{ opacity: 0.5, fontStyle: 'italic' }}>No reason given — click Edit to add one.</span>}
+                    {selectedOrder.flag_reason || <span style={{ opacity: 0.5, fontStyle: 'italic' }}>No reason given â€” click Edit to add one.</span>}
                   </div>
                 )}
               </div>
@@ -1367,10 +1369,10 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
 
             {/* Search */}
             <div style={{ position: 'relative', flex: '1 1 220px', minWidth: 0 }}>
-              <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontSize: 14, pointerEvents: 'none' }}>🔍</span>
+              <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontSize: 14, pointerEvents: 'none' }}>ðŸ”</span>
               <input
                 type="text"
-                placeholder="Search by order ID, customer, phone, address, product…"
+                placeholder="Search by order ID, customer, phone, address, productâ€¦"
                 value={orderSearch}
                 onChange={e => setOrderSearch(e.target.value)}
                 style={{ ...inputStyle, paddingLeft: 32, width: '100%', boxSizing: 'border-box' }}
@@ -1412,7 +1414,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
                 cursor: 'pointer',
               }}
             >
-              ⏳ Awaiting payment
+              â³ Awaiting payment
               {pendingPayment > 0 && (
                 <span style={{ marginLeft: 6, background: 'oklch(42% 0.18 55)', color: 'white', borderRadius: 10, padding: '1px 6px', fontSize: 11, fontWeight: 700 }}>{pendingPayment}</span>
               )}
@@ -1430,7 +1432,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
                 cursor: 'pointer',
               }}
             >
-              🚩 Flagged only
+              ðŸš© Flagged only
             </button>
 
             {/* Clear filters */}
@@ -1457,7 +1459,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
             </thead>
             <tbody>
               {ordersLoading ? (
-                <tr><td colSpan={8} style={{ padding: '40px 20px', textAlign: 'center', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)' }}>Loading orders…</td></tr>
+                <tr><td colSpan={8} style={{ padding: '40px 20px', textAlign: 'center', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)' }}>Loading ordersâ€¦</td></tr>
               ) : filteredOrders.length === 0 ? (
                 <tr>
                   <td colSpan={8} style={{ padding: '40px 20px', textAlign: 'center', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)' }}>
@@ -1470,17 +1472,17 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
                   <tr key={o.id} style={{ borderTop: '1px solid var(--border)', cursor: 'pointer' }}
                     onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-alt)'}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                    onClick={() => { setSelectedOrder(o); logEvent('Opened order', `${o.id} — ${o.customer} — ${o.product} — ${o.status}`); }}>
+                    onClick={() => { setSelectedOrder(o); logEvent('Opened order', `${o.id} â€” ${o.customer} â€” ${o.product} â€” ${o.status}`); }}>
                     <td style={{ padding: '14px 20px', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 700, color: 'var(--accent)' }}>
-                      {o.status === 'Payment Pending' && <span style={{ marginRight: 6 }} title="Awaiting payment">⏳</span>}
-                      {o.flag && <span style={{ marginRight: 6 }}>🚩</span>}{o.id}
+                      {o.status === 'Payment Pending' && <span style={{ marginRight: 6 }} title="Awaiting payment">â³</span>}
+                      {o.flag && <span style={{ marginRight: 6 }}>ðŸš©</span>}{o.id}
                     </td>
                     <td style={{ padding: '14px 20px' }}>
                       <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text)', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6 }}>
                         {o.customer}
                         {o.phone && (
                           <a href={`https://wa.me/${o.phone.replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
-                            style={{ fontSize: 14, textDecoration: 'none', lineHeight: 1 }} title="WhatsApp">💬</a>
+                            style={{ fontSize: 14, textDecoration: 'none', lineHeight: 1 }} title="WhatsApp">ðŸ’¬</a>
                         )}
                       </div>
                       <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)' }}>{o.phone}</div>
@@ -1505,10 +1507,10 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
                         return <span style={{ padding: '4px 10px', borderRadius: 6, background: pmStyle.bg, color: pmStyle.color, fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}>{pm}</span>;
                       })()}
                     </td>
-                    <td style={{ padding: '14px 20px', fontFamily: 'var(--font-head)', fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>₦{o.ngn.toLocaleString()}</td>
+                    <td style={{ padding: '14px 20px', fontFamily: 'var(--font-head)', fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>â‚¦{o.ngn.toLocaleString()}</td>
                     <td style={{ padding: '14px 20px', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{o.date}</td>
                     <td style={{ padding: '14px 20px' }}>
-                      <span style={{ color: 'var(--accent)', fontSize: 16 }}>→</span>
+                      <span style={{ color: 'var(--accent)', fontSize: 16 }}>â†’</span>
                     </td>
                   </tr>
                 );
@@ -1532,7 +1534,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
       id: 'product-' + Date.now(),
       name: 'New Product', subtitle: '', type: 'iPhone',
       condition: 'new', conditionNote: '',
-      usdPrice: 0, images: [], rawImages: [], badge: '', deliveryDays: '10–18 business days',
+      usdPrice: 0, images: [], rawImages: [], badge: '', deliveryDays: '10â€“18 business days',
       listingStatus: 'live', inStock: true, featured: false,
       overview: [], specs: [], includes: [], features: [], techSpecs: [],
       stock: 0, ngnPrice: 0, variants: { colors: [], storages: [] },
@@ -1582,7 +1584,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
         }),
       }).catch(err => console.error('Failed to save product:', err));
     } else {
-      // New product — POST to API to persist in DB
+      // New product â€” POST to API to persist in DB
       setProducts(prev => [...prev, updated]); // optimistic
       authFetch('/api/products', {
         method: 'POST',
@@ -1667,10 +1669,10 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
               <div>
                 <label style={lbl}>Listing status</label>
                 <select style={{ ...fld, cursor: 'pointer' }} value={editDraft.listingStatus || 'live'} onChange={e => { setDF('listingStatus', e.target.value); setDF('inStock', e.target.value === 'live'); }}>
-                  <option value="live">🟢 Live (on sale)</option>
-                  <option value="out_of_stock">🔴 Out of Stock</option>
-                  <option value="coming_soon">🟡 Coming Soon</option>
-                  <option value="hidden">⚫ Hidden (admin only)</option>
+                  <option value="live">ðŸŸ¢ Live (on sale)</option>
+                  <option value="out_of_stock">ðŸ”´ Out of Stock</option>
+                  <option value="coming_soon">ðŸŸ¡ Coming Soon</option>
+                  <option value="hidden">âš« Hidden (admin only)</option>
                 </select>
               </div>
             </div>
@@ -1679,7 +1681,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
               <div><label style={lbl}>Delivery estimate</label><input style={fld} value={editDraft.deliveryDays || ''} onChange={e => setDF('deliveryDays', e.target.value)} onFocus={focus} onBlur={blur} /></div>
             </div>
             <div style={{ background: 'var(--bg-alt)', borderRadius: 9, padding: '11px 14px', fontSize: 13, fontFamily: 'var(--font-body)', color: 'var(--text-muted)' }}>
-              NGN at current rate: <strong style={{ color: 'var(--text)' }}>₦{(Number(editDraft.usdPrice) * forexRate).toLocaleString()}</strong>
+              NGN at current rate: <strong style={{ color: 'var(--text)' }}>â‚¦{(Number(editDraft.usdPrice) * forexRate).toLocaleString()}</strong>
             </div>
           </div>
         );
@@ -1761,7 +1763,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
                     <input value={item} onChange={e => setSpecItem(si, ii, e.target.value)} onFocus={focus} onBlur={blur}
                       style={{ ...fld, flex: 1 }} />
                     <button onClick={() => removeSpecItem(si, ii)} aria-label="Remove"
-                      style={{ padding: '0 9px', border: '1px solid var(--border)', borderRadius: 7, background: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 15, flexShrink: 0 }}>×</button>
+                      style={{ padding: '0 9px', border: '1px solid var(--border)', borderRadius: 7, background: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 15, flexShrink: 0 }}>Ã—</button>
                   </div>
                 ))}
                 <button onClick={() => addSpecItem(si)}
@@ -1792,13 +1794,13 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
               <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 16, color: 'var(--text)' }}>{isNew ? 'Add Product' : 'Edit Product'}</div>
               <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{editDraft.name}</div>
             </div>
-            <button onClick={() => setEditingProduct(null)} aria-label="Close" style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: 'var(--text-muted)', lineHeight: 1 }}>×</button>
+            <button onClick={() => setEditingProduct(null)} aria-label="Close" style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: 'var(--text-muted)', lineHeight: 1 }}>Ã—</button>
           </div>
 
           {/* Body: sidebar + content */}
           <div style={{ display: 'flex', flex: 1, overflow: 'hidden', flexDirection: isMobile ? 'column' : 'row' }}>
 
-            {/* Section nav — horizontal scrolling strip on mobile, sidebar on desktop */}
+            {/* Section nav â€” horizontal scrolling strip on mobile, sidebar on desktop */}
             {isMobile ? (
               <div style={{ display: 'flex', gap: 4, padding: '10px 16px', borderBottom: '1px solid var(--border)', overflowX: 'auto', flexShrink: 0 }}>
                 {EDIT_SECTIONS.map(s => (
@@ -1863,7 +1865,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 12 }}>
         <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: isMobile ? 18 : 22, color: 'var(--text)' }}>
           Product Listings {productsLoading
-            ? <span style={{ fontSize: 13, fontWeight: 400, color: 'var(--text-muted)' }}>Loading…</span>
+            ? <span style={{ fontSize: 13, fontWeight: 400, color: 'var(--text-muted)' }}>Loadingâ€¦</span>
             : <span style={{ fontSize: 13, fontWeight: 400, color: 'var(--text-muted)' }}>
                 {q ? `${visibleProducts.length} of ${products.length}` : `(${products.length})`}
               </span>}
@@ -1876,12 +1878,12 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
 
       {/* Search bar */}
       <div style={{ position: 'relative', marginBottom: 16 }}>
-        <span style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: 'var(--text-muted)', pointerEvents: 'none' }}>🔍</span>
+        <span style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: 'var(--text-muted)', pointerEvents: 'none' }}>ðŸ”</span>
         <input
           type="text"
           value={productSearch}
           onChange={e => setProductSearch(e.target.value)}
-          placeholder="Search by name, ID, category, Apple URL, Certo URL…"
+          placeholder="Search by name, ID, category, Apple URL, Certo URLâ€¦"
           style={{
             width: '100%', padding: '10px 14px 10px 36px', borderRadius: 10,
             border: '1.5px solid var(--border)', background: 'var(--bg)',
@@ -1895,7 +1897,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
         {q && (
           <button onClick={() => setProductSearch('')} aria-label="Clear search"
             style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: 'var(--text-muted)', lineHeight: 1, padding: 0 }}>
-            ×
+            Ã—
           </button>
         )}
       </div>
@@ -1926,7 +1928,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
                 <td style={{ padding: '14px 20px', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)', textTransform: 'capitalize' }}>{p.type}</td>
                 <td style={{ padding: '14px 20px' }}><ConditionBadge condition={p.condition} /></td>
                 <td style={{ padding: '14px 20px', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text)' }}>${p.usdPrice.toLocaleString()}</td>
-                <td style={{ padding: '14px 20px', fontFamily: 'var(--font-head)', fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>₦{p.ngnPrice.toLocaleString()}</td>
+                <td style={{ padding: '14px 20px', fontFamily: 'var(--font-head)', fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>â‚¦{p.ngnPrice.toLocaleString()}</td>
                 <td style={{ padding: '14px 20px', fontFamily: 'var(--font-body)', fontSize: 14, color: p.stock === 0 ? 'oklch(50% 0.18 25)' : 'var(--text)' }}>{p.stock}</td>
                 <td style={{ padding: '14px 20px' }}>
                   {(() => {
@@ -1971,7 +1973,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
         <RefreshBtn onClick={() => { fetchOrders(); }} loading={false} />
       </div>
       <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.7, marginBottom: isMobile ? 20 : 32 }}>
-        Rate is auto-fetched from live market data. You can override it manually — your override stays active until the next auto-refresh.
+        Rate is auto-fetched from live market data. You can override it manually â€” your override stays active until the next auto-refresh.
       </p>
 
       {/* Live rate display card */}
@@ -1981,41 +1983,41 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
             {manualOverride ? 'Manual override active' : 'Live market rate'}
           </div>
           {!manualOverride && fetchedAt ? (
-            <span style={{ background: 'oklch(93% 0.08 155)', color: 'oklch(35% 0.18 155)', fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6, letterSpacing: '0.04em', flexShrink: 0 }}>● LIVE</span>
+            <span style={{ background: 'oklch(93% 0.08 155)', color: 'oklch(35% 0.18 155)', fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6, letterSpacing: '0.04em', flexShrink: 0 }}>â— LIVE</span>
           ) : manualOverride ? (
             <span style={{ background: 'oklch(95% 0.06 60)', color: 'oklch(45% 0.18 55)', fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6, flexShrink: 0 }}>MANUAL</span>
           ) : (
-            <span style={{ background: 'var(--bg-alt)', color: 'var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 6, flexShrink: 0 }}>FETCHING…</span>
+            <span style={{ background: 'var(--bg-alt)', color: 'var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 6, flexShrink: 0 }}>FETCHINGâ€¦</span>
           )}
         </div>
-        <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: isMobile ? 32 : 40, color: 'var(--accent)', marginBottom: 4 }}>₦{forexRate.toLocaleString()}</div>
+        <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: isMobile ? 32 : 40, color: 'var(--accent)', marginBottom: 4 }}>â‚¦{forexRate.toLocaleString()}</div>
         <div style={{ fontFamily: 'var(--font-body)', fontSize: isMobile ? 13 : 14, color: 'var(--text-muted)', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: isMobile ? 6 : 12 }}>
           <span>per 1 USD</span>
-          {timeSince && <span>· Auto-fetched {timeSince}</span>}
+          {timeSince && <span>Â· Auto-fetched {timeSince}</span>}
           {!manualOverride && fetchedAt && (
             <span style={{ fontSize: 12, color: 'oklch(45% 0.1 155)' }}>Source: ExchangeRate-API</span>
           )}
         </div>
         {manualOverride && (
-          <button onClick={() => { setManualOverride(false); if (autoRate) { setForexRate(autoRate); setForexInput(String(autoRate)); } logEvent('Restored live forex rate', `Rate set back to ₦${autoRate?.toLocaleString()}/USD`); }}
+          <button onClick={() => { setManualOverride(false); if (autoRate) { setForexRate(autoRate); setForexInput(String(autoRate)); } logEvent('Restored live forex rate', `Rate set back to â‚¦${autoRate?.toLocaleString()}/USD`); }}
             style={{ marginTop: 14, fontSize: 12, color: 'oklch(45% 0.18 155)', background: 'oklch(93% 0.06 155)', border: 'none', borderRadius: 7, padding: '8px 16px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontWeight: 600, width: isMobile ? '100%' : 'auto' }}>
-            ↺ Restore live rate {autoRate ? `(₦${autoRate.toLocaleString()})` : ''}
+            â†º Restore live rate {autoRate ? `(â‚¦${autoRate.toLocaleString()})` : ''}
           </button>
         )}
       </div>
 
       {/* Manual override card */}
       <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 20, padding: cardPad, marginBottom: 16 }}>
-        <label style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, color: 'var(--text)', display: 'block', marginBottom: 10 }}>Manual override (₦ per $1)</label>
+        <label style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, color: 'var(--text)', display: 'block', marginBottom: 10 }}>Manual override (â‚¦ per $1)</label>
         <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 12 }}>
           <input type="number" value={forexInput} onChange={e => setForexInput(e.target.value)}
             style={{ flex: 1, padding: '14px 18px', borderRadius: 12, border: '1.5px solid var(--border)', background: 'var(--bg-alt)', fontFamily: 'var(--font-head)', fontSize: isMobile ? 24 : 20, fontWeight: 700, color: 'var(--text)', outline: 'none', width: '100%', boxSizing: 'border-box' }}
             onFocus={e => e.target.style.borderColor = 'var(--accent)'}
             onBlur={e => e.target.style.borderColor = 'var(--border)'}
           />
-          <button onClick={() => { const r = Number(forexInput); setForexRate(r); setManualOverride(true); setForexSaved(true); setTimeout(() => setForexSaved(false), 2000); logEvent('Overrode forex rate', `Manual rate set to ₦${r.toLocaleString()}/USD`); }}
+          <button onClick={() => { const r = Number(forexInput); setForexRate(r); setManualOverride(true); setForexSaved(true); setTimeout(() => setForexSaved(false), 2000); logEvent('Overrode forex rate', `Manual rate set to â‚¦${r.toLocaleString()}/USD`); }}
             style={{ padding: '14px 28px', borderRadius: 12, border: 'none', background: forexSaved ? 'oklch(50% 0.18 145)' : 'var(--accent)', color: 'white', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 700, width: isMobile ? '100%' : 'auto' }}>
-            {forexSaved ? '✓ Saved' : 'Override Rate'}
+            {forexSaved ? 'âœ“ Saved' : 'Override Rate'}
           </button>
         </div>
         <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)', marginTop: 12, lineHeight: 1.6 }}>
@@ -2025,11 +2027,11 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
 
       {/* Price preview */}
       <div style={{ background: 'var(--bg-alt)', borderRadius: 16, padding: isMobile ? '16px 14px' : 20, border: '1px solid var(--border)' }}>
-        <div style={{ fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 13, color: 'var(--text-muted)', marginBottom: 14 }}>Price preview at ₦{Number(forexInput).toLocaleString()}/USD</div>
+        <div style={{ fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 13, color: 'var(--text-muted)', marginBottom: 14 }}>Price preview at â‚¦{Number(forexInput).toLocaleString()}/USD</div>
         {PRODUCTS.slice(0, 4).map(p => (
           <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, padding: '9px 0', borderBottom: '1px solid var(--border)' }}>
-            <span style={{ fontFamily: 'var(--font-body)', fontSize: isMobile ? 12 : 13, color: 'var(--text)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name} ({p.subtitle.split('·')[0].trim()})</span>
-            <span style={{ fontFamily: 'var(--font-head)', fontSize: isMobile ? 13 : 14, fontWeight: 700, color: 'var(--text)', flexShrink: 0 }}>₦{(p.usdPrice * Number(forexInput)).toLocaleString()}</span>
+            <span style={{ fontFamily: 'var(--font-body)', fontSize: isMobile ? 12 : 13, color: 'var(--text)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name} ({p.subtitle.split('Â·')[0].trim()})</span>
+            <span style={{ fontFamily: 'var(--font-head)', fontSize: isMobile ? 13 : 14, fontWeight: 700, color: 'var(--text)', flexShrink: 0 }}>â‚¦{(p.usdPrice * Number(forexInput)).toLocaleString()}</span>
           </div>
         ))}
       </div>
@@ -2038,7 +2040,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
   };
 
   const RevenueTab = () => {
-    // Exclude Payment Pending and Cancelled — only count confirmed/paid orders
+    // Exclude Payment Pending and Cancelled â€” only count confirmed/paid orders
     const revOrders  = applyTimeFilter(orders, revTimeFilter, revCustomFrom, revCustomTo)
       .filter(o => o.status !== 'Payment Pending' && o.status !== 'Cancelled');
     const revNgn     = revOrders.reduce((s, o) => s + o.ngn, 0);
@@ -2048,8 +2050,8 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
     const avgUsd     = revOrders.length ? revUsd / revOrders.length : 0;
     const isNgn      = revCurrency === 'ngn';
 
-    const fmtRev = (ngn, usd) => isNgn ? `₦${(ngn/1000000).toFixed(2)}M` : `$${usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    const fmtAvg = (ngn, usd) => isNgn ? `₦${Math.round(ngn).toLocaleString()}` : `$${usd.toFixed(2)}`;
+    const fmtRev = (ngn, usd) => isNgn ? `â‚¦${(ngn/1000000).toFixed(2)}M` : `$${usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const fmtAvg = (ngn, usd) => isNgn ? `â‚¦${Math.round(ngn).toLocaleString()}` : `$${usd.toFixed(2)}`;
 
     const tfInputStyle = { padding: '8px 12px', borderRadius: 9, border: '1.5px solid var(--border)', background: 'var(--bg)', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text)', outline: 'none', cursor: 'pointer' };
 
@@ -2062,7 +2064,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
 
           {/* Currency toggle */}
           <div style={{ display: 'flex', gap: 2, background: 'var(--bg-alt)', borderRadius: 10, padding: 4, border: '1px solid var(--border)' }}>
-            {[['ngn', '₦ NGN'], ['usd', '$ USD']].map(([val, label]) => (
+            {[['ngn', 'â‚¦ NGN'], ['usd', '$ USD']].map(([val, label]) => (
               <button key={val} onClick={() => setRevCurrency(val)} style={{ padding: '7px 16px', borderRadius: 8, border: 'none', cursor: 'pointer', background: revCurrency === val ? 'var(--accent)' : 'transparent', color: revCurrency === val ? 'white' : 'var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: revCurrency === val ? 700 : 400 }}>{label}</button>
             ))}
           </div>
@@ -2118,7 +2120,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
                     <td style={{ padding: '14px 20px', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 700, color: 'var(--accent)' }}>{o.id}</td>
                     <td style={{ padding: '14px 20px', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text)' }}>{o.customer}</td>
                     <td style={{ padding: '14px 20px', fontFamily: 'var(--font-head)', fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>
-                      {isNgn ? `₦${o.ngn.toLocaleString()}` : `$${o.usd.toLocaleString()}`}
+                      {isNgn ? `â‚¦${o.ngn.toLocaleString()}` : `$${o.usd.toLocaleString()}`}
                     </td>
                     <td style={{ padding: '14px 20px', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)' }}>${cost.toFixed(0)}</td>
                     <td style={{ padding: '14px 20px', fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 700, color: 'oklch(45% 0.15 155)' }}>${net.toFixed(0)}</td>
@@ -2187,15 +2189,15 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
                   </div>
                 </td>
                 <td style={{ padding: '14px 20px', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text)', fontWeight: 600 }}>{c.orders.length}</td>
-                <td style={{ padding: '14px 20px', fontFamily: 'var(--font-head)', fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>₦{Math.round(c.totalNgn).toLocaleString()}</td>
+                <td style={{ padding: '14px 20px', fontFamily: 'var(--font-head)', fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>â‚¦{Math.round(c.totalNgn).toLocaleString()}</td>
                 <td style={{ padding: '14px 20px', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)' }}>{c.lastDate}</td>
                 <td style={{ padding: '14px 20px' }}>
                   {c.phone ? (
                     <a href={`https://wa.me/${c.phone.replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer"
                       style={{ display: 'inline-block', background: 'oklch(93% 0.08 145)', border: '1px solid oklch(80% 0.12 145)', borderRadius: 6, padding: '5px 12px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 12, color: 'oklch(35% 0.15 145)', fontWeight: 600, textDecoration: 'none' }}>
-                      💬 WhatsApp
+                      ðŸ’¬ WhatsApp
                     </a>
-                  ) : <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>}
+                  ) : <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>â€”</span>}
                 </td>
               </tr>
             ))}
@@ -2244,7 +2246,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
           </div>
 
           {messagesLoading ? (
-            <div style={{ textAlign: 'center', padding: 40, fontFamily: 'var(--font-body)', color: 'var(--text-muted)' }}>Loading…</div>
+            <div style={{ textAlign: 'center', padding: 40, fontFamily: 'var(--font-body)', color: 'var(--text-muted)' }}>Loadingâ€¦</div>
           ) : messages.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 60, fontFamily: 'var(--font-body)', color: 'var(--text-muted)' }}>No messages yet.</div>
           ) : messages.map((msg, i) => (
@@ -2285,7 +2287,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
                 <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 18, color: 'var(--text)', marginBottom: 4 }}>{selectedMessage.name}</div>
                 <a href={`mailto:${selectedMessage.email}`} style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--accent)', textDecoration: 'none' }}>{selectedMessage.email}</a>
               </div>
-              <button onClick={() => setSelectedMessage(null)} style={{ background: 'none', border: '1.5px solid var(--border)', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', fontSize: 14, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+              <button onClick={() => setSelectedMessage(null)} style={{ background: 'none', border: '1.5px solid var(--border)', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', fontSize: 14, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>âœ•</button>
             </div>
 
             <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginBottom: 16 }}>
@@ -2299,7 +2301,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               <a href={`mailto:${selectedMessage.email}`}
                 style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 18px', borderRadius: 10, background: 'var(--accent)', color: 'white', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 700, textDecoration: 'none', cursor: 'pointer' }}>
-                ✉ Reply via Email
+                âœ‰ Reply via Email
               </a>
               <button onClick={() => markRead(selectedMessage, !selectedMessage.read)}
                 style={{ padding: '10px 16px', borderRadius: 10, border: '1.5px solid var(--border)', background: 'transparent', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text)', cursor: 'pointer' }}>
@@ -2378,7 +2380,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
         {couponForm && (
           <div style={{ background: 'var(--bg)', border: '1.5px solid var(--accent)', borderRadius: 14, padding: 24, marginBottom: 24 }}>
             <h3 style={{ fontFamily: 'var(--font-head)', fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 20, marginTop: 0 }}>
-              {couponForm.id ? `Edit Coupon — ${couponForm.code}` : 'New Coupon'}
+              {couponForm.id ? `Edit Coupon â€” ${couponForm.code}` : 'New Coupon'}
             </h3>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16, marginBottom: 16 }}>
               {!couponForm.id && (
@@ -2440,7 +2442,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={saveCoupon} disabled={couponSaving}
                 style={{ padding: '10px 24px', borderRadius: 10, border: 'none', background: 'var(--accent)', color: 'white', fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
-                {couponSaving ? 'Saving…' : 'Save'}
+                {couponSaving ? 'Savingâ€¦' : 'Save'}
               </button>
               <button onClick={() => setCouponForm(null)}
                 style={{ padding: '10px 20px', borderRadius: 10, border: '1.5px solid var(--border)', background: 'transparent', color: 'var(--text)', fontFamily: 'var(--font-body)', fontSize: 14, cursor: 'pointer' }}>
@@ -2452,7 +2454,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
 
         {/* Coupon list */}
         {couponsLoading ? (
-          <div style={{ textAlign: 'center', padding: 40, fontFamily: 'var(--font-body)', color: 'var(--text-muted)' }}>Loading…</div>
+          <div style={{ textAlign: 'center', padding: 40, fontFamily: 'var(--font-body)', color: 'var(--text-muted)' }}>Loadingâ€¦</div>
         ) : coupons.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 60, fontFamily: 'var(--font-body)', color: 'var(--text-muted)' }}>No coupons yet. Create one above.</div>
         ) : (
@@ -2484,7 +2486,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
                         {c.used_count}{c.max_uses !== null ? ` / ${c.max_uses}` : ''}
                       </td>
                       <td style={{ padding: '14px 16px', fontFamily: 'var(--font-body)', fontSize: 13, color: expired ? 'oklch(45% 0.2 20)' : 'var(--text-muted)' }}>
-                        {c.expires_at ? new Date(c.expires_at).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                        {c.expires_at ? new Date(c.expires_at).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric' }) : 'â€”'}
                       </td>
                       <td style={{ padding: '14px 16px' }}>
                         <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 20, fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600,
@@ -2516,7 +2518,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
     );
   };
 
-  // ── All hooks have been called above — safe to conditionally return the login screen now ──
+  // â”€â”€ All hooks have been called above â€” safe to conditionally return the login screen now â”€â”€
   if (!adminToken) return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
       <div style={{ width: '100%', maxWidth: 400 }}>
@@ -2537,9 +2539,9 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
             />
             <button type="button" onClick={() => setShowPwd(v => !v)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 13, padding: 2 }}>{showPwd ? 'Hide' : 'Show'}</button>
           </div>
-          {loginErr && <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'oklch(45% 0.2 20)', marginBottom: 14 }}>⚠ {loginErr}</div>}
+          {loginErr && <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'oklch(45% 0.2 20)', marginBottom: 14 }}>âš  {loginErr}</div>}
           <button type="submit" disabled={loginLoading || !loginPwd.trim()} style={{ width: '100%', padding: '13px', borderRadius: 10, border: 'none', background: loginPwd.trim() ? 'var(--accent)' : 'var(--border)', color: loginPwd.trim() ? 'white' : 'var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 700, cursor: loginPwd.trim() ? 'pointer' : 'not-allowed' }}>
-            {loginLoading ? 'Signing in…' : 'Sign In →'}
+            {loginLoading ? 'Signing inâ€¦' : 'Sign In â†’'}
           </button>
         </form>
       </div>
@@ -2550,19 +2552,19 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
     // clearConfirm / setClearConfirm and clearing / setClearing live in the parent scope (lifted)
 
     const actionIcon = (action = '') => {
-      if (action.startsWith('Sign'))    return '🔐';
-      if (action.startsWith('Updat'))   return '✏️';
-      if (action.startsWith('Creat'))   return '➕';
-      if (action.startsWith('Delet'))   return '🗑️';
-      if (action.startsWith('Enabl'))   return '✅';
-      if (action.startsWith('Disabl'))  return '🔴';
-      if (action.startsWith('Resent'))  return '✉️';
-      if (action.startsWith('Status'))  return '🔄';
-      if (action.startsWith('Flagg'))   return '🚩';
-      if (action.startsWith('Unflag'))  return '✅';
-      if (action.startsWith('Note'))    return '📝';
-      if (action.startsWith('Cleared')) return '🧹';
-      return '•';
+      if (action.startsWith('Sign'))    return 'ðŸ”';
+      if (action.startsWith('Updat'))   return 'âœï¸';
+      if (action.startsWith('Creat'))   return 'âž•';
+      if (action.startsWith('Delet'))   return 'ðŸ—‘ï¸';
+      if (action.startsWith('Enabl'))   return 'âœ…';
+      if (action.startsWith('Disabl'))  return 'ðŸ”´';
+      if (action.startsWith('Resent'))  return 'âœ‰ï¸';
+      if (action.startsWith('Status'))  return 'ðŸ”„';
+      if (action.startsWith('Flagg'))   return 'ðŸš©';
+      if (action.startsWith('Unflag'))  return 'âœ…';
+      if (action.startsWith('Note'))    return 'ðŸ“';
+      if (action.startsWith('Cleared')) return 'ðŸ§¹';
+      return 'â€¢';
     };
 
     const doClear = async () => {
@@ -2589,13 +2591,13 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <button onClick={fetchLogs} style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 14px', cursor: 'pointer' }}>
-              ↻ Refresh
+              â†» Refresh
             </button>
             {clearConfirm ? (
               <>
                 <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'oklch(45% 0.18 25)' }}>Clear all logs?</span>
                 <button onClick={doClear} disabled={clearing} style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 700, color: 'white', background: 'oklch(50% 0.2 25)', border: 'none', borderRadius: 8, padding: '7px 14px', cursor: 'pointer' }}>
-                  {clearing ? 'Clearing…' : 'Yes, clear'}
+                  {clearing ? 'Clearingâ€¦' : 'Yes, clear'}
                 </button>
                 <button onClick={() => setClearConfirm(false)} style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 14px', cursor: 'pointer' }}>
                   Cancel
@@ -2603,14 +2605,14 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
               </>
             ) : (
               <button onClick={() => setClearConfirm(true)} style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'oklch(45% 0.18 25)', background: 'oklch(96% 0.04 25)', border: '1px solid oklch(85% 0.08 25)', borderRadius: 8, padding: '7px 14px', cursor: 'pointer' }}>
-                🗑 Clear logs
+                ðŸ—‘ Clear logs
               </button>
             )}
           </div>
         </div>
 
         {logsLoading ? (
-          <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)', padding: '48px 0', textAlign: 'center' }}>Loading…</div>
+          <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)', padding: '48px 0', textAlign: 'center' }}>Loadingâ€¦</div>
         ) : logs.length === 0 ? (
           <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)', padding: '48px 0', textAlign: 'center' }}>No activity yet.</div>
         ) : (
@@ -2636,7 +2638,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
     );
   };
 
-  // ── Certificates Tab ──────────────────────────────────────────────────────
+  // â”€â”€ Certificates Tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const CertificatesTab = () => {
     const fld = { ...MODAL_FLD };
     const lbl = { ...MODAL_LBL };
@@ -2723,7 +2725,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
             />
             <button onClick={handleCreateByOrderId} disabled={!createOrderId.trim()}
               style={{ padding: '9px 20px', borderRadius: 9, border: 'none', background: createOrderId.trim() ? 'var(--accent)' : 'var(--border)', color: 'white', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 700, cursor: createOrderId.trim() ? 'pointer' : 'not-allowed' }}>
-              Open Certificate Form →
+              Open Certificate Form â†’
             </button>
           </div>
           {createError && <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'oklch(45% 0.2 20)', marginTop: 8 }}>{createError}</div>}
@@ -2731,10 +2733,10 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
 
         {/* Search */}
         <div style={{ position: 'relative', marginBottom: 16 }}>
-          <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontSize: 14, pointerEvents: 'none' }}>🔍</span>
+          <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontSize: 14, pointerEvents: 'none' }}>ðŸ”</span>
           <input
             type="text"
-            placeholder="Search by cert ID, order ID, product, serial, recipient…"
+            placeholder="Search by cert ID, order ID, product, serial, recipientâ€¦"
             value={certSearch}
             onChange={e => setCertSearch(e.target.value)}
             style={{ ...inputStyle, paddingLeft: 32, width: '100%', boxSizing: 'border-box' }}
@@ -2743,7 +2745,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
 
         {/* Table */}
         {certsLoading ? (
-          <div style={{ textAlign: 'center', padding: 60, fontFamily: 'var(--font-body)', color: 'var(--text-muted)' }}>Loading…</div>
+          <div style={{ textAlign: 'center', padding: 60, fontFamily: 'var(--font-body)', color: 'var(--text-muted)' }}>Loadingâ€¦</div>
         ) : filtered.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 60, fontFamily: 'var(--font-body)', color: 'var(--text-muted)' }}>
             {certificates.length === 0 ? 'No certificates yet. Create one using the order ID form above.' : 'No certificates match your search.'}
@@ -2772,10 +2774,10 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
                       <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.product_name}</div>
                       {c.product_subtitle && <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--text-muted)' }}>{c.product_subtitle}</div>}
                     </td>
-                    <td style={{ padding: '12px 16px', fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 12, color: 'var(--text-muted)', letterSpacing: '0.04em' }}>{c.serial_number || '—'}</td>
+                    <td style={{ padding: '12px 16px', fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 12, color: 'var(--text-muted)', letterSpacing: '0.04em' }}>{c.serial_number || 'â€”'}</td>
                     <td style={{ padding: '12px 16px' }}>{statusBadge(c.status)}</td>
                     <td style={{ padding: '12px 16px', fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                      {c.published_at ? new Date(c.published_at).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                      {c.published_at ? new Date(c.published_at).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric' }) : 'â€”'}
                     </td>
                     <td style={{ padding: '12px 16px' }}>
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'nowrap' }}>
@@ -2815,7 +2817,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
     );
   };
 
-  // ── Publish-certificate modal ──────────────────────────────────────────────
+  // â”€â”€ Publish-certificate modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const renderPublishModal = () => {
     if (!publishModal) return null;
     const { order, productIndex, productName, productSubtitle, variantColor, variantStorage, existingCertId } = publishModal;
@@ -2884,11 +2886,11 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
                 {existingCertId ? 'Edit Certificate' : 'Publish Certificate'}
               </h2>
               <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)' }}>
-                {productName}{productSubtitle ? ` · ${productSubtitle}` : ''} — Order <strong>{order.id}</strong>
+                {productName}{productSubtitle ? ` Â· ${productSubtitle}` : ''} â€” Order <strong>{order.id}</strong>
               </div>
             </div>
             <button onClick={() => setPublishModal(null)} aria-label="Close"
-              style={{ background: 'none', border: '1.5px solid var(--border)', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', fontSize: 14, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>✕</button>
+              style={{ background: 'none', border: '1.5px solid var(--border)', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', fontSize: 14, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>âœ•</button>
           </div>
 
           {/* Serial + Apple order ref */}
@@ -2919,7 +2921,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                   <span style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, color: 'var(--text-muted)' }}>Step {i + 1}</span>
                   <button onClick={() => removeCustodyStep(i)} aria-label="Remove"
-                    style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 14 }}>×</button>
+                    style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 14 }}>Ã—</button>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px', gap: 10, marginBottom: 8 }}>
                   <div>
@@ -2940,7 +2942,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
                 <div>
                   <label style={{ ...lbl, marginBottom: 4 }}>Subtitle / Detail</label>
                   <input value={step.subtitle} onChange={e => setCustodyItem(i, 'subtitle', e.target.value)}
-                    placeholder="e.g. Cupertino, CA · United States" style={fld}
+                    placeholder="e.g. Cupertino, CA Â· United States" style={fld}
                     onFocus={e => e.target.style.borderColor = 'var(--accent)'}
                     onBlur={e => e.target.style.borderColor = 'var(--border)'} />
                 </div>
@@ -2955,7 +2957,7 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
           {/* Error */}
           {publishError && (
             <div style={{ marginBottom: 16, padding: '10px 14px', borderRadius: 10, background: 'oklch(97% 0.02 20)', border: '1px solid oklch(85% 0.05 20)', fontFamily: 'var(--font-body)', fontSize: 13, color: 'oklch(40% 0.15 20)' }}>
-              ⚠ {publishError}
+              âš  {publishError}
             </div>
           )}
 
@@ -2967,11 +2969,11 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
             </button>
             <button onClick={() => handleSave(false)} disabled={publishSaving}
               style={{ padding: '11px 22px', borderRadius: 10, border: '1.5px solid var(--border)', background: 'var(--bg-alt)', color: 'var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600, cursor: publishSaving ? 'not-allowed' : 'pointer' }}>
-              {publishSaving ? 'Saving…' : 'Save as Draft'}
+              {publishSaving ? 'Savingâ€¦' : 'Save as Draft'}
             </button>
             <button onClick={() => handleSave(true)} disabled={publishSaving || !canPublish}
               style={{ padding: '11px 22px', borderRadius: 10, border: 'none', background: canPublish ? 'var(--accent)' : 'var(--border)', color: 'white', fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 700, cursor: publishSaving || !canPublish ? 'not-allowed' : 'pointer', opacity: !canPublish ? 0.65 : 1 }}>
-              {publishSaving ? 'Publishing…' : '✓ Publish Certificate'}
+              {publishSaving ? 'Publishingâ€¦' : 'âœ“ Publish Certificate'}
             </button>
           </div>
         </div>
@@ -2979,246 +2981,137 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
     );
   };
 
-  // ── Analytics Tab — rendered as JSX below (defined at module level) ──────────
-  const _deadcode_start = () => {
-    const [data,      setData]      = React.useState(null);
-    const [loading,   setLoading]   = React.useState(true);
-    const [error,     setError]     = React.useState(null);
-    const [timeframe, setTimeframe] = React.useState('7days');
-    const [status,    setStatus]    = React.useState(null);
-
-    // Fetch analytics
-    React.useEffect(() => {
-      setLoading(true); setError(null);
-      authFetch(`/api/analytics?timeframe=${timeframe}`)
-        .then(r => r.json())
-        .then(d => { setData(d); setLoading(false); })
-        .catch(() => { setError('Failed to load analytics'); setLoading(false); });
-    }, [timeframe]);
-
-    // Live server status ping — runs once on mount then every 60s
-    React.useEffect(() => {
-      const check = () => {
-        const t0 = Date.now();
-        fetch('/api/health')
-          .then(r => r.ok ? setStatus({ online: true, latency: Date.now() - t0, checked: new Date() }) : setStatus({ online: false, latency: null, checked: new Date() }))
-          .catch(() => setStatus({ online: false, latency: null, checked: new Date() }));
-      };
-      check();
-      const iv = setInterval(check, 60000);
-      return () => clearInterval(iv);
-    }, []);
-
-    const TF_OPTS = [
-      { key: 'today',  label: 'Today'    },
-      { key: '7days',  label: '7 days'   },
-      { key: '30days', label: '30 days'  },
-      { key: '90days', label: '90 days'  },
-    ];
-
-    const fmt = n => (n || 0).toLocaleString();
-
-    // Simple inline bar chart
-    const MiniBar = ({ value, max, color = 'var(--accent)' }) => (
-      <div style={{ flex: 1, height: 6, background: 'var(--border)', borderRadius: 4, overflow: 'hidden' }}>
-        <div style={{ height: '100%', width: `${max ? Math.round((value / max) * 100) : 0}%`, background: color, borderRadius: 4, transition: 'width 0.4s' }} />
-      </div>
-    );
-
-    // Stat card
-    const StatCard = ({ label, value, sub, color = 'var(--accent)' }) => (
-      <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 14, padding: isMobile ? '16px 18px' : '20px 24px' }}>
+  // â”€â”€ OverviewTab â€” summary of key metrics + recent orders â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const OverviewTab = () => {
+    const recent = [...orders]
+      .sort((a, b) => new Date(b.raw?.created_at || 0) - new Date(a.raw?.created_at || 0))
+      .slice(0, 6);
+    const confirmedOrders = orders.filter(o => o.status !== 'Payment Pending' && o.status !== 'Cancelled');
+    const revNgn = confirmedOrders.reduce((s, o) => s + o.ngn, 0);
+    const revUsd = confirmedOrders.reduce((s, o) => s + o.usd, 0);
+    const OvCard = ({ label, value, sub, accent, onClick }) => (
+      <div onClick={onClick}
+        style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 16, padding: isMobile ? '18px 16px' : '22px 24px', cursor: onClick ? 'pointer' : 'default', transition: 'box-shadow 0.15s' }}
+        onMouseEnter={e => onClick && (e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.07)')}
+        onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}>
         <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 8 }}>{label}</div>
-        <div style={{ fontFamily: 'var(--font-head)', fontSize: isMobile ? 28 : 34, fontWeight: 800, color, letterSpacing: '-0.02em', lineHeight: 1 }}>{value}</div>
+        <div style={{ fontFamily: 'var(--font-head)', fontSize: isMobile ? 26 : 32, fontWeight: 800, color: accent || 'var(--text)', letterSpacing: '-0.02em', lineHeight: 1 }}>{value}</div>
         {sub && <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginTop: 6 }}>{sub}</div>}
       </div>
     );
-
-    const ov = data?.overview || {};
-    const dailyMax = Math.max(...(data?.daily || []).map(d => d.views), 1);
-
-    // Map Vercel region codes to Nigerian state names for NG traffic
-    const NG_STATES = { LA:'Lagos', FC:'Abuja (FCT)', KN:'Kano', RV:'Rivers', OY:'Oyo', AN:'Anambra', IM:'Imo', KD:'Kaduna', OG:'Ogun', ON:'Ondo', OS:'Osun', EK:'Ekiti', ED:'Edo', DE:'Delta', AK:'Akwa Ibom', KW:'Kwara', PL:'Plateau', BO:'Borno', SO:'Sokoto', ZA:'Zamfara', KE:'Kebbi', NU:'Niger', KO:'Kogi', BE:'Benue', NI:'Nassarawa', GB:'Gombe', AD:'Adamawa', BA:'Bauchi', YO:'Yobe', TY:'Taraba', JI:'Jigawa', KT:'Katsina', EB:'Ebonyi', EN:'Enugu', AB:'Abia', CR:'Cross River', BY:'Bayelsa' };
-    const locationLabel = (row) => {
-      if (row.city) return row.city;
-      if (row.region && row.country === 'NG') return NG_STATES[row.region] || row.region;
-      if (row.region) return row.region;
-      return row.country || 'Unknown';
-    };
-
-    const pageLabel = (p) => {
-      if (!p || p === '/') return '🏠 Home';
-      if (p.startsWith('/product/')) return `📱 ${decodeURIComponent(p.replace('/product/', ''))}`;
-      if (p.startsWith('/shop'))    return `🛍️ Shop${p.replace('/shop', '') || ''}`;
-      if (p === '/track')           return '📦 Track Order';
-      if (p === '/checkout')        return '💳 Checkout';
-      if (p === '/cart')            return '🛒 Cart';
-      if (p === '/how-it-works')    return '❓ How It Works';
-      if (p === '/about')           return 'ℹ️ About';
-      if (p === '/faq')             return '💬 FAQ';
-      if (p === '/contact')         return '📩 Contact';
-      if (p === '/verify')          return '✅ Verify';
-      return p;
-    };
-
     return (
       <div>
-        {/* Header row */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
-          <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: isMobile ? 18 : 22, color: 'var(--text)', margin: 0 }}>Analytics</h2>
-          <div style={{ display: 'flex', gap: 4, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, padding: 4 }}>
-            {TF_OPTS.map(o => (
-              <button key={o.key} onClick={() => setTimeframe(o.key)} style={{
-                padding: '6px 14px', borderRadius: 7, border: 'none', cursor: 'pointer',
-                background: timeframe === o.key ? 'var(--accent)' : 'transparent',
-                color: timeframe === o.key ? 'white' : 'var(--text-muted)',
-                fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, transition: 'all 0.15s',
-              }}>{o.label}</button>
-            ))}
+        <div style={{ marginBottom: 24 }}>
+          <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: isMobile ? 20 : 26, color: 'var(--text)', margin: '0 0 4px' }}>
+            Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'}, {adminName || 'Admin'} ðŸ‘‹
+          </h2>
+          <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)', margin: 0 }}>Here's what's happening with Certo today.</p>
+        </div>
+
+        {/* Key stats */}
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
+          <OvCard label="Total Orders"     value={orders.length}      sub={`${active} active Â· ${delivered} delivered`} onClick={() => setActiveTab('orders')} />
+          <OvCard label="Revenue"          value={`â‚¦${revNgn >= 1_000_000 ? (revNgn / 1_000_000).toFixed(1) + 'M' : revNgn.toLocaleString()}`} sub={`$${revUsd.toLocaleString()}`} accent="var(--accent)" onClick={() => setActiveTab('revenue')} />
+          <OvCard label="Unread Messages"  value={unreadMessages}     sub="Contact inquiries" accent={unreadMessages > 0 ? 'oklch(48% 0.18 55)' : undefined} onClick={() => setActiveTab('messages')} />
+          <OvCard label="Products Listed"  value={products.length}    sub={`${products.filter(p => p.inStock).length} live`} onClick={() => setActiveTab('products')} />
+        </div>
+
+        {/* Pending payment banner */}
+        {pendingPayment > 0 && (
+          <div onClick={() => setActiveTab('orders')} style={{ cursor: 'pointer', padding: '14px 20px', borderRadius: 14, background: 'oklch(95% 0.08 70)', border: '1.5px solid oklch(75% 0.15 60)', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+            <span style={{ fontSize: 20 }}>â³</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 14, color: 'oklch(38% 0.18 55)', marginBottom: 2 }}>
+                {pendingPayment} order{pendingPayment > 1 ? 's' : ''} awaiting payment
+              </div>
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'oklch(45% 0.15 55)' }}>Click to review in Orders tab</div>
+            </div>
+            <span style={{ color: 'oklch(45% 0.15 55)', fontSize: 16 }}>â†’</span>
           </div>
-        </div>
-
-        {/* Server status banner */}
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24,
-          padding: '10px 16px', borderRadius: 10,
-          background: status?.online ? 'oklch(93% 0.06 155)' : status ? 'oklch(94% 0.02 0)' : 'var(--bg-alt)',
-          border: `1px solid ${status?.online ? 'oklch(80% 0.1 155)' : status ? 'oklch(80% 0.06 0)' : 'var(--border)'}`,
-        }}>
-          <span style={{ fontSize: 16 }}>{status ? (status.online ? '🟢' : '🔴') : '⚪'}</span>
-          <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, color: status?.online ? 'oklch(35% 0.15 155)' : status ? 'oklch(40% 0.12 0)' : 'var(--text-muted)' }}>
-            {!status ? 'Checking server…' : status.online ? `Server Online — ${status.latency}ms response time` : 'Server Offline'}
-          </span>
-          {status?.checked && (
-            <span style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--text-muted)', marginLeft: 'auto' }}>
-              Last checked {status.checked.toLocaleTimeString()}
-            </span>
-          )}
-        </div>
-
-        {loading && <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-muted)', fontFamily: 'var(--font-body)' }}>Loading analytics…</div>}
-        {error   && <div style={{ textAlign: 'center', padding: 60, color: 'oklch(50% 0.18 25)', fontFamily: 'var(--font-body)' }}>{error}</div>}
-
-        {!loading && !error && data && (
-          <>
-            {/* Overview stat cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
-              <StatCard label="Page Views"     value={fmt(ov.pageviews)}       sub={`${fmt(ov.unique_sessions)} unique visitors`} />
-              <StatCard label="Product Views"  value={fmt(ov.product_views)}   sub="Products explored" color="oklch(50% 0.18 250)" />
-              <StatCard label="Add to Cart"    value={fmt(ov.add_to_cart)}     sub="Items added" color="oklch(45% 0.18 155)" />
-              <StatCard label="Checkout Starts" value={fmt(ov.checkout_starts)} sub="Initiated checkout" color="oklch(48% 0.18 55)" />
-              <StatCard label="Total Events"   value={fmt(ov.total_events)}    sub="All tracked actions" color="var(--text-muted)" />
-              <StatCard label="Unique Sessions" value={fmt(ov.unique_sessions)} sub="Browser sessions" color="oklch(48% 0.15 310)" />
-            </div>
-
-            {/* Daily trend */}
-            {data.daily?.length > 0 && (
-              <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 14, padding: isMobile ? 16 : 24, marginBottom: 20 }}>
-                <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 16 }}>Daily Views</div>
-                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 80 }}>
-                  {data.daily.map(d => {
-                    const pct = dailyMax ? (d.views / dailyMax) : 0;
-                    const dt  = new Date(d.day + 'T00:00:00');
-                    return (
-                      <div key={d.day} title={`${d.day}: ${d.views} views, ${d.sessions} sessions`}
-                        style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                        <div style={{ width: '100%', height: Math.max(4, pct * 64), background: 'var(--accent)', borderRadius: '3px 3px 0 0', opacity: 0.85, transition: 'height 0.3s' }} />
-                        <div style={{ fontFamily: 'var(--font-body)', fontSize: 9, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                          {dt.toLocaleDateString('en-NG', { month: 'short', day: 'numeric' })}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Top pages + top products side by side */}
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16, marginBottom: 20 }}>
-
-              {/* Top pages */}
-              <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 14, padding: isMobile ? 16 : 20 }}>
-                <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 14 }}>Top Pages</div>
-                {data.topPages?.length === 0 && <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)' }}>No data yet</div>}
-                {data.topPages?.map((p, i) => {
-                  const max = data.topPages[0]?.views || 1;
-                  return (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                      <div style={{ width: 20, fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--text-muted)', textAlign: 'right', flexShrink: 0 }}>{i + 1}</div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: 3 }}>{pageLabel(p.page)}</div>
-                        <MiniBar value={p.views} max={max} />
-                      </div>
-                      <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, color: 'var(--text)', flexShrink: 0 }}>{fmt(p.views)}</div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Top products viewed */}
-              <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 14, padding: isMobile ? 16 : 20 }}>
-                <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 14 }}>Top Products</div>
-                {data.topProducts?.length === 0 && <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)' }}>No data yet</div>}
-                {data.topProducts?.map((p, i) => {
-                  const max = data.topProducts[0]?.views || 1;
-                  return (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                      <div style={{ width: 20, fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--text-muted)', textAlign: 'right', flexShrink: 0 }}>{i + 1}</div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: 3 }}>{p.product_name || p.product_id}</div>
-                        <MiniBar value={p.views} max={max} color="oklch(50% 0.18 250)" />
-                      </div>
-                      <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, color: 'var(--text)', flexShrink: 0 }}>{fmt(p.views)}</div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Visitor Locations */}
-            <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 14, padding: isMobile ? 16 : 20, marginBottom: 20 }}>
-              <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 14 }}>
-                Visitor Locations
-              </div>
-              {data.locations?.length === 0 && <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)' }}>No location data yet — location is detected automatically from visitor IP on Vercel.</div>}
-              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: '6px 24px' }}>
-                {data.locations?.map((loc, i) => {
-                  const max = data.locations[0]?.sessions || 1;
-                  return (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text)', whiteSpace: 'nowrap', minWidth: 110 }}>
-                        {loc.country === 'NG' ? '🇳🇬 ' : loc.country ? '🌍 ' : ''}{locationLabel(loc)}
-                      </div>
-                      <MiniBar value={loc.sessions} max={max} color="oklch(48% 0.15 310)" />
-                      <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, color: 'var(--text)', flexShrink: 0, minWidth: 28, textAlign: 'right' }}>{fmt(loc.sessions)}</div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Event type breakdown */}
-            {data.eventBreakdown?.length > 0 && (
-              <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 14, padding: isMobile ? 16 : 20 }}>
-                <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 14 }}>Event Breakdown</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-                  {data.eventBreakdown.map(e => (
-                    <div key={e.event_type} style={{ background: 'var(--bg-alt)', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 16px', display: 'flex', gap: 8, alignItems: 'center' }}>
-                      <span style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)' }}>{e.event_type.replace(/_/g, ' ')}</span>
-                      <span style={{ fontFamily: 'var(--font-head)', fontSize: 16, fontWeight: 700, color: 'var(--accent)' }}>{fmt(e.count)}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </>
         )}
+
+        {/* Recent orders */}
+        <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden' }}>
+          <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 15, color: 'var(--text)' }}>Recent Orders</span>
+            <button onClick={() => setActiveTab('orders')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--accent)', fontWeight: 600 }}>View all â†’</button>
+          </div>
+          {ordersLoading ? (
+            <div style={{ padding: '32px 20px', textAlign: 'center', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)' }}>Loadingâ€¦</div>
+          ) : recent.length === 0 ? (
+            <div style={{ padding: '32px 20px', textAlign: 'center', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)' }}>No orders yet.</div>
+          ) : recent.map((o, i) => {
+            const sc = statusColor(o.status);
+            return (
+              <div key={o.id}
+                onClick={() => { setSelectedOrder(o); setActiveTab('orders'); }}
+                style={{ padding: isMobile ? '12px 16px' : '14px 20px', borderTop: i > 0 ? '1px solid var(--border)' : 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-alt)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 2 }}>
+                    {o.status === 'Payment Pending' && <span title="Awaiting payment">â³</span>}
+                    {o.flag && <span>ðŸš©</span>}
+                    <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 700, color: 'var(--accent)' }}>{o.id}</span>
+                  </div>
+                  <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.customer} Â· {o.product}</div>
+                </div>
+                <span style={{ padding: '3px 10px', borderRadius: 6, background: sc.bg, color: sc.color, fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0 }}>{o.status}</span>
+                {!isMobile && <span style={{ fontFamily: 'var(--font-head)', fontSize: 14, fontWeight: 700, color: 'var(--text)', flexShrink: 0 }}>â‚¦{o.ngn.toLocaleString()}</span>}
+              </div>
+            );
+          })}
+        </div>
       </div>
     );
   };
-  // ────────────────────────────────────────────────────────────────────────────
+
+  // â”€â”€ Inline SVG icon helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const NavIcon = ({ id, size = 18 }) => {
+    const PATHS = {
+      overview:     ['M3 3h7v7H3V3z', 'M14 3h7v7h-7V3z', 'M14 14h7v7h-7v-7z', 'M3 14h7v7H3v-7z'],
+      orders:       ['M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z', 'M3.27 6.96L12 12.01l8.73-5.05', 'M12 22.08V12'],
+      products:     ['M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z', 'M7 7h.01'],
+      certificates: ['M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z'],
+      messages:     ['M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z'],
+      coupons:      ['M2 9a3 3 0 000 6v2a2 2 0 002 2h16a2 2 0 002-2v-2a3 3 0 000-6V7a2 2 0 00-2-2H4a2 2 0 00-2 2v2z', 'M9 12h6', 'M12 9v6'],
+      analytics:    ['M18 20V10', 'M12 20V4', 'M6 20v-6'],
+      activity:     ['M22 12h-4l-3 9L9 3l-3 9H2'],
+      forex:        ['M12 1v22', 'M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6'],
+      revenue:      ['M12 2a10 10 0 100 20A10 10 0 0012 2z', 'M12 6v6l4 2'],
+      customers:    ['M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2', 'M9 11a4 4 0 100-8 4 4 0 000 8z', 'M23 21v-2a4 4 0 00-3-3.87', 'M16 3.13a4 4 0 010 7.75'],
+      logout:       ['M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4', 'M16 17l5-5-5-5', 'M21 12H9'],
+      more:         ['M5 12h.01', 'M12 12h.01', 'M19 12h.01'],
+    };
+    const ps = PATHS[id] || PATHS.overview;
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+        {ps.map((d, i) => <path key={i} d={d} />)}
+      </svg>
+    );
+  };
+
+  // â”€â”€ Navigation config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const activeOrdersCount = orders.filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled').length;
+  const NAV = [
+    { key: 'overview',      label: 'Overview'     },
+    { key: 'orders',        label: 'Orders',       count: activeOrdersCount },
+    { key: 'products',      label: 'Products'     },
+    { key: 'certificates',  label: 'Certificates' },
+    { key: 'messages',      label: 'Messages',     count: unreadMessages },
+    { key: 'coupons',       label: 'Coupons'      },
+    { key: 'analytics',     label: 'Analytics'    },
+    { key: 'activity',      label: 'Activity'     },
+    { key: 'forex',         label: 'Forex'        },
+    { key: 'revenue',       label: 'Revenue'      },
+    { key: 'customers',     label: 'Customers'    },
+  ];
+  const MOBILE_PRIMARY = ['overview', 'orders', 'products', 'analytics', 'messages'];
+  const SIDEBAR_W = 220;
+  const currentNavItem = NAV.find(n => n.key === activeTab);
 
   const tabContent = {
+    overview:     OverviewTab(),
     orders:       OrdersTab(),
     products:     ProductsTab(),
     certificates: CertificatesTab(),
@@ -3231,52 +3124,183 @@ const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
     analytics:    <AnalyticsTab />,
   };
 
-  return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-alt)', paddingTop: 64 }}>
+  // â”€â”€ Mobile layout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  if (isMobile) return (
+    <div style={{ minHeight: '100vh', background: 'var(--bg-alt)' }}>
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
       {renderEditModal()}
       {renderPublishModal()}
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? '24px 16px 80px' : '40px 24px 80px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-          <div>
-            <h1 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: isMobile ? 22 : 28, color: 'var(--text)', marginBottom: 4 }}>Dashboard</h1>
-            {!isMobile && <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)' }}>Internal order & product management</p>}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            {adminName && (
-              <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, color: 'var(--accent)', background: 'var(--accent-tint)', border: '1px solid var(--accent-tint2)', borderRadius: 8, padding: '5px 12px' }}>
-                👋 {adminName}
-              </div>
-            )}
-            <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '5px 10px' }}>
-              ₦{CERTO_RATE.toLocaleString()}/USD
+
+      {/* Mobile sticky top bar (below site nav at 64px) */}
+      <div style={{ position: 'fixed', top: 64, left: 0, right: 0, background: 'var(--bg)', borderBottom: '1px solid var(--border)', padding: '0 16px', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 90 }}>
+        <span style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 17, color: 'var(--text)' }}>{currentNavItem?.label || 'Dashboard'}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', background: 'var(--bg-alt)', border: '1px solid var(--border)', borderRadius: 6, padding: '3px 8px' }}>
+            â‚¦{forexRate.toLocaleString()}
+          </span>
+          {unreadMessages > 0 && (
+            <button onClick={() => setActiveTab('messages')} style={{ position: 'relative', background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: 'var(--text-muted)' }}>
+              <NavIcon id="messages" size={20} />
+              <span style={{ position: 'absolute', top: 0, right: 0, background: 'var(--accent)', color: 'white', borderRadius: '50%', width: 14, height: 14, fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{unreadMessages > 9 ? '9+' : unreadMessages}</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Page content */}
+      <div style={{ paddingTop: 64 + 52, paddingBottom: 76 }}>
+        <div style={{ padding: '20px 16px' }}>
+          {tabContent[activeTab] || tabContent['overview']}
+        </div>
+      </div>
+
+      {/* Bottom nav bar */}
+      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: 'var(--bg)', borderTop: '1px solid var(--border)', display: 'flex', zIndex: 90, height: 64 }}>
+        {MOBILE_PRIMARY.map(key => {
+          const item = NAV.find(n => n.key === key);
+          if (!item) return null;
+          const isActive = activeTab === key && !showMore;
+          const badge = item.count;
+          return (
+            <button key={key} onClick={() => { setActiveTab(key); setShowMore(false); }}
+              style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: 'none', background: 'transparent', cursor: 'pointer', color: isActive ? 'var(--accent)' : 'var(--text-muted)', padding: '8px 0', position: 'relative' }}>
+              <NavIcon id={key} size={20} />
+              <span style={{ fontFamily: 'var(--font-body)', fontSize: 9, fontWeight: 600, marginTop: 3, letterSpacing: '0.02em' }}>{item.label}</span>
+              {badge > 0 && <span style={{ position: 'absolute', top: 6, right: '20%', background: 'var(--accent)', color: 'white', borderRadius: '50%', width: 14, height: 14, fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{badge > 9 ? '9+' : badge}</span>}
+            </button>
+          );
+        })}
+        {/* More button */}
+        <button onClick={() => setShowMore(v => !v)}
+          style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: 'none', background: 'transparent', cursor: 'pointer', color: showMore ? 'var(--accent)' : 'var(--text-muted)', padding: '8px 0' }}>
+          <NavIcon id="more" size={20} />
+          <span style={{ fontFamily: 'var(--font-body)', fontSize: 9, fontWeight: 600, marginTop: 3, letterSpacing: '0.02em' }}>More</span>
+        </button>
+      </div>
+
+      {/* More sheet */}
+      {showMore && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 200 }}>
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.45)' }} onClick={() => setShowMore(false)} />
+          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'var(--bg)', borderRadius: '20px 20px 0 0', padding: '20px 16px 32px' }}>
+            {/* Handle */}
+            <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--border)', margin: '0 auto 20px' }} />
+            <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>All Sections</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 20 }}>
+              {NAV.filter(n => !MOBILE_PRIMARY.includes(n.key)).map(item => {
+                const isActive = activeTab === item.key;
+                return (
+                  <button key={item.key} onClick={() => { setActiveTab(item.key); setShowMore(false); }}
+                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '14px 8px', borderRadius: 14, border: 'none', cursor: 'pointer', background: isActive ? 'var(--accent-tint)' : 'var(--bg-alt)', color: isActive ? 'var(--accent)' : 'var(--text-muted)', gap: 8, transition: 'all 0.15s' }}>
+                    <NavIcon id={item.key} size={22} />
+                    <span style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: isActive ? 700 : 500 }}>{item.label}</span>
+                  </button>
+                );
+              })}
             </div>
-            <button onClick={handleLogout} title="Sign out" style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '5px 10px', cursor: 'pointer' }}>
-              Sign out
-            </button>
+            {/* Admin info + logout */}
+            <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--accent-tint)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-body)', fontWeight: 800, fontSize: 14, color: 'var(--accent)', flexShrink: 0 }}>
+                  {(adminName || 'A')[0].toUpperCase()}
+                </div>
+                <div>
+                  <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{adminName || 'Admin'}</div>
+                  <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)' }}>Administrator</div>
+                </div>
+              </div>
+              <button onClick={() => { handleLogout(); setShowMore(false); }}
+                style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '12px 14px', borderRadius: 12, border: 'none', background: 'oklch(96% 0.04 25)', color: 'oklch(45% 0.18 25)', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600 }}>
+                <NavIcon id="logout" size={18} />
+                Sign out
+              </button>
+            </div>
           </div>
         </div>
+      )}
+    </div>
+  );
 
-        <div style={{ overflowX: 'auto', marginBottom: 24, paddingBottom: 4 }}>
-        <div style={{ display: 'flex', gap: 2, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 14, padding: 6, width: 'fit-content' }}>
-          {tabs.map(t => (
-            <button key={t.key} onClick={() => setActiveTab(t.key)} style={{
-              padding: '9px 20px', borderRadius: 10, border: 'none', cursor: 'pointer',
-              background: activeTab === t.key ? 'var(--accent)' : 'transparent',
-              color: activeTab === t.key ? 'white' : 'var(--text-muted)',
-              fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: activeTab === t.key ? 700 : 500,
-              transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: 6,
-            }}>
-              {t.label}
-              {t.count > 0 && (
-                <span style={{ background: activeTab === t.key ? 'rgba(255,255,255,0.25)' : 'var(--accent)', color: 'white', borderRadius: 10, padding: '1px 7px', fontSize: 11, fontWeight: 700 }}>{t.count}</span>
-              )}
+  // â”€â”€ Desktop layout â€” persistent sidebar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  return (
+    <div style={{ minHeight: '100vh', background: 'var(--bg-alt)', display: 'flex' }}>
+      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+      {renderEditModal()}
+      {renderPublishModal()}
+
+      {/* Sidebar */}
+      <aside style={{ width: SIDEBAR_W, position: 'fixed', top: 64, bottom: 0, left: 0, background: 'var(--bg)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', zIndex: 80 }}>
+        {/* Brand strip */}
+        <div style={{ padding: '18px 16px 14px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+          <div style={{ fontFamily: 'var(--font-head)', fontWeight: 800, fontSize: 18, color: 'var(--text)', letterSpacing: '-0.02em' }}>Certo</div>
+          <div style={{ fontFamily: 'var(--font-body)', fontSize: 10, color: 'var(--text-muted)', marginTop: 2, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Admin Dashboard</div>
+        </div>
+
+        {/* Nav items */}
+        <nav style={{ flex: 1, padding: '10px 10px', overflowY: 'auto' }}>
+          {NAV.map(item => {
+            const isActive = activeTab === item.key;
+            return (
+              <button key={item.key} onClick={() => setActiveTab(item.key)}
+                style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '10px 12px', borderRadius: 10, border: 'none', cursor: 'pointer', textAlign: 'left', marginBottom: 2, background: isActive ? 'var(--accent-tint)' : 'transparent', color: isActive ? 'var(--accent)' : 'var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: isActive ? 700 : 400, transition: 'all 0.15s' }}
+                onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'var(--bg-alt)'; }}
+                onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}>
+                <NavIcon id={item.key} size={17} />
+                <span style={{ flex: 1 }}>{item.label}</span>
+                {item.count > 0 && (
+                  <span style={{ background: isActive ? 'var(--accent)' : 'oklch(60% 0.18 55)', color: 'white', borderRadius: 10, padding: '2px 7px', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{item.count}</span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* Admin footer */}
+        <div style={{ borderTop: '1px solid var(--border)', padding: '14px', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+            <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'var(--accent-tint)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-body)', fontWeight: 800, fontSize: 14, color: 'var(--accent)', flexShrink: 0 }}>
+              {(adminName || 'A')[0].toUpperCase()}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 700, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{adminName || 'Admin'}</div>
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--text-muted)' }}>Administrator</div>
+            </div>
+          </div>
+          <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--text-muted)', background: 'var(--bg-alt)', border: '1px solid var(--border)', borderRadius: 7, padding: '5px 10px', marginBottom: 10, textAlign: 'center' }}>
+            â‚¦{forexRate.toLocaleString()} / USD
+          </div>
+          <button onClick={handleLogout}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 10px', borderRadius: 9, border: '1px solid var(--border)', cursor: 'pointer', background: 'transparent', color: 'var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: 13, justifyContent: 'center', transition: 'all 0.15s' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'oklch(96% 0.04 25)'; e.currentTarget.style.color = 'oklch(45% 0.18 25)'; e.currentTarget.style.borderColor = 'oklch(80% 0.08 25)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border)'; }}>
+            <NavIcon id="logout" size={15} />
+            Sign out
+          </button>
+        </div>
+      </aside>
+
+      {/* Main content area */}
+      <div style={{ flex: 1, marginLeft: SIDEBAR_W, minHeight: '100vh', display: 'flex', flexDirection: 'column', paddingTop: 64 }}>
+        {/* Sticky top bar */}
+        <div style={{ position: 'sticky', top: 64, background: 'var(--bg)', borderBottom: '1px solid var(--border)', padding: '0 32px', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 70, flexShrink: 0 }}>
+          <span style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 17, color: 'var(--text)' }}>
+            {currentNavItem?.label || 'Dashboard'}
+          </span>
+          {unreadMessages > 0 && (
+            <button onClick={() => setActiveTab('messages')} title={`${unreadMessages} unread message${unreadMessages > 1 ? 's' : ''}`}
+              style={{ position: 'relative', background: 'none', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer', padding: '6px 10px', color: 'var(--text-muted)', transition: 'all 0.15s' }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-alt)'; e.currentTarget.style.color = 'var(--text)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--text-muted)'; }}>
+              <NavIcon id="messages" size={16} />
+              <span style={{ position: 'absolute', top: -5, right: -5, background: 'var(--accent)', color: 'white', borderRadius: '50%', width: 17, height: 17, fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid var(--bg)' }}>{unreadMessages > 9 ? '9+' : unreadMessages}</span>
             </button>
-          ))}
-        </div>
+          )}
         </div>
 
-        {tabContent[activeTab]}
+        {/* Tab content */}
+        <div style={{ flex: 1, padding: '32px 32px 80px' }}>
+          {tabContent[activeTab] || tabContent['overview']}
+        </div>
       </div>
     </div>
   );

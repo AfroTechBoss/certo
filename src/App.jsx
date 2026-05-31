@@ -334,13 +334,19 @@ const App = () => {
         return <CheckoutFlow cart={cart} navigate={navigate} clearCart={clearCart} updateCartItemQty={updateCartItemQty} />;
 
       case 'dashboard':
+      case 'dashboard-overview':
+      case 'dashboard-orders':
       case 'dashboard-products':
       case 'dashboard-forex':
       case 'dashboard-revenue':
       case 'dashboard-customers':
       case 'dashboard-certificates':
+      case 'dashboard-messages':
+      case 'dashboard-coupons':
+      case 'dashboard-analytics':
+      case 'dashboard-activity':
       case 'dashboard-refunds': {
-        const subPage = page.startsWith('dashboard-') ? page.replace('dashboard-', '') : 'orders';
+        const subPage = page.startsWith('dashboard-') ? page.replace('dashboard-', '') : 'overview';
         return <DashboardPage navigate={navigate} subPage={subPage} liveRate={liveRate} rateFetched={rateFetched} />;
       }
 
