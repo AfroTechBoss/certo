@@ -50,7 +50,7 @@ const publicLimiter = rateLimit({
 
 // Admin login — validates password against ADMIN_ACCOUNTS (format: "Name:pass,Name2:pass2")
 // Returns a signed 30-day token (name embedded) + the admin's display name
-app.post('/api/admin/login', loginLimiter, (req, res) => {
+app.post('/api/admin/login', loginLimiter, async (req, res) => {
   const { password } = req.body;
   if (!password) return res.status(400).json({ error: 'Password required' });
 
@@ -73,10 +73,10 @@ app.post('/api/admin/login', loginLimiter, (req, res) => {
 
   if (!matchedName) return res.status(401).json({ error: 'Incorrect password' });
 
-  // Fire-and-forget login log
+  // Log sign-in before responding so Vercel doesn't kill it
   try {
     const logAdminAction = require('./logAdminAction');
-    logAdminAction(matchedName, 'Signed in', '').catch(() => {});
+    await logAdminAction(matchedName, 'Signed in', '');
   } catch(_) {}
 
   res.json({ token: generateToken(matchedName), name: matchedName });
@@ -100,10 +100,10 @@ app.use('/api/admin/logs',    require('./routes/adminLog'));
 // (e.g. opening an order detail, overriding the forex rate)
 const { adminAuth: _adminAuth } = require('./adminAuth');
 const _logEvent = require('./logAdminAction');
-app.post('/api/admin/event', _adminAuth, (req, res) => {
+app.post('/api/admin/event', _adminAuth, async (req, res) => {
   const { action, details } = req.body;
   if (!action) return res.status(400).json({ error: 'action required' });
-  _logEvent(req.adminName, action, details || '').catch(() => {});
+  await _logEvent(req.adminName, action, details || '');
   res.json({ ok: true });
 });
 
@@ -128,6 +128,14 @@ app.get('/api/config', (req, res) => {
 // Idempotent — safe to run on every cold start; uses IF NOT EXISTS / IF NOT EXISTS column
 async function runMigrations() {
   try {
+    // Migration tracking table — records one-time data migrations so they never re-run
+    await pool.queryR(`
+      CREATE TABLE IF NOT EXISTS schema_migrations (
+        key        TEXT PRIMARY KEY,
+        applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
     // Add status_timeline JSONB column to orders (tracks a timestamped log of every status change)
     await pool.queryR(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS status_timeline JSONB DEFAULT '[]'`);
 
@@ -157,6 +165,18 @@ async function runMigrations() {
       )
     `);
 
+    // Admin activity log table
+    await pool.queryR(`
+      CREATE TABLE IF NOT EXISTS admin_logs (
+        id         SERIAL PRIMARY KEY,
+        admin_name TEXT        NOT NULL,
+        action     TEXT        NOT NULL,
+        details    TEXT        NOT NULL DEFAULT '',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await pool.queryR(`CREATE INDEX IF NOT EXISTS admin_logs_created_idx ON admin_logs (created_at DESC)`);
+
     // Analytics events table
     await pool.queryR(`
       CREATE TABLE IF NOT EXISTS analytics_events (
@@ -177,6 +197,20 @@ async function runMigrations() {
     await pool.queryR(`CREATE INDEX IF NOT EXISTS ae_type_idx     ON analytics_events (event_type)`);
     await pool.queryR(`CREATE INDEX IF NOT EXISTS ae_session_idx  ON analytics_events (session_id)`);
     await pool.queryR(`CREATE INDEX IF NOT EXISTS ae_page_idx     ON analytics_events (page)`);
+
+    // One-time: apply 7% selling-price margin to all products
+    // Each product's usd_price is multiplied by 1.07 so the 7% markup is baked into what customers pay.
+    // Tracked in schema_migrations so it never runs a second time.
+    const { rows: pmCheck } = await pool.queryR(
+      `SELECT 1 FROM schema_migrations WHERE key = 'price_margin_v1'`
+    );
+    if (!pmCheck.length) {
+      const { rowCount } = await pool.queryR(
+        `UPDATE products SET usd_price = ROUND(usd_price * 1.07, 2) WHERE usd_price > 0`
+      );
+      await pool.queryR(`INSERT INTO schema_migrations (key) VALUES ('price_margin_v1')`);
+      console.log(`[migrations] ✓ price_margin_v1: raised usd_price +7% on ${rowCount} products`);
+    }
 
     console.log('[migrations] ✓ schema up to date');
   } catch (err) {

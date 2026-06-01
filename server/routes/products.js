@@ -94,7 +94,7 @@ router.post('/', adminAuth, async (req, res) => {
       tech_specs || [], image_urls || [], variants || [],
     ]);
 
-    logAdminAction(req.adminName, 'Created product', `"${name}" — $${usd_price}`).catch(() => {});
+    await logAdminAction(req.adminName, 'Created product', `"${name}" — $${usd_price}`);
     res.status(201).json(rows[0]);
   } catch (err) {
     console.error('POST /products:', err);
@@ -157,7 +157,7 @@ router.patch('/:id', adminAuth, async (req, res) => {
       ? `Set product ${req.body.listing_status}`
       : 'Updated product';
 
-    logAdminAction(req.adminName, action, `"${p.name}" — ${changes}`).catch(() => {});
+    await logAdminAction(req.adminName, action, `"${p.name}" — ${changes}`);
     res.json(p);
   } catch (err) {
     console.error('PATCH /products/:id:', err);

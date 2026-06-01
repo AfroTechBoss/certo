@@ -41,7 +41,7 @@ router.delete('/', adminAuth, async (req, res) => {
 
     // 4. Write a fresh entry noting the clear (after deletion so it survives)
     const logAdminAction = require('../logAdminAction');
-    logAdminAction(req.adminName, 'Cleared activity log', `${rows.length} entries archived`).catch(() => {});
+    await logAdminAction(req.adminName, 'Cleared activity log', `${rows.length} entries archived`);
 
     res.json({ ok: true });
   } catch (err) {

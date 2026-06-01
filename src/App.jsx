@@ -9,6 +9,7 @@ import { HowItWorksPage, TrackOrderPage, AboutPage, FAQPage, ContactPage, Privac
 import { VerifyPage } from './pages/VerifyPage.jsx';
 import { CheckoutFlow } from './pages/Checkout.jsx';
 import { DashboardPage } from './pages/dashboard/DashboardPage.jsx';
+import { NotFoundPage } from './pages/NotFoundPage.jsx';
 
 const FooterComponent = ({ navigate }) => {
   const { isMobile } = useResponsive();
@@ -138,7 +139,7 @@ const parsePath = () => {
   if (route === 'dashboard') return { page: param ? `dashboard-${param}` : 'dashboard', param: null };
   const known = ['home', 'how-it-works', 'about', 'faq', 'contact', 'cart', 'checkout', 'privacy', 'terms', 'refund', 'verify'];
   if (known.includes(route)) return { page: route, param: null };
-  return { page: 'home', param: null };
+  return { page: 'not-found', param: null };
 };
 
 const toPath = (page, param) => {
@@ -347,17 +348,28 @@ const App = () => {
       case 'dashboard-activity':
       case 'dashboard-refunds': {
         const subPage = page.startsWith('dashboard-') ? page.replace('dashboard-', '') : 'overview';
-        return <DashboardPage navigate={navigate} subPage={subPage} liveRate={liveRate} rateFetched={rateFetched} />;
+        const handleRateChange = (newRate) => {
+          const r = Number(newRate);
+          if (!r || r < 100) return;
+          setCERTO_RATE(r);
+          setLiveRate(r);
+          setRateFetched(new Date());
+          try {
+            localStorage.setItem('certo_rate', String(r));
+            localStorage.setItem('certo_rate_ts', String(Date.now()));
+          } catch(_) {}
+        };
+        return <DashboardPage navigate={navigate} subPage={subPage} liveRate={liveRate} rateFetched={rateFetched} onRateChange={handleRateChange} />;
       }
 
       default:
-        return <HomePage navigate={navigate} />;
+        return <NotFoundPage navigate={navigate} />;
     }
   };
 
   return (
     <div>
-      <NavComponent page={page} navigate={navigate} cartCount={cartCount} lastAdded={lastAdded} cart={cart} />
+      {!isDashboard && <NavComponent page={page} navigate={navigate} cartCount={cartCount} lastAdded={lastAdded} cart={cart} />}
       <main>{renderPage()}</main>
       {!isDashboard && <FooterComponent navigate={navigate} />}
     </div>

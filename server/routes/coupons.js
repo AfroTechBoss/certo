@@ -50,7 +50,7 @@ router.post('/', adminAuth, async (req, res) => {
       [code, description || '', discount_type, discount_value, applies_to,
        max_uses || null, expires_at || null]
     );
-    logAdminAction(req.adminName, 'Created coupon', `Code: ${rows[0].code}, ${discount_type} discount of ${discount_value} on ${applies_to}`).catch(() => {});
+    await logAdminAction(req.adminName, 'Created coupon', `Code: ${rows[0].code}, ${discount_type} discount of ${discount_value} on ${applies_to}`);
     res.status(201).json(rows[0]);
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'A coupon with that code already exists' });
@@ -73,7 +73,7 @@ router.patch('/:id', adminAuth, async (req, res) => {
     if (!rows.length) return res.status(404).json({ error: 'Coupon not found' });
     const isToggle = fields.length === 1 && fields[0] === 'is_active';
     const action = isToggle ? (rows[0].is_active ? 'Enabled coupon' : 'Disabled coupon') : 'Updated coupon';
-    logAdminAction(req.adminName, action, `Code: ${rows[0].code}`).catch(() => {});
+    await logAdminAction(req.adminName, action, `Code: ${rows[0].code}`);
     res.json(rows[0]);
   } catch (err) {
     res.status(500).json({ error: 'Failed to update coupon' });
@@ -85,7 +85,7 @@ router.delete('/:id', adminAuth, async (req, res) => {
   try {
     const { rows: pre } = await pool.queryR('SELECT code FROM coupons WHERE id = $1', [req.params.id]);
     await pool.queryR('DELETE FROM coupons WHERE id = $1', [req.params.id]);
-    logAdminAction(req.adminName, 'Deleted coupon', `Code: ${pre[0]?.code || req.params.id}`).catch(() => {});
+    await logAdminAction(req.adminName, 'Deleted coupon', `Code: ${pre[0]?.code || req.params.id}`);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: 'Failed to delete coupon' });

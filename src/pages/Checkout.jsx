@@ -156,9 +156,12 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
   const dangerousFee = totalQty * DANGEROUS_FEE_UNIT;
 
   const couponDiscount = couponData ? (() => {
-    const base = couponData.applies_to === 'delivery' ? deliveryFeeUsd
-               : couponData.applies_to === 'service'  ? SERVICE_FEE
-               : deliveryFeeUsd + SERVICE_FEE;
+    const at   = couponData.applies_to;
+    const base = at === 'product'  ? itemsSubtotal
+               : at === 'delivery' ? deliveryFeeUsd
+               : at === 'service'  ? SERVICE_FEE
+               : at === 'fees'     ? SERVICE_FEE + deliveryFeeUsd
+               /* 'all' or legacy fallback */ : itemsSubtotal + SERVICE_FEE + dangerousFee + deliveryFeeUsd;
     return couponData.discount_type === 'fixed'
       ? Math.min(Number(couponData.discount_value), base)
       : base * (Number(couponData.discount_value) / 100);
