@@ -2145,7 +2145,7 @@ function CertificatesTab({ isMobile, certificates }) {
 
 // ─── TAB: Messages ────────────────────────────────────────────────────────────
 function MessagesTab({ isMobile, messages: initialMessages }) {
-  const [sel, setSel]   = useState(null);
+  const [sel,  setSel]  = useState(null);
   const [msgs, setMsgs] = useState(initialMessages);
 
   useEffect(() => { setMsgs(initialMessages); }, [initialMessages]);
@@ -2154,8 +2154,27 @@ function MessagesTab({ isMobile, messages: initialMessages }) {
     setSel(m);
     if (!m.read) {
       setMsgs(prev => prev.map(x => x.id===m.id ? {...x, read:true} : x));
+      setSel(s => s?.id===m.id ? {...s, read:true} : s);
       try { await authFetch(`/api/contact/${m.id}`, { method:'PATCH', body: JSON.stringify({ read:true }) }); } catch(e){}
     }
+  };
+
+  const markUnread = async () => {
+    if (!sel) return;
+    setMsgs(prev => prev.map(x => x.id===sel.id ? {...x, read:false} : x));
+    setSel(s => ({...s, read:false}));
+    try { await authFetch(`/api/contact/${sel.id}`, { method:'PATCH', body: JSON.stringify({ read:false }) }); } catch(e){}
+  };
+
+  const deleteMsg = async () => {
+    if (!sel) return;
+    try {
+      const res = await authFetch(`/api/contact/${sel.id}`, { method:'DELETE' });
+      if (res.ok) {
+        setMsgs(prev => prev.filter(x => x.id !== sel.id));
+        setSel(null);
+      }
+    } catch(e) { console.error(e); }
   };
 
   return (
@@ -2180,13 +2199,17 @@ function MessagesTab({ isMobile, messages: initialMessages }) {
         <Panel style={{ minHeight:300 }}>
           {sel ? (
             <div>
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:20, gap:12 }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:20, gap:12, flexWrap:'wrap' }}>
                 <div>
                   <div style={{ fontFamily:'var(--font-head)', fontWeight:800, fontSize:20, color:'var(--text)' }}>{sel.name}</div>
                   <a href={`mailto:${sel.email}`} style={{ fontSize:13, color:'var(--accent)', textDecoration:'none' }}>{sel.email}</a>
                   <div style={{ fontSize:12, color:'var(--text-muted)', marginTop:2 }}>{sel.created_at}</div>
                 </div>
-                <a href={`mailto:${sel.email}`} style={{ ...primaryBtn, textDecoration:'none' }}>Reply</a>
+                <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                  <a href={`mailto:${sel.email}`} style={{ ...primaryBtn, textDecoration:'none' }}>Reply</a>
+                  <button onClick={markUnread} disabled={!sel.read} style={{ ...actionBtn, opacity:sel.read?1:0.4, cursor:sel.read?'pointer':'default' }}>Mark unread</button>
+                  <button onClick={deleteMsg} style={{ ...actionBtn, color:'oklch(50% 0.18 25)', borderColor:'oklch(88% 0.08 25)' }}>Delete</button>
+                </div>
               </div>
               <div style={{ background:'var(--bg-alt)', borderRadius:12, padding:20, fontSize:15, lineHeight:1.7, color:'var(--text)' }}>{sel.message}</div>
             </div>
