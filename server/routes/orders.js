@@ -273,7 +273,7 @@ router.patch('/:id', adminAuth, async (req, res) => {
     } else if (req.body.notes !== undefined) {
       await logAdminAction(req.adminName, 'Updated order notes', `Order ${updated.id}`);
     } else if (req.body.admin_hidden !== undefined) {
-      const action = req.body.admin_hidden ? 'Hid order' : 'Restored hidden order';
+      const action = req.body.admin_hidden ? 'Deleted order' : 'Restored hidden order';
       await logAdminAction(req.adminName, action, `Order ${updated.id}`);
     }
 
