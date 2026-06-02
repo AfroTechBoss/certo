@@ -1,7 +1,7 @@
 const express = require('express');
 const router  = express.Router();
 const pool    = require('../db');
-const { sendOrderConfirmation, sendStatusUpdate, sendCancellationEmail, sendPaymentPendingEmail, sendPaymentPendingNairaEmail, sendNewOrderNotification, sendWhatsAppNotification } = require('../email');
+const { sendOrderConfirmation, sendStatusUpdate, sendCancellationEmail, sendPaymentPendingEmail, sendPaymentPendingNairaEmail, sendWhatsAppNotification } = require('../email');
 const { adminAuth } = require('../adminAuth');
 const logAdminAction = require('../logAdminAction');
 const logOrderEvent  = require('../logAdminAction'); // same helper, aliased for clarity
@@ -100,9 +100,7 @@ router.post('/', async (req, res) => {
       }
     }
 
-    // Internal notifications — both must be awaited so Vercel doesn't kill the function before they complete
-    await sendNewOrderNotification(order).catch(err => console.error('[notify] new order email failed:', err.message));
-
+    // Internal notification — Telegram only (email alert removed, Telegram is sufficient)
     const waText = `🛍️ New Certo order!\n\nOrder: ${order.id}\nCustomer: ${order.customer_name}\nPhone: ${order.customer_phone}\nProduct: ${order.product_name}${order.product_subtitle ? ' ' + order.product_subtitle : ''}\nAmount: $${Number(order.usd_price).toLocaleString('en-US', { minimumFractionDigits: 2 })} USD\nPayment: ${order.payment_method}\nStatus: ${order.status}`;
     await sendWhatsAppNotification(waText).catch(err => console.error('[notify] Telegram notification failed:', err.message));
 
