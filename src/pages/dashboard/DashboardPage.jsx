@@ -81,6 +81,7 @@ function mapProduct(r) {
     appleUrl: r.apple_url || '',
     sortOrder: Number(r.sort_order) || 0,
     variants: r.variants || null,
+    code: r.code ? String(r.code) : null,
   };
 }
 
@@ -2149,7 +2150,10 @@ function ProductsTab({ isMobile, products, onProductUpdate }) {
                     <div style={{ display:'flex', justifyContent:'space-between', gap:12 }}>
                       {!q.trim() && <div title="Drag to reorder" style={{ cursor:'grab', color:'var(--text-muted)', fontSize:16, alignSelf:'center', flexShrink:0 }}>⠿</div>}
                       <div style={{ minWidth:0, flex:1 }}>
-                        <div style={{ fontFamily:'var(--font-head)', fontWeight:700, fontSize:15, color:'var(--text)' }}>{p.name}{p.featured&&<span style={{ color:'var(--accent)', marginLeft:4 }}>★</span>}</div>
+                        <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4 }}>
+                          <div style={{ fontFamily:'var(--font-head)', fontWeight:700, fontSize:15, color:'var(--text)' }}>{p.name}{p.featured&&<span style={{ color:'var(--accent)', marginLeft:4 }}>★</span>}</div>
+                          {p.code && <span style={{ fontFamily:'var(--font-mono,monospace)', fontWeight:700, fontSize:11, color:'var(--accent)', background:'var(--accent-tint)', padding:'2px 7px', borderRadius:6, letterSpacing:'0.05em', flexShrink:0 }}>#{p.code}</span>}
+                        </div>
                         <div style={{ fontSize:12.5, color:'var(--text-muted)', marginBottom:8 }}>{p.subtitle}</div>
                         <span style={{ padding:'3px 9px', borderRadius:6, background:st.bg, color:st.fg, fontSize:11, fontWeight:700 }}>{st.label}</span>
                       </div>
@@ -2188,7 +2192,13 @@ function ProductsTab({ isMobile, products, onProductUpdate }) {
                         onMouseEnter={e => e.currentTarget.style.background='var(--bg-alt)'}
                         onMouseLeave={e => e.currentTarget.style.background='transparent'}>
                         <td style={{ ...tdS, color:'var(--text-muted)', fontSize:18, width:32, textAlign:'center' }}>{!q.trim() ? '⠿' : ''}</td>
-                        <td style={tdS}><div style={{ fontWeight:700, color:'var(--text)' }}>{p.name}{p.featured&&<span title="Featured" style={{ color:'var(--accent)' }}>★</span>}</div><div style={{ fontSize:12, color:'var(--text-muted)' }}>{p.subtitle}</div></td>
+                        <td style={tdS}>
+                          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                            <div style={{ fontWeight:700, color:'var(--text)' }}>{p.name}{p.featured&&<span title="Featured" style={{ color:'var(--accent)' }}>★</span>}</div>
+                            {p.code && <span style={{ fontFamily:'var(--font-mono,monospace)', fontWeight:700, fontSize:11, color:'var(--accent)', background:'var(--accent-tint)', padding:'2px 7px', borderRadius:6, letterSpacing:'0.05em', flexShrink:0 }}>#{p.code}</span>}
+                          </div>
+                          <div style={{ fontSize:12, color:'var(--text-muted)' }}>{p.subtitle}</div>
+                        </td>
                         <td style={{ ...tdS, color:'var(--text-muted)', fontSize:12.5 }}>{p.type}</td>
                         <td style={tdS}><CondBadge condition={p.condition}/></td>
                         <td style={{ ...tdS, fontSize:13 }}>{fmtU(p.usdPrice)}</td>

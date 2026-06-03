@@ -4,11 +4,25 @@ const pool    = require('../db');
 const { adminAuth } = require('../adminAuth');
 const logAdminAction = require('../logAdminAction');
 
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+// Returns the lowest available 5-digit code (10000–99999) not currently in use
+async function nextAvailableCode() {
+  const { rows } = await pool.queryR(
+    'SELECT code FROM products WHERE code IS NOT NULL ORDER BY code ASC'
+  );
+  const used = new Set(rows.map(r => Number(r.code)));
+  for (let c = 10000; c <= 99999; c++) {
+    if (!used.has(c)) return c;
+  }
+  throw new Error('No available 5-digit product codes');
+}
+
 // GET /api/products
 router.get('/', async (req, res) => {
   try {
     const { category, condition, in_stock, featured, limit, page, search, sort } = req.query;
-    const CARD_COLS = 'id,name,subtitle,category,listing_type,apple_url,image_urls,usd_price,in_stock,featured,badge,delivery_days,condition,condition_note,stock_count,listing_status,created_at,updated_at,variants';
+    const CARD_COLS = 'id,name,subtitle,category,listing_type,apple_url,image_urls,usd_price,in_stock,featured,badge,delivery_days,condition,condition_note,stock_count,listing_status,created_at,updated_at,variants,sort_order,code';
     // admin=true only honoured when a valid admin token is present
     const authHeader = req.headers['authorization'] || '';
     const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
@@ -30,8 +44,15 @@ router.get('/', async (req, res) => {
     if (in_stock === 'true') where += ' AND in_stock = true';
     if (featured === 'true')  where += ' AND featured = true';
     if (search && search.trim()) {
-      params.push(`%${search.trim()}%`);
-      where += ` AND name ILIKE $${params.length}`;
+      const s = search.trim();
+      // Exact 5-digit code match takes priority; otherwise search by name
+      if (/^\d{5}$/.test(s)) {
+        params.push(parseInt(s, 10));
+        where += ` AND code = $${params.length}`;
+      } else {
+        params.push(`%${s}%`);
+        where += ` AND (name ILIKE $${params.length} OR code::text ILIKE $${params.length})`;
+      }
     }
 
     // Total count for pagination header
@@ -77,17 +98,18 @@ router.post('/', adminAuth, async (req, res) => {
 
     if (!name) return res.status(400).json({ error: 'Name required' });
 
-    const id = 'prod-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6);
+    const id   = 'prod-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6);
+    const code = await nextAvailableCode();
 
     const { rows } = await pool.queryR(`
       INSERT INTO products (
         id, name, subtitle, category, usd_price, in_stock, featured, badge,
         delivery_days, condition, condition_note, stock_count, listing_status,
-        overview, specs, includes, features, tech_specs, image_urls, variants
+        overview, specs, includes, features, tech_specs, image_urls, variants, code
       ) VALUES (
         $1,$2,$3,$4,$5,$6,$7,$8,
         $9,$10,$11,$12,$13,
-        $14,$15,$16,$17,$18,$19,$20
+        $14,$15,$16,$17,$18,$19,$20,$21
       ) RETURNING *
     `, [
       id,
@@ -97,10 +119,10 @@ router.post('/', adminAuth, async (req, res) => {
       condition || 'New', condition_note || '', stock_count || 0,
       listing_status || 'live',
       overview || [], specs || [], includes || [], features || [],
-      tech_specs || [], image_urls || [], variants || [],
+      tech_specs || [], image_urls || [], variants || [], code,
     ]);
 
-    await logAdminAction(req.adminName, 'Created product', `"${name}" — $${usd_price}`);
+    await logAdminAction(req.adminName, 'Created product', `"${name}" — $${usd_price} — code #${code}`);
     res.status(201).json(rows[0]);
   } catch (err) {
     console.error('POST /products:', err);

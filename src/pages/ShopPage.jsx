@@ -197,7 +197,15 @@ const ShopPage = ({ navigate, addToCart, initialType }) => {
     else if (sort === 'best')       params.set('sort', 'best_sellers');
     fetch(`/api/products?${params}`)
       .then(r => { setTotalCount(parseInt(r.headers.get('X-Total-Count') || '0', 10)); return r.json(); })
-      .then(data => { setProducts((Array.isArray(data) ? data : []).map(normaliseProduct)); setLoading(false); })
+      .then(data => {
+        const mapped = (Array.isArray(data) ? data : []).map(normaliseProduct);
+        setProducts(mapped);
+        setLoading(false);
+        // If exactly one result and search was a 5-digit code → jump straight to it
+        if (/^\d{5}$/.test((search || '').trim()) && mapped.length === 1) {
+          navigate && navigate('product', mapped[0].id);
+        }
+      })
       .catch(() => setLoading(false));
   }, [typeFilter, condFilter, search, sort, page]);
 

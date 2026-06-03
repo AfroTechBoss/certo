@@ -141,6 +141,25 @@ async function runMigrations() {
 
     // Add sort_order to products for manual drag-to-reorder
     await pool.queryR(`ALTER TABLE products ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0`);
+
+    // Add unique 5-digit marketing code to each product
+    await pool.queryR(`ALTER TABLE products ADD COLUMN IF NOT EXISTS code INTEGER UNIQUE`);
+    // Assign codes to existing products that don't have one yet
+    const { rows: uncodedProds } = await pool.queryR(
+      `SELECT id FROM products WHERE code IS NULL ORDER BY created_at ASC`
+    );
+    if (uncodedProds.length > 0) {
+      const { rows: usedCodes } = await pool.queryR(`SELECT code FROM products WHERE code IS NOT NULL`);
+      const used = new Set(usedCodes.map(r => Number(r.code)));
+      let next = 10000;
+      for (const { id } of uncodedProds) {
+        while (used.has(next)) next++;
+        await pool.queryR(`UPDATE products SET code = $1 WHERE id = $2`, [next, id]);
+        used.add(next);
+        next++;
+      }
+      console.log(`[migrations] ✓ assigned 5-digit codes to ${uncodedProds.length} products`);
+    }
     // Initialise sort_order from creation order (only for rows still at 0)
     await pool.queryR(`
       UPDATE products SET sort_order = sub.rn
