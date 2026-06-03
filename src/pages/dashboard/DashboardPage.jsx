@@ -2029,6 +2029,8 @@ function ProductsTab({ isMobile, products, onProductUpdate }) {
   const [q,           setQ]          = useState('');
   const [editId,      setEditId]     = useState(null);
   const [showCreate,  setShowCreate] = useState(false);
+  const [deleteTarget,setDeleteTarget] = useState(null); // product to confirm deletion
+  const [deleting,    setDeleting]   = useState(false);
   const [localProds,  setLocalProds] = useState(products);
 
   useEffect(() => { setLocalProds(products); }, [products]);
@@ -2053,18 +2055,36 @@ function ProductsTab({ isMobile, products, onProductUpdate }) {
     onProductUpdate && onProductUpdate(mapped);
   };
 
-  const deleteProduct = async (p) => {
-    if (!window.confirm(`Delete "${p.name}"? This cannot be undone.`)) return;
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      const res = await authFetch(`/api/products/${p.id}`, { method: 'DELETE' });
-      if (res.ok) setLocalProds(prev => prev.filter(x => x.id !== p.id));
+      const res = await authFetch(`/api/products/${deleteTarget.id}`, { method: 'DELETE' });
+      if (res.ok) { setLocalProds(prev => prev.filter(x => x.id !== deleteTarget.id)); setDeleteTarget(null); }
     } catch(e) { console.error(e); }
+    setDeleting(false);
   };
 
   return (
     <>
       {editId && <ProductEditModal productId={editId} onClose={() => setEditId(null)} onDone={handleEditDone}/>}
       {showCreate && <ProductCreateModal onClose={() => setShowCreate(false)} onDone={handleCreateDone}/>}
+      {deleteTarget && (
+        <Modal title="Delete product" onClose={() => setDeleteTarget(null)} width={380}>
+          <p style={{ fontSize:14, color:'var(--text)', lineHeight:1.65, marginBottom:6 }}>
+            Are you sure you want to delete <strong>{deleteTarget.name}</strong>?
+          </p>
+          <p style={{ fontSize:13, color:'var(--text-muted)', lineHeight:1.6, marginBottom:24 }}>
+            This cannot be undone. Any existing orders for this product will not be affected.
+          </p>
+          <div style={{ display:'flex', gap:10 }}>
+            <button onClick={confirmDelete} disabled={deleting} style={{ ...primaryBtn, background:'oklch(48% 0.2 25)', flex:1, opacity:deleting?0.7:1 }}>
+              {deleting ? 'Deleting…' : 'Delete'}
+            </button>
+            <button onClick={() => setDeleteTarget(null)} style={{ ...actionBtn, flex:1, justifyContent:'center' }}>Cancel</button>
+          </div>
+        </Modal>
+      )}
       <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
         <div style={{ display:'flex', gap:10, alignItems:'center', flexWrap:'wrap' }}>
           <div style={{ position:'relative', flex:'1 1 220px' }}>
@@ -2093,7 +2113,7 @@ function ProductsTab({ isMobile, products, onProductUpdate }) {
                       <div style={{ display:'flex', gap:6, marginTop:8, justifyContent:'flex-end' }}>
                         {p.listingStatus==='live' && <a href={`/shop/${p.id}`} target="_blank" rel="noreferrer" style={{ ...miniBtn, textDecoration:'none' }}>View ↗</a>}
                         <button onClick={() => setEditId(p.id)} style={miniBtn}>Edit</button>
-                        <button onClick={() => deleteProduct(p)} style={{ ...miniBtn, color:'oklch(50% 0.18 25)', borderColor:'oklch(88% 0.08 25)' }}>Delete</button>
+                        <button onClick={() => setDeleteTarget(p)} style={{ ...miniBtn, color:'oklch(50% 0.18 25)', borderColor:'oklch(88% 0.08 25)' }}>Delete</button>
                       </div>
                     </div>
                   </div>
@@ -2123,7 +2143,7 @@ function ProductsTab({ isMobile, products, onProductUpdate }) {
                           <div style={{ display:'flex', gap:6 }}>
                             {p.listingStatus==='live' && <a href={`/shop/${p.id}`} target="_blank" rel="noreferrer" style={{ ...miniBtn, textDecoration:'none' }}>View ↗</a>}
                             <button onClick={() => setEditId(p.id)} style={miniBtn}>Edit</button>
-                            <button onClick={() => deleteProduct(p)} style={{ ...miniBtn, color:'oklch(50% 0.18 25)', borderColor:'oklch(88% 0.08 25)' }}>Delete</button>
+                            <button onClick={() => setDeleteTarget(p)} style={{ ...miniBtn, color:'oklch(50% 0.18 25)', borderColor:'oklch(88% 0.08 25)' }}>Delete</button>
                           </div>
                         </td>
                       </tr>
