@@ -40,17 +40,23 @@ router.get('/', async (req, res) => {
     res.setHeader('X-Total-Count', total);
     res.setHeader('Access-Control-Expose-Headers', 'X-Total-Count');
 
-    const orderBy = sort === 'price_asc'  ? 'usd_price ASC'
-                  : sort === 'price_desc' ? 'usd_price DESC'
-                  : 'featured DESC, created_at ASC';
+    const orderBy = sort === 'price_asc'    ? 'usd_price ASC'
+                  : sort === 'price_desc'   ? 'usd_price DESC'
+                  : sort === 'best_sellers' ? 'order_count DESC, sort_order ASC, featured DESC'
+                  : 'sort_order ASC, featured DESC, created_at ASC';
 
     const perPage = Math.min(parseInt(limit, 10) || 18, 1000);
     const offset  = (Math.max(parseInt(page, 10) || 1, 1) - 1) * perPage;
     params.push(perPage); const limitIdx  = params.length;
     params.push(offset);  const offsetIdx = params.length;
 
+    // For best_sellers sort we need the order count per product
+    const cols = sort === 'best_sellers'
+      ? `${CARD_COLS}, COALESCE((SELECT COUNT(*) FROM orders WHERE product_id = products.id), 0) AS order_count`
+      : `${CARD_COLS}, sort_order`;
+
     const { rows } = await pool.queryR(
-      `SELECT ${CARD_COLS} FROM products ${where} ORDER BY ${orderBy} LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
+      `SELECT ${cols} FROM products ${where} ORDER BY ${orderBy} LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
       params,
     );
     res.json(rows);
@@ -162,6 +168,24 @@ router.patch('/:id', adminAuth, async (req, res) => {
   } catch (err) {
     console.error('PATCH /products/:id:', err);
     res.status(500).json({ error: 'Failed to update product' });
+  }
+});
+
+// PATCH /api/products/reorder  (admin — bulk-update sort_order)
+router.patch('/reorder', adminAuth, async (req, res) => {
+  const { order } = req.body; // [{id, sort_order}, ...]
+  if (!Array.isArray(order) || !order.length) return res.status(400).json({ error: 'order array required' });
+  try {
+    await Promise.all(
+      order.map(({ id, sort_order }) =>
+        pool.queryR('UPDATE products SET sort_order = $1 WHERE id = $2', [sort_order, id])
+      )
+    );
+    await logAdminAction(req.adminName, 'Reordered products', `${order.length} products`);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('PATCH /products/reorder:', err);
+    res.status(500).json({ error: 'Failed to reorder products' });
   }
 });
 

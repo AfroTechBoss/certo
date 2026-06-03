@@ -79,6 +79,8 @@ function mapProduct(r) {
     badge: r.badge || '',
     deliveryDays: r.delivery_days || '',
     appleUrl: r.apple_url || '',
+    sortOrder: Number(r.sort_order) || 0,
+    variants: r.variants || null,
   };
 }
 
@@ -2026,12 +2028,16 @@ function OrderDetail({ order: initialOrder, onBack, isMobile, onOrdersChange, ex
 
 // ─── TAB: Products ────────────────────────────────────────────────────────────
 function ProductsTab({ isMobile, products, onProductUpdate }) {
-  const [q,           setQ]          = useState('');
-  const [editId,      setEditId]     = useState(null);
-  const [showCreate,  setShowCreate] = useState(false);
-  const [deleteTarget,setDeleteTarget] = useState(null); // product to confirm deletion
-  const [deleting,    setDeleting]   = useState(false);
-  const [localProds,  setLocalProds] = useState(products);
+  const [q,            setQ]           = useState('');
+  const [editId,       setEditId]      = useState(null);
+  const [showCreate,   setShowCreate]  = useState(false);
+  const [deleteTarget, setDeleteTarget]= useState(null);
+  const [deleting,     setDeleting]    = useState(false);
+  const [localProds,   setLocalProds]  = useState(products);
+  const [orderDirty,   setOrderDirty]  = useState(false);  // unsaved reorder
+  const [savingOrder,  setSavingOrder] = useState(false);
+  const [dragIdx,      setDragIdx]     = useState(null);   // index being dragged
+  const [dragOverIdx,  setDragOverIdx] = useState(null);
 
   useEffect(() => { setLocalProds(products); }, [products]);
 
@@ -2053,6 +2059,31 @@ function ProductsTab({ isMobile, products, onProductUpdate }) {
     const mapped = mapProduct(raw);
     setLocalProds(prev => [mapped, ...prev]);
     onProductUpdate && onProductUpdate(mapped);
+  };
+
+  // ── Drag-to-reorder ──────────────────────────────────────────────────────────
+  const onDragStart = (i) => setDragIdx(i);
+  const onDragOver  = (e, i) => { e.preventDefault(); setDragOverIdx(i); };
+  const onDrop      = (i) => {
+    if (dragIdx === null || dragIdx === i) { setDragIdx(null); setDragOverIdx(null); return; }
+    const next = [...localProds];
+    const [moved] = next.splice(dragIdx, 1);
+    next.splice(i, 0, moved);
+    setLocalProds(next);
+    setOrderDirty(true);
+    setDragIdx(null);
+    setDragOverIdx(null);
+  };
+  const onDragEnd   = () => { setDragIdx(null); setDragOverIdx(null); };
+
+  const saveOrder = async () => {
+    setSavingOrder(true);
+    try {
+      const payload = localProds.map((p, i) => ({ id: p.id, sort_order: i + 1 }));
+      const res = await authFetch('/api/products/reorder', { method:'PATCH', body: JSON.stringify({ order: payload }) });
+      if (res.ok) { setOrderDirty(false); setLocalProds(prev => prev.map((p, i) => ({ ...p, sortOrder: i + 1 }))); }
+    } catch(e) { console.error(e); }
+    setSavingOrder(false);
   };
 
   const confirmDelete = async () => {
@@ -2092,32 +2123,48 @@ function ProductsTab({ isMobile, products, onProductUpdate }) {
             <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search products…" style={{ ...inputS, paddingLeft:34, width:'100%', boxSizing:'border-box' }}/>
           </div>
           <span style={{ fontSize:12.5, color:'var(--text-muted)' }}>{filtered.length} of {localProds.length}</span>
+          {orderDirty && (
+            <button onClick={saveOrder} disabled={savingOrder} style={{ ...primaryBtn, background:'oklch(45% 0.15 155)', opacity:savingOrder?0.7:1, display:'flex', alignItems:'center', gap:6 }}>
+              {savingOrder ? '⏳ Saving…' : '✓ Save order'}
+            </button>
+          )}
           <button onClick={() => setShowCreate(true)} style={{ ...primaryBtn, display:'flex', alignItems:'center', gap:7 }}><Icon name="plus" size={16} c="white"/> Add product</button>
         </div>
 
         {isMobile ? (
           <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-            {filtered.map(p => {
+            {filtered.map((p, i) => {
               const st = STATUS_MAP[p.listingStatus]||STATUS_MAP.live;
+              const isDragOver = dragOverIdx === i;
               return (
-                <Panel key={p.id} pad={16}>
-                  <div style={{ display:'flex', justifyContent:'space-between', gap:12 }}>
-                    <div style={{ minWidth:0, flex:1 }}>
-                      <div style={{ fontFamily:'var(--font-head)', fontWeight:700, fontSize:15, color:'var(--text)' }}>{p.name}{p.featured&&<span style={{ color:'var(--accent)', marginLeft:4 }}>★</span>}</div>
-                      <div style={{ fontSize:12.5, color:'var(--text-muted)', marginBottom:8 }}>{p.subtitle}</div>
-                      <span style={{ padding:'3px 9px', borderRadius:6, background:st.bg, color:st.fg, fontSize:11, fontWeight:700 }}>{st.label}</span>
-                    </div>
-                    <div style={{ textAlign:'right', flexShrink:0 }}>
-                      <div style={{ fontFamily:'var(--font-num)', fontWeight:800, fontSize:16, color:'var(--text)' }}>{fmtU(p.usdPrice)}</div>
-                      <div style={{ fontSize:12, color:p.stock===0?'oklch(55% 0.18 25)':'var(--text-muted)', marginTop:4 }}>{p.stock} in stock</div>
-                      <div style={{ display:'flex', gap:6, marginTop:8, justifyContent:'flex-end' }}>
-                        {p.listingStatus==='live' && <a href={`/shop/${p.id}`} target="_blank" rel="noreferrer" style={{ ...miniBtn, textDecoration:'none' }}>View ↗</a>}
-                        <button onClick={() => setEditId(p.id)} style={miniBtn}>Edit</button>
-                        <button onClick={() => setDeleteTarget(p)} style={{ ...miniBtn, color:'oklch(50% 0.18 25)', borderColor:'oklch(88% 0.08 25)' }}>Delete</button>
+                <div key={p.id}
+                  draggable={!q.trim()}
+                  onDragStart={() => onDragStart(i)}
+                  onDragOver={e => onDragOver(e, i)}
+                  onDrop={() => onDrop(i)}
+                  onDragEnd={onDragEnd}
+                  style={{ opacity: dragIdx===i ? 0.4 : 1, borderTop: isDragOver ? '2px solid var(--accent)' : '2px solid transparent', transition:'border-color 0.15s' }}
+                >
+                  <Panel pad={16}>
+                    <div style={{ display:'flex', justifyContent:'space-between', gap:12 }}>
+                      {!q.trim() && <div title="Drag to reorder" style={{ cursor:'grab', color:'var(--text-muted)', fontSize:16, alignSelf:'center', flexShrink:0 }}>⠿</div>}
+                      <div style={{ minWidth:0, flex:1 }}>
+                        <div style={{ fontFamily:'var(--font-head)', fontWeight:700, fontSize:15, color:'var(--text)' }}>{p.name}{p.featured&&<span style={{ color:'var(--accent)', marginLeft:4 }}>★</span>}</div>
+                        <div style={{ fontSize:12.5, color:'var(--text-muted)', marginBottom:8 }}>{p.subtitle}</div>
+                        <span style={{ padding:'3px 9px', borderRadius:6, background:st.bg, color:st.fg, fontSize:11, fontWeight:700 }}>{st.label}</span>
+                      </div>
+                      <div style={{ textAlign:'right', flexShrink:0 }}>
+                        <div style={{ fontFamily:'var(--font-num)', fontWeight:800, fontSize:16, color:'var(--text)' }}>{fmtU(p.usdPrice)}</div>
+                        <div style={{ fontSize:12, color:p.stock===0?'oklch(55% 0.18 25)':'var(--text-muted)', marginTop:4 }}>{p.stock} in stock</div>
+                        <div style={{ display:'flex', gap:6, marginTop:8, justifyContent:'flex-end' }}>
+                          {p.listingStatus==='live' && <a href={`/shop/${p.id}`} target="_blank" rel="noreferrer" style={{ ...miniBtn, textDecoration:'none' }}>View ↗</a>}
+                          <button onClick={() => setEditId(p.id)} style={miniBtn}>Edit</button>
+                          <button onClick={() => setDeleteTarget(p)} style={{ ...miniBtn, color:'oklch(50% 0.18 25)', borderColor:'oklch(88% 0.08 25)' }}>Delete</button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </Panel>
+                  </Panel>
+                </div>
               );
             })}
           </div>
@@ -2125,14 +2172,22 @@ function ProductsTab({ isMobile, products, onProductUpdate }) {
           <Panel pad={0}>
             <div style={{ overflowX:'auto' }}>
               <table style={{ width:'100%', borderCollapse:'collapse', minWidth:720 }}>
-                <thead><tr style={{ background:'var(--bg-alt)' }}>{['Product','Type','Condition','USD','Stock','Status',''].map(h=><th key={h} style={thS}>{h}</th>)}</tr></thead>
+                <thead><tr style={{ background:'var(--bg-alt)' }}>{[!q.trim()?'⠿':'','Product','Type','Condition','USD','Stock','Status',''].map((h,i)=><th key={i} style={thS}>{h}</th>)}</tr></thead>
                 <tbody>
-                  {filtered.map(p => {
+                  {filtered.map((p, i) => {
                     const st = STATUS_MAP[p.listingStatus]||STATUS_MAP.live;
+                    const isDragOver = dragOverIdx === i;
                     return (
-                      <tr key={p.id} style={{ borderTop:'1px solid var(--border)' }}
+                      <tr key={p.id}
+                        draggable={!q.trim()}
+                        onDragStart={() => onDragStart(i)}
+                        onDragOver={e => onDragOver(e, i)}
+                        onDrop={() => onDrop(i)}
+                        onDragEnd={onDragEnd}
+                        style={{ borderTop: isDragOver ? '2px solid var(--accent)' : '1px solid var(--border)', opacity: dragIdx===i ? 0.4 : 1, cursor: q.trim() ? 'default' : 'grab' }}
                         onMouseEnter={e => e.currentTarget.style.background='var(--bg-alt)'}
                         onMouseLeave={e => e.currentTarget.style.background='transparent'}>
+                        <td style={{ ...tdS, color:'var(--text-muted)', fontSize:18, width:32, textAlign:'center' }}>{!q.trim() ? '⠿' : ''}</td>
                         <td style={tdS}><div style={{ fontWeight:700, color:'var(--text)' }}>{p.name}{p.featured&&<span title="Featured" style={{ color:'var(--accent)' }}>★</span>}</div><div style={{ fontSize:12, color:'var(--text-muted)' }}>{p.subtitle}</div></td>
                         <td style={{ ...tdS, color:'var(--text-muted)', fontSize:12.5 }}>{p.type}</td>
                         <td style={tdS}><CondBadge condition={p.condition}/></td>

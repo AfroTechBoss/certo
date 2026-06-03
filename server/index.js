@@ -139,6 +139,15 @@ async function runMigrations() {
     // Add status_timeline JSONB column to orders (tracks a timestamped log of every status change)
     await pool.queryR(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS status_timeline JSONB DEFAULT '[]'`);
 
+    // Add sort_order to products for manual drag-to-reorder
+    await pool.queryR(`ALTER TABLE products ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0`);
+    // Initialise sort_order from creation order (only for rows still at 0)
+    await pool.queryR(`
+      UPDATE products SET sort_order = sub.rn
+      FROM (SELECT id, ROW_NUMBER() OVER (ORDER BY created_at ASC) AS rn FROM products WHERE sort_order = 0) sub
+      WHERE products.id = sub.id
+    `);
+
     // Certificates table
     await pool.queryR(`
       CREATE TABLE IF NOT EXISTS certificates (

@@ -192,7 +192,9 @@ const ShopPage = ({ navigate, addToCart, initialType }) => {
     if (typeFilter !== 'All') params.set('category', typeFilter === 'MacBook' ? 'Mac' : typeFilter);
     if (condFilter !== 'All') params.set('condition', condFilter === 'Refurbished' ? 'refurb' : condFilter.toLowerCase());
     if (search)               params.set('search', search);
-    if (sort !== 'featured')  params.set('sort', sort === 'price-asc' ? 'price_asc' : 'price_desc');
+    if (sort === 'price-asc')      params.set('sort', 'price_asc');
+    else if (sort === 'price-desc') params.set('sort', 'price_desc');
+    else if (sort === 'best')       params.set('sort', 'best_sellers');
     fetch(`/api/products?${params}`)
       .then(r => { setTotalCount(parseInt(r.headers.get('X-Total-Count') || '0', 10)); return r.json(); })
       .then(data => { setProducts((Array.isArray(data) ? data : []).map(normaliseProduct)); setLoading(false); })
@@ -310,7 +312,8 @@ const ShopPage = ({ navigate, addToCart, initialType }) => {
               background: 'var(--bg)', fontFamily: 'var(--font-body)', fontSize: 14,
               color: 'var(--text)', cursor: 'pointer', outline: 'none',
             }}>
-              <option value="featured">Sort: Featured</option>
+              <option value="featured">Sort: Default</option>
+              <option value="best">Best sellers</option>
               <option value="price-asc">Price: Low → High</option>
               <option value="price-desc">Price: High → Low</option>
             </select>
