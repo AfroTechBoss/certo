@@ -44,7 +44,11 @@ function mapOrder(r) {
     product_image_url: r.product_image_url || '',
     items: Array.isArray(r.items) && r.items.length
       ? r.items
-      : [{ name: r.product_name, subtitle: r.product_subtitle, usd_price: Number(r.usd_price), qty: r.qty || 1, applecare: r.applecare }],
+      : [{ name: r.product_name, subtitle: r.product_subtitle, usd_price: Number(r.usd_price), qty: r.qty || 1, applecare: r.applecare,
+           variant_color: r.variant_color || null, variant_storage: r.variant_storage || null, variant_color_hex: r.variant_color_hex || null }],
+    variant_color:     r.variant_color     || null,
+    variant_storage:   r.variant_storage   || null,
+    variant_color_hex: r.variant_color_hex || null,
     status: r.status,
     payment_method: r.payment_method || 'Paystack',
     flag: r.flagged || false,
@@ -1938,7 +1942,22 @@ function OrderDetail({ order: initialOrder, onBack, isMobile, onOrdersChange, ex
                   <div>
                     <div style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>{it.qty>1&&`${it.qty}× `}{it.name}</div>
                     {it.subtitle&&<div style={{ fontSize:12, color:'var(--text-muted)' }}>{it.subtitle}</div>}
-                    {it.applecare&&it.applecare!=='none'&&<div style={{ fontSize:12, color:'var(--accent)', marginTop:2 }}>+ {it.applecare}</div>}
+                    {(it.variant_color || it.variant_storage) && (
+                      <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginTop:6 }}>
+                        {it.variant_color && (
+                          <span style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'2px 9px', borderRadius:6, background:'var(--bg)', border:'1px solid var(--border)', fontSize:12, fontWeight:500, color:'var(--text)' }}>
+                            {it.variant_color_hex && <span style={{ width:10, height:10, borderRadius:'50%', background:it.variant_color_hex, border:'1px solid rgba(0,0,0,0.12)', display:'inline-block', flexShrink:0 }}/>}
+                            {it.variant_color}
+                          </span>
+                        )}
+                        {it.variant_storage && (
+                          <span style={{ display:'inline-flex', alignItems:'center', padding:'2px 9px', borderRadius:6, background:'var(--bg)', border:'1px solid var(--border)', fontSize:12, fontWeight:500, color:'var(--text)' }}>
+                            {it.variant_storage}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {it.applecare&&it.applecare!=='none'&&<div style={{ fontSize:12, color:'var(--accent)', marginTop:4 }}>+ {it.applecare}</div>}
                   </div>
                   <div style={{ fontFamily:'var(--font-num)', fontWeight:700, fontSize:14, color:'var(--text)' }}>{fmtU(it.usd_price*(it.qty||1))}</div>
                 </div>
