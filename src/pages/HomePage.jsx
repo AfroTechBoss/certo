@@ -721,7 +721,7 @@ function SectionCatalog({ navigate }) {
                 }}>
                   <div style={{
                     height: isMobile ? 160 : 220,
-                    background: 'var(--cream)',
+                    background: '#ffffff',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     borderBottom: '1px solid var(--hairline)', position: 'relative',
                   }}>

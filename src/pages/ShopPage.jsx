@@ -64,7 +64,7 @@ const ProductCard = ({ product, navigate, compact }) => {
       }}
     >
       <div style={{
-        height: compact ? 120 : 200, background: 'var(--bg-alt)',
+        height: compact ? 120 : 200, background: '#ffffff',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         borderBottom: '1px solid var(--border)', position: 'relative', overflow: 'hidden',
       }}>
@@ -550,7 +550,7 @@ const ProductDetailPage = ({ productId, navigate, addToCart, trackEvent }) => {
         {/* Left: product display */}
         <div>
           <div style={{
-            height: isMobile ? 260 : 440, background: 'var(--bg-alt)', borderRadius: 24,
+            height: isMobile ? 260 : 440, background: '#ffffff', borderRadius: 24,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             border: '1px solid var(--border)', marginBottom: displayImages.length > 1 ? 12 : 20,
             overflow: 'hidden',
@@ -575,7 +575,7 @@ const ProductDetailPage = ({ productId, navigate, addToCart, trackEvent }) => {
                 <button key={i} onClick={() => setSelectedImg(i)} style={{
                   width: 72, height: 72, flexShrink: 0, borderRadius: 12,
                   border: `2px solid ${selectedImg === i ? 'var(--accent)' : 'var(--border)'}`,
-                  background: 'var(--bg-alt)', overflow: 'hidden', cursor: 'pointer', padding: 4,
+                  background: '#ffffff', overflow: 'hidden', cursor: 'pointer', padding: 4,
                 }}>
                   <img src={url} alt={`${product.name} – view ${i + 1}`} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                 </button>
