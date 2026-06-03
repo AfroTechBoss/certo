@@ -10,6 +10,7 @@ import { VerifyPage } from './pages/VerifyPage.jsx';
 import { CheckoutFlow } from './pages/Checkout.jsx';
 import { DashboardPage } from './pages/dashboard/DashboardPage.jsx';
 import { NotFoundPage } from './pages/NotFoundPage.jsx';
+import { BlogPage } from './pages/BlogPage.jsx';
 
 const FooterComponent = ({ navigate }) => {
   const { isMobile } = useResponsive();
@@ -71,6 +72,7 @@ const FooterComponent = ({ navigate }) => {
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <NavLink label="How It Works" target="how-it-works" />
               <NavLink label="About" target="about" />
+              <NavLink label="Blog & Guides" target="blog" />
               <NavLink label="FAQ" target="faq" />
               <NavLink label="Contact" target="contact" />
             </div>
@@ -136,6 +138,7 @@ const parsePath = () => {
   if (route === 'shop')      return { page: 'shop',    param };
   if (route === 'track')     return { page: 'track',   param };
   if (route === 'verify')    return { page: 'verify',  param };
+  if (route === 'blog')      return { page: 'blog',    param };
   if (route === 'dashboard') return { page: param ? `dashboard-${param}` : 'dashboard', param: null };
   const known = ['home', 'how-it-works', 'about', 'faq', 'contact', 'cart', 'checkout', 'privacy', 'terms', 'refund', 'verify'];
   if (known.includes(route)) return { page: route, param: null };
@@ -148,6 +151,7 @@ const toPath = (page, param) => {
   if (page === 'shop')    return param ? `/shop/${encodeURIComponent(param)}` : '/shop';
   if (page === 'track')   return param ? `/track/${encodeURIComponent(param)}` : '/track';
   if (page === 'verify')  return param ? `/verify/${encodeURIComponent(param)}` : '/verify';
+  if (page === 'blog')    return param ? `/blog/${encodeURIComponent(param)}` : '/blog';
   if (page.startsWith('dashboard')) {
     const sub = page.replace('dashboard-', '');
     return sub === 'dashboard' ? '/dashboard' : `/dashboard/${sub}`;
@@ -302,6 +306,9 @@ const App = () => {
 
       case 'product':
         return <ProductDetailPage productId={pageParam} navigate={navigate} addToCart={addToCart} trackEvent={trackEvent} />;
+
+      case 'blog':
+        return <BlogPage navigate={navigate} postSlug={pageParam} />;
 
       case 'how-it-works':
         return <HowItWorksPage navigate={navigate} />;

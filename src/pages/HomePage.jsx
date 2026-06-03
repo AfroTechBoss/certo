@@ -1,8 +1,10 @@
 
 // Certo — HomePage.jsx  (ported from Homepage.jsx reference design)
-// Sections: Hero · Certificate · Chain of Custody · Catalog · Forex · Voices · Founder · Final CTA · Footer
+// Sections: Hero · Certificate · Chain of Custody · Catalog · Forex · Voices · Founder · Guides · Final CTA · Footer
 import React, { useEffect, useState } from 'react';
 import { CERTO_RATE } from '../data.js';
+import { GuidesStrip } from './BlogPage.jsx';
+import { getFeaturedPosts } from '../data/blogPosts.js';
 
 // ─── Mobile hook (via matchMedia — works with CSS viewport emulation) ─────────
 
@@ -1267,7 +1269,10 @@ const HomePage = ({ navigate }) => {
       <div data-screen-label="07 Founder note" data-certo-reveal>
         <SectionFounder />
       </div>
-      <div data-screen-label="08 Final CTA" data-certo-reveal>
+      <div data-screen-label="08 Guides" data-certo-reveal>
+        <GuidesStrip posts={getFeaturedPosts(3)} navigate={navigate} isMobile={false} />
+      </div>
+      <div data-screen-label="09 Final CTA" data-certo-reveal>
         <SectionFinalCTA navigate={navigate} />
       </div>
     </main>

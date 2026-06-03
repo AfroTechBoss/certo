@@ -3,6 +3,8 @@
 import React from 'react';
 import { CERTO_RATE, PRODUCTS, useResponsive } from '../data.js';
 import { ProductIcon, fmt } from './HomePage.jsx';
+import { GuidesStrip } from './BlogPage.jsx';
+import { getRelatedPosts } from '../data/blogPosts.js';
 
 // Strip the .v= cache-buster from Apple CDN URLs (it causes proxy encoding issues and isn't needed)
 const cleanAppleImg = (url) => url ? url.replace(/[&?]\.v=[^&]*/, '') : null;
@@ -823,13 +825,26 @@ const ProductDetailPage = ({ productId, navigate, addToCart, trackEvent }) => {
 
       {/* ── You may also like ───────────────────────────────────────── */}
       {related.length > 0 && (
-        <div style={{ maxWidth: 1400, margin: '0 auto', padding: isMobile ? '48px 20px 80px' : '64px 24px 100px' }}>
+        <div style={{ maxWidth: 1400, margin: '0 auto', padding: isMobile ? '48px 20px 0' : '64px 24px 0' }}>
           <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: isMobile ? 22 : 28, color: 'var(--text)', letterSpacing: '-0.02em', marginBottom: 24 }}>You may also like</h2>
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)', gap: isMobile ? 12 : 20 }}>
             {related.map(p => <ProductCard key={p.id} product={p} navigate={navigate} />)}
           </div>
         </div>
       )}
+
+      {/* ── Related guides ──────────────────────────────────────────── */}
+      {(() => {
+        const guides = getRelatedPosts(product.type, 3);
+        return guides.length > 0 ? (
+          <GuidesStrip
+            posts={guides}
+            navigate={navigate}
+            title="Helpful Guides"
+            isMobile={isMobile}
+          />
+        ) : null;
+      })()}
 
     </div>
   );
