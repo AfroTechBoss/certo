@@ -130,6 +130,24 @@ router.post('/', adminAuth, async (req, res) => {
   }
 });
 
+// PATCH /api/products/reorder  (admin — bulk-update sort_order)
+// ⚠️ Must be defined BEFORE PATCH /:id or Express will treat "reorder" as an id
+router.patch('/reorder', adminAuth, async (req, res) => {
+  const { order } = req.body; // [{id, sort_order}, ...]
+  if (!Array.isArray(order) || !order.length) return res.status(400).json({ error: 'order array required' });
+  try {
+    await Promise.all(
+      order.map(({ id, sort_order }) =>
+        pool.queryR('UPDATE products SET sort_order = $1 WHERE id = $2', [sort_order, id])
+      )
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('PATCH /products/reorder:', err);
+    res.status(500).json({ error: 'Failed to reorder products' });
+  }
+});
+
 // GET /api/products/:id
 router.get('/:id', async (req, res) => {
   try {
@@ -190,24 +208,6 @@ router.patch('/:id', adminAuth, async (req, res) => {
   } catch (err) {
     console.error('PATCH /products/:id:', err);
     res.status(500).json({ error: 'Failed to update product' });
-  }
-});
-
-// PATCH /api/products/reorder  (admin — bulk-update sort_order)
-router.patch('/reorder', adminAuth, async (req, res) => {
-  const { order } = req.body; // [{id, sort_order}, ...]
-  if (!Array.isArray(order) || !order.length) return res.status(400).json({ error: 'order array required' });
-  try {
-    await Promise.all(
-      order.map(({ id, sort_order }) =>
-        pool.queryR('UPDATE products SET sort_order = $1 WHERE id = $2', [sort_order, id])
-      )
-    );
-    await logAdminAction(req.adminName, 'Reordered products', `${order.length} products`);
-    res.json({ ok: true });
-  } catch (err) {
-    console.error('PATCH /products/reorder:', err);
-    res.status(500).json({ error: 'Failed to reorder products' });
   }
 });
 

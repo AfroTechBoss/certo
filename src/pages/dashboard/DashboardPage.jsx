@@ -2035,9 +2035,8 @@ function ProductsTab({ isMobile, products, onProductUpdate }) {
   const [deleteTarget, setDeleteTarget]= useState(null);
   const [deleting,     setDeleting]    = useState(false);
   const [localProds,   setLocalProds]  = useState(products);
-  const [orderDirty,   setOrderDirty]  = useState(false);  // unsaved reorder
   const [savingOrder,  setSavingOrder] = useState(false);
-  const [dragIdx,      setDragIdx]     = useState(null);   // index being dragged
+  const [dragIdx,      setDragIdx]     = useState(null);
   const [dragOverIdx,  setDragOverIdx] = useState(null);
 
   useEffect(() => { setLocalProds(products); }, [products]);
@@ -2065,27 +2064,22 @@ function ProductsTab({ isMobile, products, onProductUpdate }) {
   // ── Drag-to-reorder ──────────────────────────────────────────────────────────
   const onDragStart = (i) => setDragIdx(i);
   const onDragOver  = (e, i) => { e.preventDefault(); setDragOverIdx(i); };
-  const onDrop      = (i) => {
+  const onDrop = (i) => {
     if (dragIdx === null || dragIdx === i) { setDragIdx(null); setDragOverIdx(null); return; }
     const next = [...localProds];
     const [moved] = next.splice(dragIdx, 1);
     next.splice(i, 0, moved);
     setLocalProds(next);
-    setOrderDirty(true);
     setDragIdx(null);
     setDragOverIdx(null);
-  };
-  const onDragEnd   = () => { setDragIdx(null); setDragOverIdx(null); };
-
-  const saveOrder = async () => {
+    // Auto-save immediately after drop
     setSavingOrder(true);
-    try {
-      const payload = localProds.map((p, i) => ({ id: p.id, sort_order: i + 1 }));
-      const res = await authFetch('/api/products/reorder', { method:'PATCH', body: JSON.stringify({ order: payload }) });
-      if (res.ok) { setOrderDirty(false); setLocalProds(prev => prev.map((p, i) => ({ ...p, sortOrder: i + 1 }))); }
-    } catch(e) { console.error(e); }
-    setSavingOrder(false);
+    const payload = next.map((p, idx) => ({ id: p.id, sort_order: idx + 1 }));
+    authFetch('/api/products/reorder', { method:'PATCH', body: JSON.stringify({ order: payload }) })
+      .catch(e => console.error('Reorder failed:', e))
+      .finally(() => setSavingOrder(false));
   };
+  const onDragEnd = () => { setDragIdx(null); setDragOverIdx(null); };
 
   const confirmDelete = async () => {
     if (!deleteTarget) return;
@@ -2124,11 +2118,7 @@ function ProductsTab({ isMobile, products, onProductUpdate }) {
             <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search products…" style={{ ...inputS, paddingLeft:34, width:'100%', boxSizing:'border-box' }}/>
           </div>
           <span style={{ fontSize:12.5, color:'var(--text-muted)' }}>{filtered.length} of {localProds.length}</span>
-          {orderDirty && (
-            <button onClick={saveOrder} disabled={savingOrder} style={{ ...primaryBtn, background:'oklch(45% 0.15 155)', opacity:savingOrder?0.7:1, display:'flex', alignItems:'center', gap:6 }}>
-              {savingOrder ? '⏳ Saving…' : '✓ Save order'}
-            </button>
-          )}
+          {savingOrder && <span style={{ fontSize:12, color:'var(--text-muted)', fontStyle:'italic' }}>Saving…</span>}
           <button onClick={() => setShowCreate(true)} style={{ ...primaryBtn, display:'flex', alignItems:'center', gap:7 }}><Icon name="plus" size={16} c="white"/> Add product</button>
         </div>
 
