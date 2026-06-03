@@ -11,19 +11,19 @@ const { generateToken, parseAccounts } = require('./adminAuth');
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
-// CORS — only accept requests from the live site, preview domain, and local dev
+// CORS — allow the live site, any *.certo.ng subdomain (covers preview/beta/oma/etc.), and local dev
 const allowedOrigins = [
   'https://certo.ng',
   'https://www.certo.ng',
-  'https://preview.certo.ng',
-  'https://beta.certo.ng',
   'http://localhost:3000',
   'http://localhost:5173',
 ];
 app.use(cors({
   origin: (origin, cb) => {
-    // Allow server-to-server (no origin) and known origins
-    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    // Allow server-to-server (no origin), known exact origins, and any *.certo.ng subdomain
+    if (!origin) return cb(null, true);
+    if (allowedOrigins.includes(origin)) return cb(null, true);
+    if (/^https:\/\/[a-z0-9-]+\.certo\.ng$/.test(origin)) return cb(null, true);
     cb(new Error('CORS: origin not allowed'));
   },
 }));
