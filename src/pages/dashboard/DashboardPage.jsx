@@ -1,2722 +1,3284 @@
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 
-// Certo — Internal Dashboard
-import React from 'react';
-import { CERTO_RATE, setCERTO_RATE, PRODUCTS, useResponsive } from '../../data.js';
+// ─── Auth helpers ─────────────────────────────────────────────────────────────
+const TOKEN_KEY = 'certo_admin_token';
+const NAME_KEY  = 'certo_admin_name';
+const getToken  = () => sessionStorage.getItem(TOKEN_KEY);
+const getName   = () => sessionStorage.getItem(NAME_KEY) || 'Admin';
 
-// Auth helper — reads the token from sessionStorage on every call so it never goes stale
-function authFetch(url, opts = {}) {
-  let token = '';
-  try { token = sessionStorage.getItem('certo_admin_token') || ''; } catch(e) {}
-  return fetch(url, {
-    ...opts,
-    headers: { ...(opts.headers || {}), 'Authorization': `Bearer ${token}` },
+async function authFetch(url, opts = {}) {
+  const token = getToken();
+  const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(url, { ...opts, headers });
+  if (res.status === 401) {
+    sessionStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(NAME_KEY);
+    window.location.reload();
+    throw new Error('Session expired');
+  }
+  return res;
+}
+
+// ─── Mobile hook ─────────────────────────────────────────────────────────────
+function useIsMobile(breakpoint = 640) {
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < breakpoint);
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < breakpoint);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [breakpoint]);
+  return isMobile;
+}
+
+// ─── Data mapping ─────────────────────────────────────────────────────────────
+function mapOrder(r) {
+  return {
+    id: r.id,
+    customer: r.customer_name,
+    phone: r.customer_phone,
+    email: r.customer_email,
+    product: r.product_name,
+    product_subtitle: r.product_subtitle || '',
+    apple_url: r.apple_url || '',
+    product_image_url: r.product_image_url || '',
+    items: Array.isArray(r.items) && r.items.length
+      ? r.items
+      : [{ name: r.product_name, subtitle: r.product_subtitle, usd_price: Number(r.usd_price), qty: r.qty || 1, applecare: r.applecare,
+           variant_color: r.variant_color || null, variant_storage: r.variant_storage || null, variant_color_hex: r.variant_color_hex || null }],
+    variant_color:     r.variant_color     || null,
+    variant_storage:   r.variant_storage   || null,
+    variant_color_hex: r.variant_color_hex || null,
+    status: r.status,
+    payment_method: r.payment_method || 'Paystack',
+    flag: r.flagged || false,
+    flag_reason: r.flag_reason || '',
+    flag_by: r.flag_by || '',
+    admin_hidden: r.admin_hidden || false,
+    ngn: Number(r.ngn_price) || 0,
+    usd: Number(r.usd_price) || 0,
+    date: r.created_at ? new Date(r.created_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' }) : '—',
+    address: [r.address, r.state].filter(Boolean).join(', ') || '—',
+  };
+}
+
+function mapProduct(r) {
+  return {
+    id: r.id,
+    name: r.name,
+    subtitle: r.subtitle || '',
+    type: r.category || r.type || '',
+    condition: r.condition || 'New',
+    conditionNote: r.condition_note || '',
+    usdPrice: Number(r.usd_price) || 0,
+    ngnPrice: Number(r.ngn_price) || 0,
+    stock: Number(r.stock_count) ?? 0,
+    inStock: r.in_stock !== false,
+    listingStatus: r.listing_status || 'live',
+    featured: r.featured || false,
+    badge: r.badge || '',
+    deliveryDays: r.delivery_days || '',
+    appleUrl: r.apple_url || '',
+    sortOrder: Number(r.sort_order) || 0,
+    variants: r.variants || null,
+    code: r.code ? String(r.code) : null,
+  };
+}
+
+function mapCert(r) {
+  const d = r.issued_at || r.created_at;
+  return {
+    id: r.id,
+    order_id: r.order_id,
+    product_name: r.product_name,
+    serial_number: r.serial_number || '',
+    status: r.status || 'draft',
+    date: d ? new Date(d).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' }) : '—',
+  };
+}
+
+function mapMessage(r) {
+  const d = r.created_at;
+  return {
+    id: r.id,
+    name: r.name,
+    email: r.email,
+    message: r.message,
+    read: r.read || false,
+    created_at: d ? new Date(d).toLocaleString('en-NG', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—',
+  };
+}
+
+function mapCoupon(r) {
+  return {
+    id:          r.id,
+    code:        r.code,
+    description: r.description || '',
+    type:        r.discount_type  || 'percent',
+    value:       Number(r.discount_value) || 0,
+    applies_to:  r.applies_to || 'all',
+    active:      r.is_active !== false,
+    expires:     r.expires_at ? new Date(r.expires_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' }) : 'No expiry',
+    expires_raw: r.expires_at || null,
+    uses:        Number(r.used_count) || 0,
+    max_uses:    r.max_uses != null ? Number(r.max_uses) : null,
+  };
+}
+
+function mapLog(r) {
+  const d = r.created_at;
+  return {
+    action: r.action,
+    details: r.details,
+    admin: r.admin_name,
+    ts: d ? new Date(d).toLocaleString('en-NG', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—',
+  };
+}
+
+function buildRevenueSeries(rawOrders) {
+  const days = {};
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const key = d.toLocaleDateString('en-NG', { month: 'short', day: 'numeric' });
+    days[key] = { day: key, ngn: 0 };
+  }
+  (rawOrders || []).forEach(o => {
+    if (!o.created_at) return;
+    const key = new Date(o.created_at).toLocaleDateString('en-NG', { month: 'short', day: 'numeric' });
+    if (days[key]) days[key].ngn += Number(o.ngn_price || 0);
   });
+  return Object.values(days);
 }
 
-// Fire-and-forget client-side event logger — records actions that happen purely in the browser
-function logEvent(action, details = '') {
-  authFetch('/api/admin/event', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action, details }),
-  }).catch(() => {});
-}
-
-// Normalise a product row from /api/products into the dashboard UI shape
-function normaliseDashProduct(p) {
-  const rate = (typeof CERTO_RATE !== 'undefined' ? CERTO_RATE : 1590);
-  const usdPrice = parseFloat(p.usd_price) || 0;
-  const listingStatus = p.listing_status || (p.in_stock ? 'live' : 'out_of_stock');
-  return {
-    id:            p.id,
-    name:          p.name,
-    subtitle:      p.subtitle || '',
-    type:          p.category,
-    condition:     p.condition,
-    conditionNote: p.condition_note || '',
-    usdPrice,
-    ngnPrice:      Math.round(usdPrice * rate),
-    images:        (p.image_urls || []).map(u => u ? `/api/img?url=${encodeURIComponent(u.replace(/[&?]\.v=[^&]*/, ''))}` : null).filter(Boolean),
-    rawImages:     (p.image_urls || []),  // un-proxied originals — used for editing and saving
-    badge:         p.badge || '',
-    deliveryDays:  p.delivery_days || '10–18 business days',
-    listingStatus,
-    inStock:       listingStatus === 'live',
-    featured:      p.featured,
-    stock:         p.stock_count || (p.in_stock ? 1 : 0),
-    overview:      p.overview || [],
-    specs:         p.specs || [],
-    includes:      p.includes || [],
-    features:      p.features || [],
-    techSpecs:     p.tech_specs || [],
-    apple_url:     p.apple_url,
-    variants: (() => { const v = p.variants; if (!v || Array.isArray(v)) return { colors: [], storages: [] }; return { colors: v.colors || [], storages: v.storages || [] }; })(),
+// ─── Icons ────────────────────────────────────────────────────────────────────
+const Icon = ({ name, size = 18, c = 'currentColor', sw = 1.6 }) => {
+  const p = { fill: 'none', stroke: c, strokeWidth: sw, strokeLinecap: 'round', strokeLinejoin: 'round' };
+  const paths = {
+    grid:    <><rect x="3" y="3" width="7" height="7" rx="1.5" {...p}/><rect x="14" y="3" width="7" height="7" rx="1.5" {...p}/><rect x="3" y="14" width="7" height="7" rx="1.5" {...p}/><rect x="14" y="14" width="7" height="7" rx="1.5" {...p}/></>,
+    box:     <><path d="M21 8l-9-5-9 5 9 5 9-5z" {...p}/><path d="M3 8v8l9 5 9-5V8" {...p}/><path d="M12 13v8" {...p}/></>,
+    tag:     <><path d="M20 13l-7 7-9-9V4h7l9 9z" {...p}/><circle cx="7.5" cy="7.5" r="1.2" fill={c} stroke="none"/></>,
+    cert:    <><rect x="4" y="3" width="16" height="14" rx="2" {...p}/><path d="M8 8h8M8 12h5" {...p}/><circle cx="12" cy="19" r="2.5" {...p}/></>,
+    mail:    <><rect x="3" y="5" width="18" height="14" rx="2" {...p}/><path d="M3 7l9 6 9-6" {...p}/></>,
+    ticket:  <><path d="M3 8a2 2 0 012-2h14a2 2 0 012 2v2a2 2 0 000 4v2a2 2 0 01-2 2H5a2 2 0 01-2-2v-2a2 2 0 000-4V8z" {...p}/><path d="M13 6v12" {...p} strokeDasharray="2 2"/></>,
+    chart:   <><path d="M3 3v18h18" {...p}/><path d="M7 14l3-3 3 2 4-5" {...p}/></>,
+    pulse:   <><path d="M3 12h4l2 6 4-14 2 8h6" {...p}/></>,
+    coins:   <><ellipse cx="12" cy="6" rx="8" ry="3" {...p}/><path d="M4 6v6c0 1.66 3.58 3 8 3s8-1.34 8-3V6" {...p}/><path d="M4 12v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6" {...p}/></>,
+    users:   <><circle cx="9" cy="8" r="3.2" {...p}/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" {...p}/><path d="M16 5.5a3.2 3.2 0 010 6M21 20c0-2.5-1.3-4.7-3.3-5.6" {...p}/></>,
+    search:  <><circle cx="11" cy="11" r="7" {...p}/><path d="M21 21l-4-4" {...p}/></>,
+    bell:    <><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9z" {...p}/><path d="M13.7 21a2 2 0 01-3.4 0" {...p}/></>,
+    logout:  <><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" {...p}/><path d="M16 17l5-5-5-5M21 12H9" {...p}/></>,
+    refresh: <><path d="M21 12a9 9 0 11-3-6.7L21 8" {...p}/><path d="M21 3v5h-5" {...p}/></>,
+    flag:    <><path d="M4 21V4M4 4h13l-2 4 2 4H4" {...p}/></>,
+    plus:    <><path d="M12 5v14M5 12h14" {...p}/></>,
+    chevron: <><path d="M9 6l6 6-6 6" {...p}/></>,
   };
-}
-
-// Normalise order rows from API to a consistent shape
-function normaliseOrder(o) {
-  return {
-    id:       o.id,
-    customer: o.customer_name,
-    email:    o.customer_email,
-    phone:    o.customer_phone,
-    address:  o.address + (o.state ? `, ${o.state}` : ''),
-    product:  o.product_name + (o.product_subtitle ? ` · ${o.product_subtitle}` : ''),
-    product_id:    o.product_id,
-    product_image: o.product_image_url,
-    apple_url:     o.apple_url,
-    status:   o.status,
-    usd:      Number(o.usd_price),
-    ngn:      Number(o.ngn_price),
-    date:     o.created_at ? new Date(o.created_at).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric' }) : '',
-    flag:     o.flagged,
-    flag_reason: o.flag_reason || '',
-    notes:           o.notes || '',
-    payment_method:  o.payment_method || 'Flutterwave',
-    items:           Array.isArray(o.items) ? o.items : [],
-    // Top-level variant fields (populated for single-item orders)
-    variant_color:     o.variant_color     || null,
-    variant_storage:   o.variant_storage   || null,
-    variant_color_hex: o.variant_color_hex || null,
-    raw:      o,
-  };
-}
-
-const ALL_STATUSES = [
-  'Payment Pending',
-  'Order Confirmed',
-  'Purchased from Apple',
-  'In Transit to US Partner',
-  'Customs Clearance',
-  'Arrived in Nigeria',
-  'Out for Delivery',
-  'Delivered',
-  'Cancelled',
-];
-
-const statusColor = (s) => {
-  if (s === 'Payment Pending')         return { bg: 'oklch(95% 0.08 70)',   color: 'oklch(42% 0.18 55)'  };
-  if (s === 'Delivered')               return { bg: 'oklch(93% 0.06 155)',  color: 'oklch(35% 0.15 155)' };
-  if (s === 'Order Confirmed')         return { bg: 'oklch(93% 0.06 250)',  color: 'oklch(40% 0.15 250)' };
-  if (s === 'Customs Clearance')       return { bg: 'oklch(96% 0.06 80)',   color: 'oklch(45% 0.15 65)'  };
-  if (s === 'Arrived in Nigeria')      return { bg: 'oklch(94% 0.08 155)',  color: 'oklch(38% 0.16 155)' };
-  if (s === 'Out for Delivery')        return { bg: 'oklch(95% 0.07 60)',   color: 'oklch(42% 0.18 55)'  };
-  if (s === 'In Transit to US Partner')return { bg: 'oklch(94% 0.06 220)',  color: 'oklch(42% 0.14 220)' };
-  if (s === 'Purchased from Apple')    return { bg: 'oklch(94% 0.05 30)',   color: 'oklch(44% 0.14 30)'  };
-  if (s === 'Cancelled')               return { bg: 'oklch(94% 0.02 0)',    color: 'oklch(45% 0.12 0)'   };
-  return { bg: 'oklch(94% 0.03 250)', color: 'oklch(45% 0.12 250)' };
+  return <svg width={size} height={size} viewBox="0 0 24 24">{paths[name] || null}</svg>;
 };
 
-// Module-level style constants used by the edit modal — stable references prevent remounts
-const MODAL_FLD = {
-  padding: '9px 13px', borderRadius: 8, border: '1.5px solid var(--border)',
-  background: 'var(--bg-alt)', fontFamily: 'var(--font-body)', fontSize: 13,
-  color: 'var(--text)', outline: 'none', boxSizing: 'border-box', width: '100%',
+// ─── UI Primitives ────────────────────────────────────────────────────────────
+const DASH_STATUS_COLORS = {
+  'Payment Pending':          { bg: 'oklch(95% 0.07 70)',  fg: 'oklch(45% 0.16 55)',  dot: 'oklch(60% 0.18 55)'  },
+  'Order Confirmed':          { bg: 'oklch(94% 0.05 250)', fg: 'oklch(42% 0.15 250)', dot: 'oklch(55% 0.16 250)' },
+  'Purchased from Apple':     { bg: 'oklch(95% 0.04 30)',  fg: 'oklch(45% 0.13 30)',  dot: 'oklch(58% 0.15 30)'  },
+  'In Transit to US Partner': { bg: 'oklch(94% 0.05 220)', fg: 'oklch(43% 0.13 220)', dot: 'oklch(56% 0.14 220)' },
+  'Customs Clearance':        { bg: 'oklch(96% 0.06 80)',  fg: 'oklch(46% 0.14 65)',  dot: 'oklch(60% 0.16 65)'  },
+  'Arrived in Nigeria':       { bg: 'oklch(94% 0.07 155)', fg: 'oklch(38% 0.15 155)', dot: 'oklch(52% 0.16 155)' },
+  'Out for Delivery':         { bg: 'oklch(95% 0.07 60)',  fg: 'oklch(44% 0.16 55)',  dot: 'oklch(60% 0.17 55)'  },
+  'Delivered':                { bg: 'oklch(93% 0.06 155)', fg: 'oklch(35% 0.15 155)', dot: 'oklch(50% 0.17 155)' },
+  'Cancelled':                { bg: 'oklch(94% 0.02 0)',   fg: 'oklch(48% 0.04 0)',   dot: 'oklch(60% 0.04 0)'   },
 };
-const MODAL_LBL = { fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.04em' };
-const modalFocus = e => e.target.style.borderColor = 'var(--accent)';
-const modalBlur  = e => e.target.style.borderColor = 'var(--border)';
+const dashStatus = (s) => DASH_STATUS_COLORS[s] || DASH_STATUS_COLORS['Order Confirmed'];
 
-// Defined outside DashboardPage so the component identity is stable across re-renders
-const ListEditor = ({ label, listKey, blank = '', editDraft, setListItem, addListItem, removeListItem }) => (
-  <div style={{ marginBottom: 24 }}>
-    <div style={{ ...MODAL_LBL, marginBottom: 10 }}>{label}</div>
-    {(editDraft[listKey] || []).map((item, i) => (
-      <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-        <input value={item} onChange={e => setListItem(listKey, i, e.target.value)}
-          onFocus={modalFocus} onBlur={modalBlur}
-          style={{ ...MODAL_FLD, flex: 1 }} />
-        <button onClick={() => removeListItem(listKey, i)} aria-label="Remove"
-          style={{ padding: '0 10px', border: '1px solid var(--border)', borderRadius: 7, background: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 16, flexShrink: 0 }} aria-hidden="false">×</button>
+const StatusPill = ({ status, dot = true }) => {
+  const c = dashStatus(status);
+  return (
+    <span style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'4px 11px', borderRadius:100, background:c.bg, color:c.fg, fontFamily:'var(--font-body)', fontSize:11.5, fontWeight:700, whiteSpace:'nowrap', letterSpacing:'0.01em' }}>
+      {dot && <span style={{ width:6, height:6, borderRadius:'50%', background:c.dot, flexShrink:0 }} />}
+      {status}
+    </span>
+  );
+};
+
+const Sparkline = ({ data, color = 'var(--accent)', width = 96, height = 32, fill = true }) => {
+  if (!data || data.length < 2) return null;
+  const max = Math.max(...data), min = Math.min(...data);
+  const range = max - min || 1;
+  const pts = data.map((v, i) => {
+    const x = (i / (data.length - 1)) * width;
+    const y = height - ((v - min) / range) * (height - 4) - 2;
+    return [x, y];
+  });
+  const line = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
+  const area = `${line} L${width},${height} L0,${height} Z`;
+  const gid = 'spark-' + Math.random().toString(36).slice(2, 8);
+  return (
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} style={{ display:'block', overflow:'visible' }}>
+      {fill && (<><defs><linearGradient id={gid} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={color} stopOpacity="0.22"/><stop offset="100%" stopColor={color} stopOpacity="0"/></linearGradient></defs><path d={area} fill={`url(#${gid})`}/></>)}
+      <path d={line} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round"/>
+      <circle cx={pts[pts.length-1][0]} cy={pts[pts.length-1][1]} r="2.5" fill={color}/>
+    </svg>
+  );
+};
+
+const StatCard = ({ label, value, sub, delta, deltaUp, spark, sparkColor, accent, icon }) => (
+  <div style={{ background:'var(--bg)', border:'1px solid var(--border)', borderRadius:16, padding:'20px 22px', display:'flex', flexDirection:'column', gap:0, position:'relative', overflow:'hidden' }}>
+    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
+      <span style={{ fontFamily:'var(--font-body)', fontSize:11, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.08em', color:'var(--text-muted)' }}>{label}</span>
+      {icon && <span style={{ width:30, height:30, borderRadius:9, flexShrink:0, background:'var(--bg-alt)', border:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'center', color:accent||'var(--accent)' }}>{icon}</span>}
+    </div>
+    <div style={{ display:'flex', alignItems:'flex-end', justifyContent:'space-between', gap:12 }}>
+      <div>
+        <div style={{ fontFamily:'var(--font-num)', fontWeight:800, fontSize:30, color:accent||'var(--text)', letterSpacing:'-0.025em', lineHeight:1 }}>{value}</div>
+        {(sub||delta) && (
+          <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:8 }}>
+            {delta && <span style={{ display:'inline-flex', alignItems:'center', gap:2, fontFamily:'var(--font-body)', fontSize:12, fontWeight:700, color:deltaUp?'oklch(50% 0.16 155)':'oklch(55% 0.18 25)' }}>{deltaUp?'↑':'↓'} {delta}</span>}
+            {sub && <span style={{ fontFamily:'var(--font-body)', fontSize:12, color:'var(--text-muted)' }}>{sub}</span>}
+          </div>
+        )}
       </div>
-    ))}
-    <button onClick={() => addListItem(listKey, blank)}
-      style={{ fontSize: 12, color: 'var(--accent)', background: 'var(--accent-tint)', border: '1px dashed var(--accent-tint2)', borderRadius: 7, padding: '6px 14px', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
-      + Add item
-    </button>
+      {spark && <Sparkline data={spark} color={sparkColor||accent||'var(--accent)'}/>}
+    </div>
   </div>
 );
 
-// Self-contained ConditionBadge so admin.html doesn't need ShopPage.jsx loaded
-const ConditionBadge = ({ condition }) => {
-  const styles = {
-    new:   { bg: 'oklch(93% 0.06 155)',  color: 'oklch(35% 0.15 155)', label: 'New' },
-    refurb:{ bg: 'oklch(94% 0.06 250)',  color: 'oklch(40% 0.15 250)', label: 'Refurbished' },
-  };
-  const s = styles[condition] || styles.new;
-  return (
-    <span style={{
-      padding: '3px 10px', borderRadius: 6, fontSize: 11, fontWeight: 700,
-      fontFamily: 'var(--font-body)', background: s.bg, color: s.color,
-    }}>{s.label}</span>
-  );
-};
+const Empty = ({ label }) => (
+  <div style={{ textAlign:'center', padding:'36px 0', fontFamily:'var(--font-body)', fontSize:13, color:'var(--text-muted)' }}>{label}</div>
+);
 
-const WHATSAPP_NUMBER = '2348057575906';
+const AreaChart = ({ data, xKey='day', yKey='views', color='var(--accent)', height=200, formatValue }) => {
+  const [hovered, setHovered] = useState(null);
+  if (!data || !data.length) return <Empty label="No data yet for this period"/>;
+  const W=720, H=height, PL=8, PR=8, PB=28, PT=12;
+  const innerW=W-PL-PR, innerH=H-PB-PT;
+  const ys = data.map(d => d[yKey]);
+  const maxV = Math.max(...ys, 1);
+  const pts = data.map((d, i) => ({
+    x: PL + (i / Math.max(data.length-1,1)) * innerW,
+    y: PT + (innerH - (d[yKey]/maxV)*innerH),
+    d,
+  }));
+  const line = pts.map((p,i) => `${i?'L':'M'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+  const area = `${line} L${pts[pts.length-1].x.toFixed(1)},${PT+innerH} L${pts[0].x.toFixed(1)},${PT+innerH} Z`;
+  const gid = 'dashArea-' + color.replace(/[^a-z0-9]/gi,'').slice(0,8);
+  const fmt = formatValue || (v => v >= 1e6 ? '₦'+(v/1e6).toFixed(2)+'M' : v >= 1e3 ? v.toLocaleString() : String(v));
 
-// ── VariantsEditor — standalone so identity is stable across renders ──────────
-const BLANK_COLOR   = () => ({ id: 'c_' + Math.random().toString(36).slice(2, 9), name: '', hex: '#888888', images: [] });
-const BLANK_STORAGE = () => ({ id: 's_' + Math.random().toString(36).slice(2, 9), size: '', price_usd: 0, in_stock: true });
-
-const VariantsEditor = ({ editDraft, setEditDraft, fld, lbl, focus, blur }) => {
-  const colors   = editDraft.variants?.colors   || [];
-  const storages = editDraft.variants?.storages || [];
-
-  const [newColor,   setNewColor]   = React.useState(BLANK_COLOR());
-  const [newStorage, setNewStorage] = React.useState(BLANK_STORAGE());
-
-  const setV = (patch) => setEditDraft(d => ({ ...d, variants: { ...(d.variants || {}), ...patch } }));
-
-  // Color helpers
-  const setColor = (i, key, val) => setV({ colors: colors.map((c, j) => j === i ? { ...c, [key]: val } : c) });
-  const removeColor = (i)        => setV({ colors: colors.filter((_, j) => j !== i) });
-  const addColor = () => {
-    if (!newColor.name.trim()) return;
-    setV({ colors: [...colors, { ...newColor, id: 'c_' + Math.random().toString(36).slice(2, 9) }] });
-    setNewColor(BLANK_COLOR());
+  const handleMouseMove = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const rawX = ((e.clientX - rect.left) / rect.width) * W;
+    let closest = 0, minD = Infinity;
+    pts.forEach((p,i) => { const d = Math.abs(p.x - rawX); if (d < minD) { minD=d; closest=i; } });
+    setHovered(closest);
   };
 
-  // Storage helpers
-  const setStorage = (i, key, val) => setV({ storages: storages.map((s, j) => j === i ? { ...s, [key]: val } : s) });
-  const removeStorage = (i)        => setV({ storages: storages.filter((_, j) => j !== i) });
-  const addStorage = () => {
-    if (!newStorage.size.trim()) return;
-    setV({ storages: [...storages, { ...newStorage, id: 's_' + Math.random().toString(36).slice(2, 9) }] });
-    setNewStorage(BLANK_STORAGE());
-  };
-
-  const SectionHead = ({ children }) => (
-    <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{children}</div>
-  );
-  const RemoveBtn = ({ onClick }) => (
-    <button onClick={onClick} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'oklch(50% 0.18 25)', fontSize: 13, fontFamily: 'var(--font-body)', flexShrink: 0 }}>Remove</button>
-  );
+  const hp = hovered !== null ? pts[hovered] : null;
+  const tooltipX = hp ? Math.min(Math.max(hp.x, 40), W-40) : 0;
+  const tooltipAbove = hp && hp.y > H/2;
 
   return (
-    <div>
-      <p style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginBottom: 24, lineHeight: 1.6 }}>
-        Define colors and storage sizes separately. Customers choose their preferred color (which shows that color's images) and their storage size (which sets the price). Leave both empty for products with no variants.
-      </p>
-
-      {/* ── COLORS ── */}
-      <div style={{ marginBottom: 28 }}>
-        <SectionHead>Colors</SectionHead>
-
-        {colors.map((c, i) => (
-          <div key={c.id || i} style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 14, marginBottom: 10 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ width: 28, height: 28, borderRadius: '50%', background: c.hex || '#888', border: '2px solid var(--border)', flexShrink: 0 }} />
-                <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{c.name || 'Unnamed color'}</span>
-              </div>
-              <RemoveBtn onClick={() => removeColor(i)} />
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px', gap: 10, marginBottom: 10 }}>
-              <div><label style={lbl}>Color name</label><input value={c.name} onChange={e => setColor(i, 'name', e.target.value)} onFocus={focus} onBlur={blur} style={fld} placeholder="Desert Titanium" /></div>
-              <div>
-                <label style={lbl}>Hex color</label>
-                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                  <input value={c.hex || ''} onChange={e => setColor(i, 'hex', e.target.value)} onFocus={focus} onBlur={blur} style={{ ...fld, flex: 1, minWidth: 0 }} placeholder="#C4A882" />
-                  <input type="color" value={c.hex || '#888888'} onChange={e => setColor(i, 'hex', e.target.value)}
-                    style={{ width: 32, height: 32, padding: 2, borderRadius: 6, border: '1px solid var(--border)', cursor: 'pointer', flexShrink: 0 }} />
-                </div>
-              </div>
-            </div>
-            <div>
-              <label style={lbl}>Images for this color (one URL per line)</label>
-              <textarea value={(c.images || []).join('\n')} onChange={e => setColor(i, 'images', e.target.value.split('\n').map(s => s.trimEnd()))}
-                onFocus={focus} onBlur={blur} rows={3} style={{ ...fld, resize: 'vertical', lineHeight: 1.5 }} placeholder="https://store.storeimages.cdn-apple.com/..." />
-            </div>
-          </div>
+    <div style={{ position:'relative' }}>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width:'100%', height:'auto', display:'block', cursor:'crosshair' }} preserveAspectRatio="none"
+        onMouseMove={handleMouseMove} onMouseLeave={() => setHovered(null)}>
+        <defs><linearGradient id={gid} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={color} stopOpacity="0.28"/><stop offset="100%" stopColor={color} stopOpacity="0.02"/></linearGradient></defs>
+        {[0,0.5,1].map(t => <line key={t} x1={PL} y1={(PT+innerH*t).toFixed(1)} x2={W-PR} y2={(PT+innerH*t).toFixed(1)} stroke="var(--border)" strokeWidth="1" strokeDasharray="2 4"/>)}
+        <path d={area} fill={`url(#${gid})`}/>
+        <path d={line} fill="none" stroke={color} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round"/>
+        {pts.map((p,i) => (
+          <g key={i}>
+            <circle cx={p.x} cy={p.y} r={hovered===i?5:3.5} fill={hovered===i?color:'var(--bg)'} stroke={color} strokeWidth="2" style={{ transition:'r 0.1s' }}/>
+            <text x={p.x} y={H-8} textAnchor="middle" fontSize="11" fill="var(--text-muted)" fontFamily="var(--font-body)">{p.d[xKey]}</text>
+          </g>
         ))}
-
-        {/* Add color form */}
-        <div style={{ border: '1.5px dashed var(--border)', borderRadius: 12, padding: 14 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px', gap: 10, marginBottom: 10 }}>
-            <div><label style={lbl}>Color name</label><input value={newColor.name} onChange={e => setNewColor(c => ({ ...c, name: e.target.value }))} onFocus={focus} onBlur={blur} style={fld} placeholder="Desert Titanium" /></div>
-            <div>
-              <label style={lbl}>Hex color</label>
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                <input value={newColor.hex} onChange={e => setNewColor(c => ({ ...c, hex: e.target.value }))} onFocus={focus} onBlur={blur} style={{ ...fld, flex: 1, minWidth: 0 }} placeholder="#C4A882" />
-                <input type="color" value={newColor.hex} onChange={e => setNewColor(c => ({ ...c, hex: e.target.value }))}
-                  style={{ width: 32, height: 32, padding: 2, borderRadius: 6, border: '1px solid var(--border)', cursor: 'pointer', flexShrink: 0 }} />
-              </div>
-            </div>
-          </div>
-          <div style={{ marginBottom: 10 }}>
-            <label style={lbl}>Images (one URL per line)</label>
-            <textarea value={(newColor.images || []).join('\n')} onChange={e => setNewColor(c => ({ ...c, images: e.target.value.split('\n').map(s => s.trimEnd()) }))}
-              onFocus={focus} onBlur={blur} rows={2} style={{ ...fld, resize: 'vertical', lineHeight: 1.5 }} placeholder="https://store.storeimages.cdn-apple.com/..." />
-          </div>
-          <button onClick={addColor} disabled={!newColor.name.trim()}
-            style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: newColor.name.trim() ? 'var(--accent)' : 'var(--border)', color: 'white', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 700, cursor: newColor.name.trim() ? 'pointer' : 'not-allowed' }}>
-            + Add Color
-          </button>
-        </div>
-      </div>
-
-      {/* ── STORAGE SIZES ── */}
-      <div>
-        <SectionHead>Storage sizes &amp; prices</SectionHead>
-
-        {storages.map((s, i) => (
-          <div key={s.id || i} style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 14, marginBottom: 10 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-              <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{s.size || 'Unnamed'} — ${s.price_usd}</span>
-              <RemoveBtn onClick={() => removeStorage(i)} />
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
-              <div><label style={lbl}>Size label</label><input value={s.size} onChange={e => setStorage(i, 'size', e.target.value)} onFocus={focus} onBlur={blur} style={fld} placeholder="256GB" /></div>
-              <div><label style={lbl}>Price (USD)</label><input type="number" value={s.price_usd} onChange={e => setStorage(i, 'price_usd', Number(e.target.value))} onFocus={focus} onBlur={blur} style={fld} /></div>
-            </div>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text)' }}>
-              <input type="checkbox" checked={s.in_stock !== false} onChange={e => setStorage(i, 'in_stock', e.target.checked)} style={{ width: 16, height: 16, accentColor: 'var(--accent)' }} />
-              In stock
-            </label>
-          </div>
-        ))}
-
-        {/* Add storage form */}
-        <div style={{ border: '1.5px dashed var(--border)', borderRadius: 12, padding: 14 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
-            <div><label style={lbl}>Size label</label><input value={newStorage.size} onChange={e => setNewStorage(s => ({ ...s, size: e.target.value }))} onFocus={focus} onBlur={blur} style={fld} placeholder="256GB" /></div>
-            <div><label style={lbl}>Price (USD)</label><input type="number" value={newStorage.price_usd} onChange={e => setNewStorage(s => ({ ...s, price_usd: Number(e.target.value) }))} onFocus={focus} onBlur={blur} style={fld} /></div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text)' }}>
-              <input type="checkbox" checked={newStorage.in_stock !== false} onChange={e => setNewStorage(s => ({ ...s, in_stock: e.target.checked }))} style={{ width: 16, height: 16, accentColor: 'var(--accent)' }} />
-              In stock
-            </label>
-            <button onClick={addStorage} disabled={!newStorage.size.trim()}
-              style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: newStorage.size.trim() ? 'var(--accent)' : 'var(--border)', color: 'white', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 700, cursor: newStorage.size.trim() ? 'pointer' : 'not-allowed' }}>
-              + Add Storage
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const DashboardPage = ({ navigate, subPage = 'orders', liveRate }) => {
-  const { isMobile } = useResponsive();
-
-  // ── Auth gate ──────────────────────────────────────────────────────────────
-  const [adminToken,    setAdminToken]    = React.useState(() => {
-    try { return sessionStorage.getItem('certo_admin_token') || ''; } catch(e) { return ''; }
-  });
-  const [adminName,     setAdminName]     = React.useState(() => {
-    try { return sessionStorage.getItem('certo_admin_name') || ''; } catch(e) { return ''; }
-  });
-  const [loginPwd,      setLoginPwd]      = React.useState('');
-  const [loginErr,      setLoginErr]      = React.useState('');
-  const [loginLoading,  setLoginLoading]  = React.useState(false);
-  const [showPwd,       setShowPwd]       = React.useState(false);
-
-  const handleLogin = async (e) => {
-    e && e.preventDefault();
-    if (!loginPwd.trim()) return;
-    setLoginLoading(true); setLoginErr('');
-    try {
-      const r = await fetch('/api/admin/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: loginPwd }),
-      });
-      let d;
-      try { d = await r.json(); } catch { throw new Error('Server error — could not connect. Please try again.'); }
-      if (!r.ok) throw new Error(d.error || 'Login failed');
-      try {
-        sessionStorage.setItem('certo_admin_token', d.token);
-        sessionStorage.setItem('certo_admin_name',  d.name || '');
-      } catch(e) {}
-      setAdminToken(d.token);
-      setAdminName(d.name || '');
-      setLoginPwd('');
-      // Immediately load all dashboard data — token is in sessionStorage so authFetch works now
-      fetchOrders();
-      fetchProducts();
-      fetchMessages();
-      fetchCoupons();
-      fetchLogs();
-      fetchCertificates();
-    } catch(err) {
-      setLoginErr(err.message);
-    } finally {
-      setLoginLoading(false);
-    }
-  };
-
-  const handleLogout = () => {
-    try {
-      sessionStorage.removeItem('certo_admin_token');
-      sessionStorage.removeItem('certo_admin_name');
-    } catch(e) {}
-    setAdminToken('');
-    setAdminName('');
-  };
-
-  // ── Login screen JSX (rendered at the bottom after all hooks — see rules-of-hooks note) ──
-
-  const [activeTab,    setActiveTab]    = React.useState(subPage);
-  const [forexRate,    setForexRate]    = React.useState(liveRate || CERTO_RATE);
-  const [forexInput,   setForexInput]   = React.useState(String(liveRate || CERTO_RATE));
-  const [forexSaved,   setForexSaved]   = React.useState(false);
-  const [manualOverride, setManualOverride] = React.useState(false);
-  const [fetchedAt,  setFetchedAt]  = React.useState(() => {
-    try {
-      const ts = localStorage.getItem('certo_rate_ts');
-      return ts ? new Date(Number(ts)) : null;
-    } catch(e) { return null; }
-  });
-  const [autoRate, setAutoRate] = React.useState(null);
-
-  React.useEffect(() => {
-    fetch('/api/forex')
-      .then(r => r.json())
-      .then(data => {
-        if (data.rate) {
-          const rate = data.rate;
-          const now = new Date();
-          setCERTO_RATE(rate);
-          setFetchedAt(now);
-          setAutoRate(rate);
-          if (!manualOverride) { setForexRate(rate); setForexInput(String(rate)); }
-          try { localStorage.setItem('certo_rate', String(rate)); localStorage.setItem('certo_rate_ts', String(now.getTime())); } catch(e) {}
-        }
-      })
-      .catch(() => {});
-  }, []);
-
-  // Orders — API-driven
-  const [orders,          setOrders]          = React.useState([]);
-  const [ordersLoading,   setOrdersLoading]   = React.useState(true);
-  const [selectedOrder,   setSelectedOrder]   = React.useState(null);
-  const [flagReason,          setFlagReason]          = React.useState('');
-  const [editingFlagReason,   setEditingFlagReason]   = React.useState(false);
-  const [editFlagReasonText,  setEditFlagReasonText]  = React.useState('');
-  const [resendState,     setResendState]      = React.useState({}); // { [orderId]: 'loading'|'ok'|'error:msg' }
-  const [orderTimeFilter, setOrderTimeFilter]  = React.useState('all');
-  const [customFrom,      setCustomFrom]       = React.useState('');
-  const [customTo,        setCustomTo]         = React.useState('');
-
-  // Revenue
-  const [revCurrency,    setRevCurrency]    = React.useState('ngn'); // 'ngn' | 'usd'
-  const [revTimeFilter,  setRevTimeFilter]  = React.useState('all');
-  const [revCustomFrom,  setRevCustomFrom]  = React.useState('');
-  const [revCustomTo,    setRevCustomTo]    = React.useState('');
-
-  const fetchOrders = React.useCallback(() => {
-    setOrdersLoading(true);
-    authFetch('/api/orders?limit=500')
-      .then(r => r.json())
-      .then(data => { setOrders(Array.isArray(data) ? data.map(normaliseOrder) : []); setOrdersLoading(false); })
-      .catch(() => setOrdersLoading(false));
-  }, []);
-
-  React.useEffect(() => { fetchOrders(); }, [fetchOrders]);
-
-  const [products,       setProducts]       = React.useState([]);
-  const [productsLoading, setProductsLoading] = React.useState(false);
-  const [editingProduct, setEditingProduct] = React.useState(null);
-  const [editDraft,      setEditDraft]      = React.useState({});
-  const [editSection,    setEditSection]    = React.useState('basic');
-
-  const fetchProducts = React.useCallback(() => {
-    setProductsLoading(true);
-    authFetch('/api/products?limit=1000&admin=true')
-      .then(r => r.json())
-      .then(rows => {
-        setProducts((Array.isArray(rows) ? rows : []).map(normaliseDashProduct));
-        setProductsLoading(false);
-      })
-      .catch(() => setProductsLoading(false));
-  }, []);
-
-  React.useEffect(() => { fetchProducts(); }, [fetchProducts]);
-
-  // Orders — filter + search state
-  const [orderSearch,          setOrderSearch]          = React.useState('');
-  const [orderStatusFilter,    setOrderStatusFilter]     = React.useState('all');
-  const [orderFlaggedOnly,     setOrderFlaggedOnly]      = React.useState(false);
-  const [orderPendingOnly,     setOrderPendingOnly]      = React.useState(false);
-  const [productSearch,        setProductSearch]         = React.useState('');
-
-  const [coupons,        setCoupons]        = React.useState([]);
-  const [couponsLoading, setCouponsLoading] = React.useState(false);
-  const [couponForm,     setCouponForm]     = React.useState(null); // null = closed, {} = open (new), {id,...} = editing
-  const [couponSaving,   setCouponSaving]   = React.useState(false);
-  const [couponSaveErr,  setCouponSaveErr]  = React.useState('');
-
-  const [messages,        setMessages]        = React.useState([]);
-  const [messagesLoading, setMessagesLoading] = React.useState(false);
-
-  const fetchMessages = React.useCallback(() => {
-    setMessagesLoading(true);
-    authFetch('/api/contact')
-      .then(r => r.json())
-      .then(d => { setMessages(Array.isArray(d) ? d : []); setMessagesLoading(false); })
-      .catch(() => setMessagesLoading(false));
-  }, []);
-
-  React.useEffect(() => { fetchMessages(); }, [fetchMessages]);
-
-  const fetchCoupons = React.useCallback(() => {
-    setCouponsLoading(true);
-    authFetch('/api/coupons')
-      .then(r => r.json())
-      .then(d => { setCoupons(Array.isArray(d) ? d : []); setCouponsLoading(false); })
-      .catch(() => setCouponsLoading(false));
-  }, []);
-
-  React.useEffect(() => { fetchCoupons(); }, [fetchCoupons]);
-
-  const [logs,        setLogs]        = React.useState([]);
-  const [logsLoading, setLogsLoading] = React.useState(false);
-
-  const fetchLogs = React.useCallback(() => {
-    setLogsLoading(true);
-    authFetch('/api/admin/logs')
-      .then(r => r.json())
-      .then(d => { setLogs(Array.isArray(d) ? d : []); setLogsLoading(false); })
-      .catch(() => setLogsLoading(false));
-  }, []);
-
-  React.useEffect(() => { fetchLogs(); }, [fetchLogs]);
-
-  const fetchCertificates = React.useCallback(() => {
-    setCertsLoading(true);
-    authFetch('/api/certificates')
-      .then(r => r.json())
-      .then(data => { setCertificates(Array.isArray(data) ? data : []); setCertsLoading(false); })
-      .catch(() => setCertsLoading(false));
-  }, []);
-
-  React.useEffect(() => { fetchCertificates(); }, [fetchCertificates]);
-
-  // ── Tab-local state lifted here so hook count is stable across renders ────────
-  // MessagesTab selected message
-  const [selectedMessage, setSelectedMessage] = React.useState(null);
-  // ActivityTab clear-log confirm dialog
-  const [clearConfirm, setClearConfirm] = React.useState(false);
-  const [clearing,     setClearing]     = React.useState(false);
-  // ─────────────────────────────────────────────────────────────────────────────
-
-  // Certificates
-  const [certificates,  setCertificates]  = React.useState([]);
-  const [certsLoading,  setCertsLoading]  = React.useState(false);
-  const [certSearch,    setCertSearch]    = React.useState('');
-  // Publish-certificate modal (opened from order detail)
-  const [publishModal,  setPublishModal]  = React.useState(null); // { order, productIndex, productName, productSubtitle, variantColor, variantStorage, existingCertId }
-  const [publishDraft,  setPublishDraft]  = React.useState({ serial_number: '', apple_order_ref: '', chain_of_custody: [] });
-  const [publishSaving, setPublishSaving] = React.useState(false);
-  const [publishError,  setPublishError]  = React.useState('');
-
-  // Auto-refresh orders and messages every 2 minutes so the admin sees new data without a page reload
-  React.useEffect(() => {
-    const interval = setInterval(() => {
-      fetchOrders();
-      fetchMessages();
-    }, 2 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, [fetchOrders, fetchMessages]);
-
-  const unreadMessages = messages.filter(m => !m.read).length;
-
-  const tabs = [
-    { key: 'orders',       label: 'Orders',       count: orders.filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled').length },
-    { key: 'products',     label: 'Products'     },
-    { key: 'certificates', label: 'Certificates' },
-    { key: 'messages',     label: 'Messages',     count: unreadMessages },
-    { key: 'coupons',      label: 'Coupons'      },
-    { key: 'activity',     label: 'Activity'     },
-    { key: 'forex',        label: 'Forex'        },
-    { key: 'revenue',      label: 'Revenue'      },
-    { key: 'customers',    label: 'Customers'    },
-  ];
-
-  // Apply time filter to any list of orders
-  function applyTimeFilter(list, tf, cFrom, cTo) {
-    if (tf === 'all') return list;
-    const now = new Date();
-    return list.filter(o => {
-      const d = new Date(o.raw?.created_at || o.date);
-      if (tf === 'today')  return d.toDateString() === now.toDateString();
-      if (tf === 'week')   return d >= new Date(now - 7 * 86400000);
-      if (tf === 'month')  return d >= new Date(now - 30 * 86400000);
-      if (tf === 'year')   return d >= new Date(now - 365 * 86400000);
-      if (tf === 'custom') {
-        const from = cFrom ? new Date(cFrom) : null;
-        const to   = cTo   ? new Date(cTo + 'T23:59:59') : null;
-        if (from && d < from) return false;
-        if (to   && d > to)   return false;
-        return true;
-      }
-      return true;
-    });
-  }
-
-  const totalRevNgn   = orders.reduce((s, o) => s + o.ngn, 0);
-  const totalRevUsd   = orders.reduce((s, o) => s + o.usd, 0);
-  const delivered     = orders.filter(o => o.status === 'Delivered').length;
-  const active        = orders.filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled' && o.status !== 'Payment Pending').length;
-  const pendingPayment = orders.filter(o => o.status === 'Payment Pending').length;
-
-  const filteredOrders = React.useMemo(() => {
-    let list = orders.filter(o => {
-      if (orderSearch.trim()) {
-        const q = orderSearch.trim().toLowerCase();
-        const hit = o.id.toLowerCase().includes(q) || o.customer.toLowerCase().includes(q) ||
-          (o.phone || '').includes(q) || o.address.toLowerCase().includes(q) || o.product.toLowerCase().includes(q);
-        if (!hit) return false;
-      }
-      if (orderStatusFilter === 'open') {
-        if (o.status === 'Delivered' || o.status === 'Cancelled' || o.status === 'Payment Pending') return false;
-      } else if (orderStatusFilter !== 'all') {
-        if (o.status !== orderStatusFilter) return false;
-      }
-      if (orderFlaggedOnly && !o.flag) return false;
-      if (orderPendingOnly && o.status !== 'Payment Pending') return false;
-      return true;
-    });
-    return applyTimeFilter(list, orderTimeFilter, customFrom, customTo);
-  }, [orders, orderSearch, orderStatusFilter, orderTimeFilter, orderFlaggedOnly, orderPendingOnly, customFrom, customTo]);
-
-  const activeFilters =
-    (orderSearch.trim() ? 1 : 0) +
-    (orderStatusFilter !== 'all' ? 1 : 0) +
-    (orderTimeFilter !== 'all' ? 1 : 0) +
-    (orderFlaggedOnly ? 1 : 0) +
-    (orderPendingOnly ? 1 : 0);
-
-  const clearFilters = () => {
-    setOrderSearch(''); setOrderStatusFilter('all');
-    setOrderTimeFilter('all'); setCustomFrom(''); setCustomTo('');
-    setOrderFlaggedOnly(false); setOrderPendingOnly(false);
-  };
-
-  // Resend confirmation email for an order
-  const resendEmail = async (orderId) => {
-    setResendState(s => ({ ...s, [orderId]: 'loading' }));
-    try {
-      const res = await authFetch(`/api/orders/${orderId}/resend-email`, { method: 'POST' });
-      const data = await res.json();
-      if (res.ok) {
-        setResendState(s => ({ ...s, [orderId]: 'ok' }));
-        setTimeout(() => setResendState(s => { const n = {...s}; delete n[orderId]; return n; }), 4000);
-      } else {
-        setResendState(s => ({ ...s, [orderId]: 'error:' + (data.error || 'Failed') }));
-        setTimeout(() => setResendState(s => { const n = {...s}; delete n[orderId]; return n; }), 6000);
-      }
-    } catch(e) {
-      setResendState(s => ({ ...s, [orderId]: 'error:Network error' }));
-      setTimeout(() => setResendState(s => { const n = {...s}; delete n[orderId]; return n; }), 6000);
-    }
-  };
-
-  // Toggle flag on an order
-  const toggleFlag = async (orderId, currently) => {
-    const reason = currently ? '' : (flagReason.trim() || 'Flagged by admin');
-    try {
-      const res = await authFetch(`/api/orders/${orderId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ flagged: !currently, flag_reason: reason }),
-      });
-      if (res.ok) {
-        const updated = await res.json();
-        setOrders(prev => prev.map(o => o.id === orderId ? normaliseOrder(updated) : o));
-        if (selectedOrder?.id === orderId) setSelectedOrder(normaliseOrder(updated));
-        setFlagReason('');
-      }
-    } catch(e) {}
-  };
-
-  // Save an updated flag reason on an already-flagged order
-  const saveFlagReason = async (orderId, reason) => {
-    try {
-      const res = await authFetch(`/api/orders/${orderId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ flag_reason: reason.trim() }),
-      });
-      if (res.ok) {
-        const updated = await res.json();
-        setOrders(prev => prev.map(o => o.id === orderId ? normaliseOrder(updated) : o));
-        if (selectedOrder?.id === orderId) setSelectedOrder(normaliseOrder(updated));
-        setEditingFlagReason(false);
-        setEditFlagReasonText('');
-      }
-    } catch(e) {}
-  };
-
-  // Update order status
-  const updateStatus = async (orderId, newStatus) => {
-    try {
-      const res = await authFetch(`/api/orders/${orderId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus }),
-      });
-      if (res.ok) {
-        const updated = await res.json();
-        setOrders(prev => prev.map(o => o.id === orderId ? normaliseOrder(updated) : o));
-        if (selectedOrder?.id === orderId) setSelectedOrder(normaliseOrder(updated));
-      }
-    } catch(e) {}
-  };
-
-  const inputStyle = {
-    padding: '9px 14px', borderRadius: 9, border: '1.5px solid var(--border)',
-    background: 'var(--bg)', fontFamily: 'var(--font-body)', fontSize: 13,
-    color: 'var(--text)', outline: 'none', cursor: 'pointer',
-  };
-
-  const StatCard = ({ label, value, sub, accent }) => (
-    <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 16, padding: '24px 28px' }}>
-      <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)', marginBottom: 10 }}>{label}</div>
-      <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 28, color: accent || 'var(--text)', letterSpacing: '-0.02em' }}>{value}</div>
-      {sub && <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>{sub}</div>}
-    </div>
-  );
-
-  const RefreshBtn = ({ onClick, loading }) => (
-    <button onClick={onClick} disabled={loading} title="Refresh" style={{
-      display: 'inline-flex', alignItems: 'center', gap: 5,
-      padding: '6px 12px', borderRadius: 8,
-      border: '1.5px solid var(--border)', background: 'var(--bg)',
-      fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600,
-      color: 'var(--text-muted)', cursor: loading ? 'default' : 'pointer',
-      opacity: loading ? 0.55 : 1, flexShrink: 0, whiteSpace: 'nowrap',
-    }}>{loading ? '↻ …' : '↻ Refresh'}</button>
-  );
-
-  const OrdersTab = () => (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
-        <RefreshBtn onClick={fetchOrders} loading={ordersLoading} />
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(5, 1fr)', gap: 12, marginBottom: 24 }}>
-        <StatCard label="Total Orders"    value={orders.length} />
-        <StatCard label="Active Orders"   value={active}         accent="var(--accent)" />
-        <StatCard label="Delivered"       value={delivered}      accent="oklch(45% 0.15 155)" />
-        <StatCard label="Awaiting Payment" value={pendingPayment} accent="oklch(42% 0.18 55)"
-          sub={pendingPayment > 0 ? 'Crypto — payment not confirmed' : 'None outstanding'} />
-        <StatCard label="Flagged"         value={orders.filter(o => o.flag).length} accent="oklch(50% 0.18 25)" />
-      </div>
-
-      {selectedOrder ? (
-        <div>
-          <button onClick={() => { setSelectedOrder(null); setFlagReason(''); setEditingFlagReason(false); setEditFlagReasonText(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--accent)', marginBottom: 20, padding: 0 }}>
-            ← Back to orders
-          </button>
-          <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 20, padding: isMobile ? 20 : 32 }}>
-            {/* Header row */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28, flexWrap: 'wrap', gap: 12 }}>
-              <div>
-                <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>ORDER</div>
-                <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 24, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                  {selectedOrder.flag && <span style={{ fontSize: 18 }} title={selectedOrder.flag_reason}>🚩</span>}
-                  {selectedOrder.id}
-                </div>
-              </div>
-              <select value={selectedOrder.status} onChange={e => updateStatus(selectedOrder.id, e.target.value)}
-                style={{ padding: '10px 16px', borderRadius: 10, border: '1.5px solid var(--accent)', background: 'var(--accent-tint)', color: 'var(--accent)', fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600, cursor: 'pointer', outline: 'none' }}>
-                {ALL_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-
-            {/* Core fields */}
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap: 16, marginBottom: 24 }}>
-              {[
-                { label: 'Customer',   value: selectedOrder.customer },
-                { label: 'Email',      value: selectedOrder.email    },
-                { label: 'Phone',      value: selectedOrder.phone    },
-                { label: 'Order Date', value: selectedOrder.date     },
-                { label: 'USD Total',  value: `$${Number(selectedOrder.usd).toLocaleString()}` },
-                { label: 'NGN Total',  value: `₦${Number(selectedOrder.ngn).toLocaleString()}` },
-                { label: 'Status',     value: selectedOrder.status          },
-                { label: 'Payment Via', value: selectedOrder.payment_method || 'Flutterwave' },
-                { label: 'Address',    value: selectedOrder.address  },
-              ].map(f => (
-                <div key={f.label}>
-                  <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>{f.label}</div>
-                  <div style={{ fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 600, color: 'var(--text)', wordBreak: 'break-all' }}>{f.value || '—'}</div>
-                </div>
-              ))}
-            </div>
-
-            {/* Legacy fallback — only shown for old orders that pre-date the items JSONB column */}
-            {(!selectedOrder.items || selectedOrder.items.length === 0) && (
-              <div style={{ marginBottom: 20, padding: '16px', background: 'var(--bg-alt)', borderRadius: 12, border: '1px solid var(--border)' }}>
-                <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>Product</div>
-                <div style={{ fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
-                  {selectedOrder.product || '—'}
-                </div>
-                {(selectedOrder.variant_color || selectedOrder.variant_storage) && (
-                  <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
-                    {selectedOrder.variant_color && (
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontFamily: 'var(--font-body)', color: 'var(--text)' }}>
-                        {selectedOrder.variant_color_hex && <span style={{ width: 9, height: 9, borderRadius: '50%', background: selectedOrder.variant_color_hex, display: 'inline-block', border: '1px solid rgba(0,0,0,0.15)', flexShrink: 0 }} />}
-                        {selectedOrder.variant_color}
-                      </span>
-                    )}
-                    {selectedOrder.variant_storage && (
-                      <span style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontFamily: 'var(--font-body)', color: 'var(--text)' }}>
-                        {selectedOrder.variant_storage}
-                      </span>
-                    )}
-                  </div>
-                )}
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {selectedOrder.apple_url && (
-                    <a href={selectedOrder.apple_url} target="_blank" rel="noreferrer"
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap' }}>
-                      🍎 Apple Page
-                    </a>
-                  )}
-                  {selectedOrder.product_id && (
-                    <button onClick={() => navigate('product', selectedOrder.product_id)}
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                      🔗 Certo Page
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Full items list (shown when order has multiple products) */}
-            {selectedOrder.items && selectedOrder.items.length > 0 && (
-              <div style={{ marginBottom: 20, padding: 16, background: 'var(--bg-alt)', borderRadius: 12, border: '1px solid var(--border)' }}>
-                <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
-                  {(() => {
-                    const totalUnits = selectedOrder.items.reduce((sum, it) => sum + (it.qty || 1), 0);
-                    const lineCount  = selectedOrder.items.length;
-                    return totalUnits === lineCount
-                      ? `Order Items (${lineCount})`
-                      : `Order Items (${lineCount} line${lineCount !== 1 ? 's' : ''} · ${totalUnits} units)`;
-                  })()}
-                </div>
-                {selectedOrder.items.map((item, i) => {
-                  const qty = item.qty && item.qty > 1 ? item.qty : 1;
-                  const lineTotal = Number(item.usd_price) * qty;
-                  return (
-                    <div key={i} style={{ padding: '12px 0', borderBottom: i < selectedOrder.items.length - 1 ? '1px solid var(--border)' : 'none' }}>
-                      {/* Name + price row */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
-                            {qty > 1 && <span style={{ display: 'inline-block', background: 'var(--border)', borderRadius: 4, padding: '1px 6px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginRight: 6 }}>{qty}×</span>}
-                            {item.name}
-                          </div>
-                          {item.subtitle && <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginTop: 1 }}>{item.subtitle}</div>}
-                          {(item.variant_color || item.variant_storage) && (
-                            <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 3, flexWrap: 'wrap' }}>
-                              {item.variant_color && (
-                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontFamily: 'var(--font-body)', color: 'var(--text)' }}>
-                                  {item.variant_color_hex && <span style={{ width: 9, height: 9, borderRadius: '50%', background: item.variant_color_hex, display: 'inline-block', border: '1px solid rgba(0,0,0,0.15)', flexShrink: 0 }} />}
-                                  {item.variant_color}
-                                </span>
-                              )}
-                              {item.variant_storage && (
-                                <span style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontFamily: 'var(--font-body)', color: 'var(--text)' }}>
-                                  {item.variant_storage}
-                                </span>
-                              )}
-                            </div>
-                          )}
-                          {item.applecare && item.applecare !== 'none' && (
-                            <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--accent)', marginTop: 2 }}>+ {item.applecare}</div>
-                          )}
-                        </div>
-                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                          <div style={{ fontFamily: 'var(--font-head)', fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>
-                            ${lineTotal.toLocaleString()}
-                          </div>
-                          {qty > 1 && (
-                            <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--text-muted)' }}>{qty} × ${Number(item.usd_price).toLocaleString()}</div>
-                          )}
-                        </div>
-                      </div>
-                      {/* Link buttons — always shown; fall back to Apple search if no direct URL */}
-                      <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
-                        <a
-                          href={item.apple_url || `https://www.apple.com/search/${encodeURIComponent((item.name || '') + ' ' + (item.subtitle || ''))}`}
-                          target="_blank" rel="noreferrer"
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap' }}
-                        >
-                          🍎 {item.apple_url ? 'Apple Page' : 'Search Apple'}
-                        </a>
-                        {item.product_id && (
-                          <button
-                            onClick={() => navigate('product', item.product_id)}
-                            style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
-                          >
-                            🔗 Certo Page
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Pending payment banner */}
-            {selectedOrder.status === 'Payment Pending' && (
-              <div style={{ padding: '14px 18px', borderRadius: 12, background: 'oklch(95% 0.08 70)', border: '1.5px solid oklch(75% 0.15 60)', marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-                <div>
-                  <div style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 14, color: 'oklch(38% 0.18 55)', marginBottom: 2 }}>⏳ Awaiting payment</div>
-                  <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'oklch(45% 0.15 55)' }}>Payment has not been confirmed yet. Once you've verified the payment, click Mark as Paid to confirm the order and notify the customer.</div>
-                </div>
-                <button onClick={() => updateStatus(selectedOrder.id, 'Order Confirmed')}
-                  style={{ padding: '10px 20px', borderRadius: 10, border: 'none', background: 'oklch(42% 0.18 55)', color: 'white', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
-                  ✓ Mark as Paid
-                </button>
-              </div>
-            )}
-
-            {/* Action buttons */}
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 20 }}>
-              {selectedOrder.phone && (
-                <a href={`https://wa.me/${selectedOrder.phone.replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer"
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 18px', borderRadius: 10, background: 'oklch(93% 0.08 145)', border: '1px solid oklch(80% 0.12 145)', color: 'oklch(35% 0.15 145)', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 700, textDecoration: 'none', cursor: 'pointer' }}>
-                  💬 WhatsApp Customer
-                </a>
-              )}
-              {(() => {
-                const rs = resendState[selectedOrder.id];
-                const isLoading = rs === 'loading';
-                const isOk      = rs === 'ok';
-                const isError   = rs && rs.startsWith('error:');
-                return (
-                  <button
-                    onClick={() => resendEmail(selectedOrder.id)}
-                    disabled={isLoading}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 18px', borderRadius: 10,
-                      border: `1px solid ${isOk ? 'oklch(70% 0.15 145)' : isError ? 'oklch(70% 0.15 25)' : 'var(--border)'}`,
-                      background: isOk ? 'oklch(93% 0.06 145)' : isError ? 'oklch(96% 0.07 25)' : 'var(--bg)',
-                      color: isOk ? 'oklch(35% 0.15 145)' : isError ? 'oklch(45% 0.18 25)' : 'var(--text-muted)',
-                      fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, cursor: isLoading ? 'default' : 'pointer' }}>
-                    {isLoading ? '⏳ Sending…' : isOk ? '✓ Email sent!' : isError ? `✗ ${rs.slice(6)}` : '✉ Resend Confirmation Email'}
-                  </button>
-                );
-              })()}
-              <button onClick={() => toggleFlag(selectedOrder.id, selectedOrder.flag)}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 18px', borderRadius: 10, border: '1px solid var(--border)', background: selectedOrder.flag ? 'oklch(96% 0.07 25)' : 'var(--bg)', color: selectedOrder.flag ? 'oklch(45% 0.18 25)' : 'var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-                🚩 {selectedOrder.flag ? 'Unflag Order' : 'Flag Order'}
-              </button>
-            </div>
-
-            {/* ── Certificates section ───────────────────────────────── */}
-            {(() => {
-              const orderCerts = certificates.filter(c => c.order_id === selectedOrder.id);
-              const productList = selectedOrder.items && selectedOrder.items.length > 0
-                ? selectedOrder.items.map((item, idx) => ({ idx, name: item.name || selectedOrder.product, subtitle: item.subtitle || '', variantColor: item.variant_color || null, variantStorage: item.variant_storage || null }))
-                : [{ idx: 0, name: selectedOrder.product, subtitle: '', variantColor: selectedOrder.variant_color || null, variantStorage: selectedOrder.variant_storage || null }];
-
-              return (
-                <div style={{ marginBottom: 20, padding: '16px', background: 'var(--bg-alt)', borderRadius: 12, border: '1px solid var(--border)' }}>
-                  <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>Certificates</div>
-                  {productList.map(({ idx, name, subtitle, variantColor, variantStorage }) => {
-                    const cert = orderCerts.find(c => c.product_index === idx);
-                    const isPublished = cert?.status === 'published';
-                    const isDraft     = cert?.status === 'draft';
-                    return (
-                      <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', padding: '8px 0', borderBottom: idx < productList.length - 1 ? '1px solid var(--border)' : 'none' }}>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}{subtitle ? ` · ${subtitle}` : ''}</div>
-                          <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap', alignItems: 'center' }}>
-                            {isPublished && (
-                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 10px', borderRadius: 20, background: 'oklch(93% 0.06 155)', color: 'oklch(35% 0.15 155)', fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700 }}>
-                                ✓ Published
-                              </span>
-                            )}
-                            {isDraft && (
-                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 10px', borderRadius: 20, background: 'oklch(95% 0.08 70)', color: 'oklch(42% 0.18 55)', fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700 }}>
-                                ⏳ Pending / Draft
-                              </span>
-                            )}
-                            {cert && <span style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--text-muted)' }}>{cert.id}</span>}
-                          </div>
-                        </div>
-                        {!isPublished && (
-                          <button
-                            onClick={() => {
-                              const order = selectedOrder;
-                              setPublishModal({ order, productIndex: idx, productName: name, productSubtitle: subtitle, variantColor, variantStorage, existingCertId: cert?.id || null });
-                              setPublishDraft(cert ? {
-                                serial_number:   cert.serial_number   || '',
-                                apple_order_ref: cert.apple_order_ref || '',
-                                chain_of_custody: Array.isArray(cert.chain_of_custody) ? cert.chain_of_custody : [],
-                              } : { serial_number: '', apple_order_ref: '', chain_of_custody: [] });
-                              setPublishError('');
-                            }}
-                            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, border: '1.5px solid var(--accent)', background: 'var(--accent-tint)', color: 'var(--accent)', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
-                            {isDraft ? '✏ Edit / Publish' : '＋ Publish Certificate'}
-                          </button>
-                        )}
-                        {isPublished && (
-                          <a
-                            href={`/verify/${selectedOrder.id}`}
-                            target="_blank" rel="noreferrer"
-                            style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '8px 16px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, textDecoration: 'none', flexShrink: 0 }}>
-                            View →
-                          </a>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })()}
-
-            {/* ── Flag section ─────────────────────────────────────────── */}
-            {!selectedOrder.flag ? (
-              /* Not yet flagged — show reason textarea above the Flag button */
-              <div style={{ marginBottom: 4, padding: '16px', background: 'var(--bg-alt)', borderRadius: 12, border: '1px solid var(--border)' }}>
-                <label style={{ display: 'block', fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
-                  Reason for flagging
-                </label>
-                <textarea
-                  value={flagReason}
-                  onChange={e => setFlagReason(e.target.value)}
-                  placeholder="e.g. Can't reach customer · Suspicious payment · Wrong address confirmed · Hold pending investigation…"
-                  rows={3}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg)', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text)', outline: 'none', resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.6 }}
-                  onFocus={e => e.target.style.borderColor = 'oklch(65% 0.18 25)'}
-                  onBlur={e => e.target.style.borderColor = 'var(--border)'}
-                />
-                <p style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
-                  This is visible to all admins so anyone can follow up on the case.
-                </p>
-              </div>
-            ) : (
-              /* Already flagged — show reason card with edit capability */
-              <div style={{ marginBottom: 16, padding: '16px', background: 'oklch(97% 0.03 25)', border: '1.5px solid oklch(85% 0.1 25)', borderRadius: 12 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: editingFlagReason ? 10 : 0 }}>
-                  <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700, color: 'oklch(45% 0.18 25)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                    🚩 Flag reason
-                  </div>
-                  {!editingFlagReason && (
-                    <button
-                      onClick={() => { setEditingFlagReason(true); setEditFlagReasonText(selectedOrder.flag_reason || ''); }}
-                      style={{ background: 'none', border: '1px solid oklch(75% 0.12 25)', borderRadius: 6, padding: '3px 10px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, color: 'oklch(45% 0.18 25)', flexShrink: 0 }}>
-                      Edit
-                    </button>
-                  )}
-                </div>
-                {editingFlagReason ? (
-                  <div>
-                    <textarea
-                      value={editFlagReasonText}
-                      onChange={e => setEditFlagReasonText(e.target.value)}
-                      rows={3}
-                      autoFocus
-                      style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1.5px solid oklch(65% 0.18 25)', background: 'white', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text)', outline: 'none', resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.6 }}
-                    />
-                    <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                      <button
-                        onClick={() => saveFlagReason(selectedOrder.id, editFlagReasonText)}
-                        style={{ padding: '7px 16px', borderRadius: 8, border: 'none', background: 'oklch(42% 0.18 25)', color: 'white', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-                        Save reason
-                      </button>
-                      <button
-                        onClick={() => { setEditingFlagReason(false); setEditFlagReasonText(''); }}
-                        style={{ padding: '7px 16px', borderRadius: 8, border: '1px solid var(--border)', background: 'none', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)', cursor: 'pointer' }}>
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'oklch(35% 0.15 25)', lineHeight: 1.65, marginTop: 6, whiteSpace: 'pre-wrap' }}>
-                    {selectedOrder.flag_reason || <span style={{ opacity: 0.5, fontStyle: 'italic' }}>No reason given — click Edit to add one.</span>}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      ) : (
-        <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 20, overflow: 'hidden' }}>
-          {/* Search + filters bar */}
-          <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
-
-            {/* Search */}
-            <div style={{ position: 'relative', flex: '1 1 220px', minWidth: 0 }}>
-              <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontSize: 14, pointerEvents: 'none' }}>🔍</span>
-              <input
-                type="text"
-                placeholder="Search by order ID, customer, phone, address, product…"
-                value={orderSearch}
-                onChange={e => setOrderSearch(e.target.value)}
-                style={{ ...inputStyle, paddingLeft: 32, width: '100%', boxSizing: 'border-box' }}
-              />
-            </div>
-
-            {/* Status filter */}
-            <select value={orderStatusFilter} onChange={e => setOrderStatusFilter(e.target.value)} style={inputStyle}>
-              <option value="all">All statuses</option>
-              <option value="open">Open (not delivered)</option>
-              {ALL_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-
-            {/* Time filter */}
-            <select value={orderTimeFilter} onChange={e => setOrderTimeFilter(e.target.value)} style={inputStyle}>
-              <option value="all">All time</option>
-              <option value="today">Today</option>
-              <option value="week">Last 7 days</option>
-              <option value="month">Last 30 days</option>
-              <option value="year">Last 12 months</option>
-              <option value="custom">Custom range</option>
-            </select>
-            {orderTimeFilter === 'custom' && (
-              <>
-                <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)} style={{ ...inputStyle, cursor: 'auto' }} />
-                <input type="date" value={customTo}   onChange={e => setCustomTo(e.target.value)}   style={{ ...inputStyle, cursor: 'auto' }} />
-              </>
-            )}
-
-            {/* Awaiting payment toggle */}
-            <button
-              onClick={() => setOrderPendingOnly(v => !v)}
-              style={{
-                ...inputStyle,
-                background: orderPendingOnly ? 'oklch(95% 0.08 70)' : 'var(--bg)',
-                borderColor: orderPendingOnly ? 'oklch(55% 0.18 55)' : 'var(--border)',
-                color: orderPendingOnly ? 'oklch(42% 0.18 55)' : 'var(--text-muted)',
-                fontWeight: orderPendingOnly ? 700 : 400,
-                cursor: 'pointer',
-              }}
-            >
-              ⏳ Awaiting payment
-              {pendingPayment > 0 && (
-                <span style={{ marginLeft: 6, background: 'oklch(42% 0.18 55)', color: 'white', borderRadius: 10, padding: '1px 6px', fontSize: 11, fontWeight: 700 }}>{pendingPayment}</span>
-              )}
-            </button>
-
-            {/* Flagged toggle */}
-            <button
-              onClick={() => setOrderFlaggedOnly(v => !v)}
-              style={{
-                ...inputStyle,
-                background: orderFlaggedOnly ? 'oklch(96% 0.07 25)' : 'var(--bg)',
-                borderColor: orderFlaggedOnly ? 'oklch(60% 0.18 25)' : 'var(--border)',
-                color: orderFlaggedOnly ? 'oklch(45% 0.18 25)' : 'var(--text-muted)',
-                fontWeight: orderFlaggedOnly ? 700 : 400,
-                cursor: 'pointer',
-              }}
-            >
-              🚩 Flagged only
-            </button>
-
-            {/* Clear filters */}
-            {activeFilters > 0 && (
-              <button onClick={clearFilters} style={{ ...inputStyle, color: 'var(--accent)', borderColor: 'var(--accent-tint2)', background: 'var(--accent-tint)', fontWeight: 600 }}>
-                Clear ({activeFilters})
-              </button>
-            )}
-
-            <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-              {filteredOrders.length} of {orders.length}
-            </span>
-          </div>
-
-          {/* Orders table */}
-          <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 600 }}>
-            <thead>
-              <tr style={{ background: 'var(--bg-alt)' }}>
-                {['Order ID', 'Customer', 'Product', 'Status', 'Via', 'NGN Total', 'Date', ''].map(h => (
-                  <th key={h} style={{ padding: '12px 20px', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textAlign: 'left', whiteSpace: 'nowrap' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {ordersLoading ? (
-                <tr><td colSpan={8} style={{ padding: '40px 20px', textAlign: 'center', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)' }}>Loading orders…</td></tr>
-              ) : filteredOrders.length === 0 ? (
-                <tr>
-                  <td colSpan={8} style={{ padding: '40px 20px', textAlign: 'center', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)' }}>
-                    No orders match your filters.
-                  </td>
-                </tr>
-              ) : filteredOrders.map(o => {
-                const sc = statusColor(o.status);
-                return (
-                  <tr key={o.id} style={{ borderTop: '1px solid var(--border)', cursor: 'pointer' }}
-                    onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-alt)'}
-                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                    onClick={() => { setSelectedOrder(o); logEvent('Opened order', `${o.id} — ${o.customer} — ${o.product} — ${o.status}`); }}>
-                    <td style={{ padding: '14px 20px', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 700, color: 'var(--accent)' }}>
-                      {o.status === 'Payment Pending' && <span style={{ marginRight: 6 }} title="Awaiting payment">⏳</span>}
-                      {o.flag && <span style={{ marginRight: 6 }}>🚩</span>}{o.id}
-                    </td>
-                    <td style={{ padding: '14px 20px' }}>
-                      <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text)', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6 }}>
-                        {o.customer}
-                        {o.phone && (
-                          <a href={`https://wa.me/${o.phone.replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
-                            style={{ fontSize: 14, textDecoration: 'none', lineHeight: 1 }} title="WhatsApp">💬</a>
-                        )}
-                      </div>
-                      <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)' }}>{o.phone}</div>
-                    </td>
-                    <td style={{ padding: '14px 20px', maxWidth: 160 }}>
-                      <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)' }}>{o.product}</div>
-                      {o.items && o.items.length > 1 && (
-                        <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--accent)', marginTop: 2 }}>+{o.items.length - 1} more item{o.items.length - 1 > 1 ? 's' : ''}</div>
-                      )}
-                    </td>
-                    <td style={{ padding: '14px 20px' }}>
-                      <span style={{ padding: '4px 10px', borderRadius: 6, background: sc.bg, color: sc.color, fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>{o.status}</span>
-                    </td>
-                    <td style={{ padding: '14px 20px' }}>
-                      {(() => {
-                        const pm = o.payment_method || 'Flutterwave';
-                        const pmStyle = pm === 'MoonPay'
-                          ? { bg: 'oklch(93% 0.06 280)', color: 'oklch(38% 0.18 280)' }
-                          : pm === 'Test Mode'
-                          ? { bg: 'oklch(94% 0.02 0)', color: 'oklch(45% 0.1 0)' }
-                          : { bg: 'oklch(93% 0.07 145)', color: 'oklch(35% 0.15 145)' };
-                        return <span style={{ padding: '4px 10px', borderRadius: 6, background: pmStyle.bg, color: pmStyle.color, fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}>{pm}</span>;
-                      })()}
-                    </td>
-                    <td style={{ padding: '14px 20px', fontFamily: 'var(--font-head)', fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>₦{o.ngn.toLocaleString()}</td>
-                    <td style={{ padding: '14px 20px', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{o.date}</td>
-                    <td style={{ padding: '14px 20px' }}>
-                      <span style={{ color: 'var(--accent)', fontSize: 16 }}>→</span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          </div>
+        {hp && (
+          <line x1={hp.x} y1={PT} x2={hp.x} y2={PT+innerH} stroke={color} strokeWidth="1" strokeDasharray="3 3" opacity="0.5"/>
+        )}
+      </svg>
+      {hp && (
+        <div style={{ position:'absolute', left:`${(tooltipX/W)*100}%`, top: tooltipAbove ? 'auto' : '8px', bottom: tooltipAbove ? '32px' : 'auto', transform:'translateX(-50%)', pointerEvents:'none', background:'var(--ink,#1a1714)', color:'white', borderRadius:9, padding:'8px 14px', fontSize:12, fontWeight:700, whiteSpace:'nowrap', boxShadow:'0 4px 16px rgba(26,23,20,0.25)', zIndex:10 }}>
+          <div style={{ fontSize:10, fontWeight:500, color:'rgba(255,255,255,0.6)', marginBottom:2 }}>{hp.d[xKey]}</div>
+          <div style={{ fontSize:14, fontFamily:'var(--font-num)', fontWeight:800 }}>{fmt(hp.d[yKey])}</div>
         </div>
       )}
     </div>
   );
+};
 
-  const openEdit = (p) => {
-    setEditDraft(JSON.parse(JSON.stringify(p))); // deep copy
-    setEditSection('basic');
-    setEditingProduct(p);
-  };
+const DONUT_COLORS = ['var(--accent)','oklch(55% 0.16 250)','oklch(55% 0.15 155)','oklch(60% 0.16 60)','oklch(52% 0.16 310)','oklch(50% 0.08 220)'];
 
-  const openAdd = () => {
-    const blank = {
-      id: 'product-' + Date.now(),
-      name: 'New Product', subtitle: '', type: 'iPhone',
-      condition: 'new', conditionNote: '',
-      usdPrice: 0, images: [], rawImages: [], badge: '', deliveryDays: '10–18 business days',
-      listingStatus: 'live', inStock: true, featured: false,
-      overview: [], specs: [], includes: [], features: [], techSpecs: [],
-      stock: 0, ngnPrice: 0, variants: { colors: [], storages: [] },
-    };
-    setEditDraft(blank);
-    setEditSection('basic');
-    setEditingProduct(blank);
-  };
-
-  const saveEdit = () => {
-    // Strip blank / stub image URLs before saving
-    const cleanUrls = (arr) => (arr || []).filter(u => u && u.trim() && u.trim() !== 'https://' && u.trim().startsWith('http'));
-    const updated = {
-      ...editDraft,
-      usdPrice:  Number(editDraft.usdPrice),
-      ngnPrice:  Number(editDraft.usdPrice) * forexRate,
-      stock:     Number(editDraft.stock),
-      rawImages: cleanUrls(editDraft.rawImages),
-      // Also clean color images
-      variants: editDraft.variants ? {
-        ...editDraft.variants,
-        colors: (editDraft.variants.colors || []).map(c => ({ ...c, images: cleanUrls(c.images) })),
-      } : { colors: [], storages: [] },
-    };
-
-    // Optimistic UI update
-    const exists = products.some(p => p.id === editingProduct.id);
-    if (exists) {
-      setProducts(prev => prev.map(p => p.id === editingProduct.id ? updated : p));
-      // Persist to API (map back to snake_case)
-      authFetch(`/api/products/${encodeURIComponent(updated.id)}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: updated.name, subtitle: updated.subtitle,
-          usd_price: updated.usdPrice,
-          listing_status: updated.listingStatus || 'live',
-          in_stock: (updated.listingStatus || 'live') === 'live',
-          featured: updated.featured, badge: updated.badge,
-          delivery_days: updated.deliveryDays, condition: updated.condition,
-          condition_note: updated.conditionNote, stock_count: updated.stock,
-          overview: updated.overview, specs: updated.specs,
-          includes: updated.includes, features: updated.features,
-          tech_specs: updated.techSpecs,
-          image_urls: updated.rawImages || [],
-          variants: updated.variants || { colors: [], storages: [] },
-        }),
-      }).catch(err => console.error('Failed to save product:', err));
-    } else {
-      // New product — POST to API to persist in DB
-      setProducts(prev => [...prev, updated]); // optimistic
-      authFetch('/api/products', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: updated.name, subtitle: updated.subtitle,
-          category: updated.type,
-          usd_price: updated.usdPrice,
-          listing_status: updated.listingStatus || 'live',
-          in_stock: (updated.listingStatus || 'live') === 'live',
-          featured: updated.featured, badge: updated.badge,
-          delivery_days: updated.deliveryDays, condition: updated.condition,
-          condition_note: updated.conditionNote, stock_count: updated.stock,
-          overview: updated.overview, specs: updated.specs,
-          includes: updated.includes, features: updated.features,
-          tech_specs: updated.techSpecs,
-          image_urls: updated.rawImages || [],
-          variants: updated.variants || { colors: [], storages: [] },
-        }),
-      })
-      .then(r => r.json())
-      .then(saved => {
-        // Replace the temp local entry with the real DB record (correct server-generated id)
-        setProducts(prev => prev.map(p => p.id === updated.id ? normaliseDashProduct(saved) : p));
-      })
-      .catch(err => console.error('Failed to create product:', err));
-    }
-    setEditingProduct(null);
-  };
-
-  // Draft mutation helpers
-  const setDF = (key, val) => setEditDraft(d => ({...d, [key]: val}));
-  const setListItem = (key, i, val) => setEditDraft(d => ({...d, [key]: d[key].map((x, j) => j === i ? val : x)}));
-  const addListItem = (key, blank) => setEditDraft(d => ({...d, [key]: [...(d[key]||[]), blank]}));
-  const removeListItem = (key, i) => setEditDraft(d => ({...d, [key]: d[key].filter((_, j) => j !== i)}));
-  const setFeature = (i, field, val) => setEditDraft(d => ({...d, features: d.features.map((f, j) => j === i ? {...f, [field]: val} : f)}));
-  const setSpecSection = (si, field, val) => setEditDraft(d => ({...d, techSpecs: d.techSpecs.map((s, j) => j === si ? {...s, [field]: val} : s)}));
-  const setSpecItem = (si, ii, val) => setEditDraft(d => ({...d, techSpecs: d.techSpecs.map((s, j) => j === si ? {...s, items: s.items.map((x, k) => k === ii ? val : x)} : s)}));
-  const addSpecItem = (si) => setEditDraft(d => ({...d, techSpecs: d.techSpecs.map((s, j) => j === si ? {...s, items: [...s.items, '']} : s)}));
-  const removeSpecItem = (si, ii) => setEditDraft(d => ({...d, techSpecs: d.techSpecs.map((s, j) => j === si ? {...s, items: s.items.filter((_, k) => k !== ii)} : s)}));
-
-  const renderEditModal = () => {
-    if (!editingProduct || !editDraft.name) return null;
-
-    const fld   = MODAL_FLD;
-    const lbl   = MODAL_LBL;
-    const focus = modalFocus;
-    const blur  = modalBlur;
-
-    const isNew = !products.some(p => p.id === editingProduct.id);
-
-    const EDIT_SECTIONS = [
-      { key: 'basic',     label: 'Basic Info'     },
-      { key: 'condition', label: 'Condition'       },
-      { key: 'images',    label: 'Images'          },
-      { key: 'variants',  label: 'Variants'        },
-      { key: 'overview',  label: 'Overview'        },
-      { key: 'specs',     label: 'Quick Specs'     },
-      { key: 'inbox',     label: "What's in the Box" },
-      { key: 'features',  label: 'Features'        },
-      { key: 'techspecs', label: 'Tech Specs'      },
-    ];
-
-    const renderSection = () => {
-      switch (editSection) {
-        case 'basic': return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div><label style={lbl}>Product name</label><input style={fld} value={editDraft.name} onChange={e => setDF('name', e.target.value)} onFocus={focus} onBlur={blur} /></div>
-            <div><label style={lbl}>Subtitle / storage / color</label><input style={fld} value={editDraft.subtitle} onChange={e => setDF('subtitle', e.target.value)} onFocus={focus} onBlur={blur} /></div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
-              <div><label style={lbl}>USD Price</label><input type="number" style={fld} value={editDraft.usdPrice} onChange={e => setDF('usdPrice', e.target.value)} onFocus={focus} onBlur={blur} /></div>
-              <div><label style={lbl}>Stock count</label><input type="number" style={fld} value={editDraft.stock} onChange={e => setDF('stock', e.target.value)} onFocus={focus} onBlur={blur} /></div>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
-              <div>
-                <label style={lbl}>Condition</label>
-                <select style={{ ...fld, cursor: 'pointer' }} value={editDraft.condition} onChange={e => setDF('condition', e.target.value)}>
-                  <option value="new">New</option>
-                  <option value="refurb">Refurbished</option>
-                </select>
-              </div>
-              <div>
-                <label style={lbl}>Listing status</label>
-                <select style={{ ...fld, cursor: 'pointer' }} value={editDraft.listingStatus || 'live'} onChange={e => { setDF('listingStatus', e.target.value); setDF('inStock', e.target.value === 'live'); }}>
-                  <option value="live">🟢 Live (on sale)</option>
-                  <option value="out_of_stock">🔴 Out of Stock</option>
-                  <option value="coming_soon">🟡 Coming Soon</option>
-                  <option value="hidden">⚫ Hidden (admin only)</option>
-                </select>
-              </div>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
-              <div><label style={lbl}>Badge label</label><input style={fld} value={editDraft.badge || ''} onChange={e => setDF('badge', e.target.value)} onFocus={focus} onBlur={blur} /></div>
-              <div><label style={lbl}>Delivery estimate</label><input style={fld} value={editDraft.deliveryDays || ''} onChange={e => setDF('deliveryDays', e.target.value)} onFocus={focus} onBlur={blur} /></div>
-            </div>
-            <div style={{ background: 'var(--bg-alt)', borderRadius: 9, padding: '11px 14px', fontSize: 13, fontFamily: 'var(--font-body)', color: 'var(--text-muted)' }}>
-              NGN at current rate: <strong style={{ color: 'var(--text)' }}>₦{(Number(editDraft.usdPrice) * forexRate).toLocaleString()}</strong>
-            </div>
-          </div>
-        );
-
-        case 'condition': return (
-          <div>
-            <label style={lbl}>Condition note (shown on product page)</label>
-            <textarea value={editDraft.conditionNote || ''} onChange={e => setDF('conditionNote', e.target.value)}
-              onFocus={focus} onBlur={blur}
-              rows={5} style={{ ...fld, resize: 'vertical', lineHeight: 1.6 }} />
-            <p style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginTop: 8, lineHeight: 1.6 }}>
-              This text appears in the condition box on the product detail page. Describe sourcing, warranty status, and any cosmetic notes.
-            </p>
-          </div>
-        );
-
-        case 'images': return (
-          <div>
-            <ListEditor label="Image URLs (one per line)" listKey="rawImages" blank="https://" editDraft={editDraft} setListItem={setListItem} addListItem={addListItem} removeListItem={removeListItem} />
-            {(editDraft.rawImages || []).filter(url => url && url.startsWith('http')).slice(0, 1).map((url, i) => (
-              <div key={i} style={{ marginTop: 16, borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)', background: 'var(--bg-alt)', display: 'flex', alignItems: 'center', justifyContent: 'center', height: 180 }}>
-                <img src={`/api/img?url=${encodeURIComponent(url.replace(/[&?]\.v=[^&]*/, ''))}`} alt="Preview" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} onError={e => { e.target.style.display = 'none'; }} />
-              </div>
-            ))}
-            <p style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginTop: 10, lineHeight: 1.6 }}>
-              Add full image URLs (https://...). The first image is the main display image; additional images appear as thumbnails in the gallery.
-            </p>
-          </div>
-        );
-
-        case 'overview': return <ListEditor label="Overview bullets" listKey="overview" blank="New bullet point" editDraft={editDraft} setListItem={setListItem} addListItem={addListItem} removeListItem={removeListItem} />;
-        case 'specs':    return <ListEditor label="Quick spec highlights" listKey="specs" blank="New spec" editDraft={editDraft} setListItem={setListItem} addListItem={addListItem} removeListItem={removeListItem} />;
-        case 'inbox':    return <ListEditor label="What's in the box" listKey="includes" blank="New item" editDraft={editDraft} setListItem={setListItem} addListItem={addListItem} removeListItem={removeListItem} />;
-
-        case 'features': return (
-          <div>
-            {(editDraft.features || []).map((f, i) => (
-              <div key={i} style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 16, marginBottom: 12 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-                  <span style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>Feature {i + 1}</span>
-                  <button onClick={() => removeListItem('features', i)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 14 }}>Remove</button>
-                </div>
-                <div style={{ marginBottom: 10 }}>
-                  <label style={lbl}>Title</label>
-                  <input value={f.title} onChange={e => setFeature(i, 'title', e.target.value)} onFocus={focus} onBlur={blur} style={fld} />
-                </div>
-                <div>
-                  <label style={lbl}>Description</label>
-                  <textarea value={f.body} onChange={e => setFeature(i, 'body', e.target.value)} onFocus={focus} onBlur={blur}
-                    rows={3} style={{ ...fld, resize: 'vertical', lineHeight: 1.6 }} />
-                </div>
-              </div>
-            ))}
-            <button onClick={() => addListItem('features', { title: '', body: '' })}
-              style={{ fontSize: 12, color: 'var(--accent)', background: 'var(--accent-tint)', border: '1px dashed var(--accent-tint2)', borderRadius: 7, padding: '6px 14px', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
-              + Add feature
-            </button>
-          </div>
-        );
-
-        case 'variants': return (
-          <VariantsEditor editDraft={editDraft} setEditDraft={setEditDraft} fld={fld} lbl={lbl} focus={focus} blur={blur} />
-        );
-
-        case 'techspecs': return (
-          <div>
-            {(editDraft.techSpecs || []).map((sec, si) => (
-              <div key={si} style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 16, marginBottom: 12 }}>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
-                  <input value={sec.section} onChange={e => setSpecSection(si, 'section', e.target.value)} onFocus={focus} onBlur={blur}
-                    placeholder="Section name (e.g. Chip)"
-                    style={{ ...fld, fontWeight: 600, flex: 1 }} />
-                  <button onClick={() => removeListItem('techSpecs', si)}
-                    style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 7, cursor: 'pointer', color: 'var(--text-muted)', padding: '6px 10px', fontSize: 12, flexShrink: 0 }}>Remove section</button>
-                </div>
-                {sec.items.map((item, ii) => (
-                  <div key={ii} style={{ display: 'flex', gap: 8, marginBottom: 7 }}>
-                    <input value={item} onChange={e => setSpecItem(si, ii, e.target.value)} onFocus={focus} onBlur={blur}
-                      style={{ ...fld, flex: 1 }} />
-                    <button onClick={() => removeSpecItem(si, ii)} aria-label="Remove"
-                      style={{ padding: '0 9px', border: '1px solid var(--border)', borderRadius: 7, background: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 15, flexShrink: 0 }}>×</button>
-                  </div>
-                ))}
-                <button onClick={() => addSpecItem(si)}
-                  style={{ fontSize: 11, color: 'var(--accent)', background: 'var(--accent-tint)', border: '1px dashed var(--accent-tint2)', borderRadius: 6, padding: '5px 12px', cursor: 'pointer', fontFamily: 'var(--font-body)', marginTop: 4 }}>
-                  + Add item
-                </button>
-              </div>
-            ))}
-            <button onClick={() => addListItem('techSpecs', { section: '', items: [''] })}
-              style={{ fontSize: 12, color: 'var(--accent)', background: 'var(--accent-tint)', border: '1px dashed var(--accent-tint2)', borderRadius: 7, padding: '6px 14px', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
-              + Add section
-            </button>
-          </div>
-        );
-
-        default: return null;
-      }
-    };
-
-    return (
-      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', padding: isMobile ? 0 : 24 }}
-        onClick={e => { if (e.target === e.currentTarget) setEditingProduct(null); }}>
-        <div style={{ background: 'var(--bg)', borderRadius: isMobile ? '20px 20px 0 0' : 20, width: '100%', maxWidth: isMobile ? '100%' : 860, height: isMobile ? '92vh' : 'auto', maxHeight: isMobile ? '92vh' : '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 -8px 40px rgba(0,0,0,0.18)' }}>
-
-          {/* Header */}
-          <div style={{ padding: isMobile ? '16px 20px' : '20px 28px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
-            <div>
-              <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 16, color: 'var(--text)' }}>{isNew ? 'Add Product' : 'Edit Product'}</div>
-              <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{editDraft.name}</div>
-            </div>
-            <button onClick={() => setEditingProduct(null)} aria-label="Close" style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: 'var(--text-muted)', lineHeight: 1 }}>×</button>
-          </div>
-
-          {/* Body: sidebar + content */}
-          <div style={{ display: 'flex', flex: 1, overflow: 'hidden', flexDirection: isMobile ? 'column' : 'row' }}>
-
-            {/* Section nav — horizontal scrolling strip on mobile, sidebar on desktop */}
-            {isMobile ? (
-              <div style={{ display: 'flex', gap: 4, padding: '10px 16px', borderBottom: '1px solid var(--border)', overflowX: 'auto', flexShrink: 0 }}>
-                {EDIT_SECTIONS.map(s => (
-                  <button key={s.key} onClick={() => setEditSection(s.key)} style={{
-                    padding: '6px 12px', borderRadius: 20, border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
-                    background: editSection === s.key ? 'var(--accent)' : 'var(--bg-alt)',
-                    color: editSection === s.key ? 'white' : 'var(--text-muted)',
-                    fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: editSection === s.key ? 700 : 400,
-                  }}>{s.label}</button>
-                ))}
-              </div>
-            ) : (
-              <div style={{ width: 180, borderRight: '1px solid var(--border)', padding: '16px 10px', flexShrink: 0, overflowY: 'auto' }}>
-                {EDIT_SECTIONS.map(s => (
-                  <button key={s.key} onClick={() => setEditSection(s.key)} style={{
-                    display: 'block', width: '100%', textAlign: 'left', padding: '9px 12px',
-                    borderRadius: 8, border: 'none', cursor: 'pointer', marginBottom: 2,
-                    background: editSection === s.key ? 'var(--accent-tint)' : 'none',
-                    color: editSection === s.key ? 'var(--accent)' : 'var(--text-muted)',
-                    fontFamily: 'var(--font-body)', fontSize: 13,
-                    fontWeight: editSection === s.key ? 700 : 400,
-                  }}>{s.label}</button>
-                ))}
-              </div>
-            )}
-
-            {/* Content area */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '20px 16px' : '24px 28px' }}>
-              {renderSection()}
-            </div>
-          </div>
-
-          {/* Footer */}
-          <div style={{ padding: isMobile ? '12px 16px' : '16px 28px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: 10, flexShrink: 0 }}>
-            <button onClick={() => setEditingProduct(null)} style={{ padding: '10px 20px', borderRadius: 9, border: '1px solid var(--border)', background: 'none', fontFamily: 'var(--font-body)', fontSize: 14, cursor: 'pointer', color: 'var(--text-muted)' }}>Cancel</button>
-            <button onClick={saveEdit} style={{ padding: '10px 24px', borderRadius: 9, border: 'none', background: 'var(--accent)', color: 'white', fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>{isNew ? 'Add product' : 'Save changes'}</button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const ProductsTab = () => {
-    const q = productSearch.trim().toLowerCase();
-    const visibleProducts = q
-      ? products.filter(p => {
-          const certoUrl = `/product/${p.id}`;
-          return (
-            p.name.toLowerCase().includes(q) ||
-            p.id.toLowerCase().includes(q) ||
-            (p.subtitle || '').toLowerCase().includes(q) ||
-            (p.type || '').toLowerCase().includes(q) ||
-            (p.apple_url || '').toLowerCase().includes(q) ||
-            certoUrl.includes(q)
-          );
-        })
-      : products;
-
-    return (
-    <div>
-      {/* Title row */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 12 }}>
-        <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: isMobile ? 18 : 22, color: 'var(--text)' }}>
-          Product Listings {productsLoading
-            ? <span style={{ fontSize: 13, fontWeight: 400, color: 'var(--text-muted)' }}>Loading…</span>
-            : <span style={{ fontSize: 13, fontWeight: 400, color: 'var(--text-muted)' }}>
-                {q ? `${visibleProducts.length} of ${products.length}` : `(${products.length})`}
-              </span>}
-        </h2>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <RefreshBtn onClick={fetchProducts} loading={productsLoading} />
-          <button onClick={openAdd} style={{ background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, flexShrink: 0 }}>+ Add Product</button>
-        </div>
-      </div>
-
-      {/* Search bar */}
-      <div style={{ position: 'relative', marginBottom: 16 }}>
-        <span style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: 'var(--text-muted)', pointerEvents: 'none' }}>🔍</span>
-        <input
-          type="text"
-          value={productSearch}
-          onChange={e => setProductSearch(e.target.value)}
-          placeholder="Search by name, ID, category, Apple URL, Certo URL…"
-          style={{
-            width: '100%', padding: '10px 14px 10px 36px', borderRadius: 10,
-            border: '1.5px solid var(--border)', background: 'var(--bg)',
-            fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text)',
-            outline: 'none', boxSizing: 'border-box',
-            transition: 'border-color 0.15s',
-          }}
-          onFocus={e => e.target.style.borderColor = 'var(--accent)'}
-          onBlur={e => e.target.style.borderColor = 'var(--border)'}
-        />
-        {q && (
-          <button onClick={() => setProductSearch('')} aria-label="Clear search"
-            style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: 'var(--text-muted)', lineHeight: 1, padding: 0 }}>
-            ×
-          </button>
-        )}
-      </div>
-
-      <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 20, overflow: 'hidden' }}>
-        <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
-          <thead>
-            <tr style={{ background: 'var(--bg-alt)' }}>
-              {['Product', 'Type', 'Condition', 'USD Price', 'NGN Price', 'Stock', 'Status', ''].map(h => (
-                <th key={h} style={{ padding: '12px 20px', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textAlign: 'left' }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {visibleProducts.length === 0 ? (
-              <tr><td colSpan={8} style={{ padding: '40px 20px', textAlign: 'center', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)' }}>
-                No products match "{productSearch}"
-              </td></tr>
-            ) : visibleProducts.map(p => (
-              <tr key={p.id} style={{ borderTop: '1px solid var(--border)' }}
-                onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-alt)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                <td style={{ padding: '14px 20px' }}>
-                  <div style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>{p.name}</div>
-                  <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)' }}>{p.subtitle}</div>
-                </td>
-                <td style={{ padding: '14px 20px', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)', textTransform: 'capitalize' }}>{p.type}</td>
-                <td style={{ padding: '14px 20px' }}><ConditionBadge condition={p.condition} /></td>
-                <td style={{ padding: '14px 20px', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text)' }}>${p.usdPrice.toLocaleString()}</td>
-                <td style={{ padding: '14px 20px', fontFamily: 'var(--font-head)', fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>₦{p.ngnPrice.toLocaleString()}</td>
-                <td style={{ padding: '14px 20px', fontFamily: 'var(--font-body)', fontSize: 14, color: p.stock === 0 ? 'oklch(50% 0.18 25)' : 'var(--text)' }}>{p.stock}</td>
-                <td style={{ padding: '14px 20px' }}>
-                  {(() => {
-                    const ls = p.listingStatus || 'live';
-                    const stMap = {
-                      live:         { bg: 'oklch(93% 0.06 155)',  color: 'oklch(35% 0.15 155)', label: 'Live' },
-                      out_of_stock: { bg: 'oklch(94% 0.02 0)',    color: 'oklch(45% 0.12 0)',   label: 'Out of Stock' },
-                      coming_soon:  { bg: 'oklch(95% 0.07 60)',   color: 'oklch(42% 0.18 55)',  label: 'Coming Soon' },
-                      hidden:       { bg: 'oklch(92% 0.01 0)',    color: 'oklch(52% 0.04 0)',   label: 'Hidden' },
-                    };
-                    const st = stMap[ls] || stMap.live;
-                    return <span style={{ padding: '3px 10px', borderRadius: 6, background: st.bg, color: st.color, fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700 }}>{st.label}</span>;
-                  })()}
-                </td>
-                <td style={{ padding: '14px 20px' }}>
-                  <button onClick={() => openEdit(p)} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 6, padding: '5px 10px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)' }}>Edit</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        </div>
-      </div>
-    </div>
-  );
-  };
-
-  const ForexTab = () => {
-    const timeSince = fetchedAt ? (() => {
-      const diff = Math.floor((new Date() - fetchedAt) / 1000);
-      if (diff < 60) return 'just now';
-      if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-      return `${Math.floor(diff / 3600)}h ago`;
-    })() : null;
-
-    const cardPad = isMobile ? '20px 16px' : 32;
-
-    return (
-    <div style={{ maxWidth: isMobile ? '100%' : 560 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: isMobile ? 18 : 22, color: 'var(--text)', margin: 0 }}>Forex Rate Panel</h2>
-        <RefreshBtn onClick={() => { fetchOrders(); }} loading={false} />
-      </div>
-      <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.7, marginBottom: isMobile ? 20 : 32 }}>
-        Rate is auto-fetched from live market data. You can override it manually — your override stays active until the next auto-refresh.
-      </p>
-
-      {/* Live rate display card */}
-      <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 20, padding: cardPad, marginBottom: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-          <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)' }}>
-            {manualOverride ? 'Manual override active' : 'Live market rate'}
-          </div>
-          {!manualOverride && fetchedAt ? (
-            <span style={{ background: 'oklch(93% 0.08 155)', color: 'oklch(35% 0.18 155)', fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6, letterSpacing: '0.04em', flexShrink: 0 }}>● LIVE</span>
-          ) : manualOverride ? (
-            <span style={{ background: 'oklch(95% 0.06 60)', color: 'oklch(45% 0.18 55)', fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6, flexShrink: 0 }}>MANUAL</span>
+const DonutChart = ({ segments, total: totalLabel }) => {
+  const [hovSeg, setHovSeg] = useState(null);
+  if (!segments||!segments.length) return null;
+  const total = segments.reduce((s,e) => s+e.value, 0) || 1;
+  const R=38, C=2*Math.PI*R;
+  let cum=0;
+  const slices = segments.map((seg,i) => {
+    const arc=(seg.value/total)*C;
+    const slice={...seg, arc, offset:C/4-cum, color:DONUT_COLORS[i%DONUT_COLORS.length]};
+    cum+=arc;
+    return slice;
+  });
+  const hov = hovSeg !== null ? slices[hovSeg] : null;
+  return (
+    <div style={{ display:'flex', alignItems:'center', gap:28, flexWrap:'wrap' }}>
+      <div style={{ position:'relative', flexShrink:0 }}>
+        <svg viewBox="0 0 100 100" style={{ width:116, height:116, display:'block' }}>
+          {slices.map((s,i) => (
+            <circle key={i} cx="50" cy="50" r={hovSeg===i?40:R} fill="none" stroke={s.color}
+              strokeWidth={hovSeg===i?11:15}
+              strokeDasharray={`${s.arc.toFixed(2)} ${(C-s.arc).toFixed(2)}`}
+              strokeDashoffset={s.offset.toFixed(2)} strokeLinecap="butt"
+              style={{ cursor:'pointer', transition:'r 0.15s, stroke-width 0.15s', opacity: hovSeg!==null&&hovSeg!==i?0.45:1 }}
+              onMouseEnter={() => setHovSeg(i)} onMouseLeave={() => setHovSeg(null)}
+            />
+          ))}
+          {hov ? (
+            <>
+              <text x="50" y="44" textAnchor="middle" fontSize="13" fontWeight="800" fill="var(--text)" fontFamily="var(--font-num)">{hov.value}</text>
+              <text x="50" y="56" textAnchor="middle" fontSize="6.5" fill="var(--text-muted)" fontFamily="var(--font-body)" letterSpacing="0.06em">{Math.round((hov.value/total)*100)}%</text>
+            </>
           ) : (
-            <span style={{ background: 'var(--bg-alt)', color: 'var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 6, flexShrink: 0 }}>FETCHING…</span>
+            <>
+              <text x="50" y="47" textAnchor="middle" fontSize="15" fontWeight="800" fill="var(--text)" fontFamily="var(--font-num)">{total>=1000?(total/1000).toFixed(1)+'k':total}</text>
+              <text x="50" y="60" textAnchor="middle" fontSize="7" fill="var(--text-muted)" fontFamily="var(--font-body)" letterSpacing="0.1em">{totalLabel||'TOTAL'}</text>
+            </>
           )}
-        </div>
-        <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: isMobile ? 32 : 40, color: 'var(--accent)', marginBottom: 4 }}>₦{forexRate.toLocaleString()}</div>
-        <div style={{ fontFamily: 'var(--font-body)', fontSize: isMobile ? 13 : 14, color: 'var(--text-muted)', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: isMobile ? 6 : 12 }}>
-          <span>per 1 USD</span>
-          {timeSince && <span>· Auto-fetched {timeSince}</span>}
-          {!manualOverride && fetchedAt && (
-            <span style={{ fontSize: 12, color: 'oklch(45% 0.1 155)' }}>Source: ExchangeRate-API</span>
-          )}
-        </div>
-        {manualOverride && (
-          <button onClick={() => { setManualOverride(false); if (autoRate) { setForexRate(autoRate); setForexInput(String(autoRate)); } logEvent('Restored live forex rate', `Rate set back to ₦${autoRate?.toLocaleString()}/USD`); }}
-            style={{ marginTop: 14, fontSize: 12, color: 'oklch(45% 0.18 155)', background: 'oklch(93% 0.06 155)', border: 'none', borderRadius: 7, padding: '8px 16px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontWeight: 600, width: isMobile ? '100%' : 'auto' }}>
-            ↺ Restore live rate {autoRate ? `(₦${autoRate.toLocaleString()})` : ''}
-          </button>
+        </svg>
+        {hov && (
+          <div style={{ position:'absolute', top:-38, left:'50%', transform:'translateX(-50%)', background:'var(--ink,#1a1714)', color:'white', borderRadius:8, padding:'6px 12px', fontSize:12, fontWeight:700, whiteSpace:'nowrap', pointerEvents:'none', boxShadow:'0 4px 16px rgba(26,23,20,0.25)' }}>
+            {hov.label.replace(/_/g,' ')} · {hov.value}
+          </div>
         )}
       </div>
-
-      {/* Manual override card */}
-      <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 20, padding: cardPad, marginBottom: 16 }}>
-        <label style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, color: 'var(--text)', display: 'block', marginBottom: 10 }}>Manual override (₦ per $1)</label>
-        <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 12 }}>
-          <input type="number" value={forexInput} onChange={e => setForexInput(e.target.value)}
-            style={{ flex: 1, padding: '14px 18px', borderRadius: 12, border: '1.5px solid var(--border)', background: 'var(--bg-alt)', fontFamily: 'var(--font-head)', fontSize: isMobile ? 24 : 20, fontWeight: 700, color: 'var(--text)', outline: 'none', width: '100%', boxSizing: 'border-box' }}
-            onFocus={e => e.target.style.borderColor = 'var(--accent)'}
-            onBlur={e => e.target.style.borderColor = 'var(--border)'}
-          />
-          <button onClick={() => { const r = Number(forexInput); setForexRate(r); setManualOverride(true); setForexSaved(true); setTimeout(() => setForexSaved(false), 2000); logEvent('Overrode forex rate', `Manual rate set to ₦${r.toLocaleString()}/USD`); }}
-            style={{ padding: '14px 28px', borderRadius: 12, border: 'none', background: forexSaved ? 'oklch(50% 0.18 145)' : 'var(--accent)', color: 'white', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 700, width: isMobile ? '100%' : 'auto' }}>
-            {forexSaved ? '✓ Saved' : 'Override Rate'}
-          </button>
-        </div>
-        <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)', marginTop: 12, lineHeight: 1.6 }}>
-          Use this if the parallel market rate differs significantly from the auto-fetched official rate.
-        </p>
-      </div>
-
-      {/* Price preview */}
-      <div style={{ background: 'var(--bg-alt)', borderRadius: 16, padding: isMobile ? '16px 14px' : 20, border: '1px solid var(--border)' }}>
-        <div style={{ fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 13, color: 'var(--text-muted)', marginBottom: 14 }}>Price preview at ₦{Number(forexInput).toLocaleString()}/USD</div>
-        {PRODUCTS.slice(0, 4).map(p => (
-          <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, padding: '9px 0', borderBottom: '1px solid var(--border)' }}>
-            <span style={{ fontFamily: 'var(--font-body)', fontSize: isMobile ? 12 : 13, color: 'var(--text)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name} ({p.subtitle.split('·')[0].trim()})</span>
-            <span style={{ fontFamily: 'var(--font-head)', fontSize: isMobile ? 13 : 14, fontWeight: 700, color: 'var(--text)', flexShrink: 0 }}>₦{(p.usdPrice * Number(forexInput)).toLocaleString()}</span>
+      <div style={{ display:'flex', flexDirection:'column', gap:9, flex:1, minWidth:180 }}>
+        {slices.map((s,i) => (
+          <div key={i} style={{ display:'flex', alignItems:'center', gap:10, cursor:'pointer', padding:'3px 6px', borderRadius:7, background:hovSeg===i?'var(--bg-alt)':'transparent', transition:'background 0.15s' }}
+            onMouseEnter={() => setHovSeg(i)} onMouseLeave={() => setHovSeg(null)}>
+            <span style={{ width:9, height:9, borderRadius:3, background:s.color, flexShrink:0 }}/>
+            <span style={{ fontFamily:'var(--font-body)', fontSize:13, color:'var(--text)', flex:1, textTransform:'capitalize' }}>{s.label.replace(/_/g,' ')}</span>
+            <span style={{ fontFamily:'var(--font-body)', fontSize:13, fontWeight:700, color:'var(--text)' }}>{s.value.toLocaleString()}</span>
+            <span style={{ fontFamily:'var(--font-body)', fontSize:11, color:'var(--text-muted)', minWidth:34, textAlign:'right' }}>{Math.round((s.value/total)*100)}%</span>
           </div>
         ))}
       </div>
     </div>
   );
+};
+
+const BarList = ({ items, labelKey, valueKey, color='var(--accent)' }) => {
+  if (!items||!items.length) return <Empty label="No data yet"/>;
+  const max = Math.max(...items.map(i => i[valueKey]), 1);
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:13 }}>
+      {items.map((it,i) => (
+        <div key={i} style={{ display:'flex', alignItems:'center', gap:12 }}>
+          <span style={{ width:16, fontFamily:'var(--font-body)', fontSize:11, color:'var(--text-muted)', textAlign:'right', flexShrink:0 }}>{i+1}</span>
+          <div style={{ flex:1, minWidth:0 }}>
+            <div style={{ fontFamily:'var(--font-body)', fontSize:13, color:'var(--text)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', marginBottom:5 }}>{it[labelKey]}</div>
+            <div style={{ height:6, background:'var(--bg-alt)', borderRadius:4, overflow:'hidden' }}>
+              <div style={{ height:'100%', width:`${(it[valueKey]/max)*100}%`, background:color, borderRadius:4, transition:'width 0.5s' }}/>
+            </div>
+          </div>
+          <span style={{ fontFamily:'var(--font-body)', fontSize:13, fontWeight:700, color:'var(--text)', flexShrink:0 }}>{it[valueKey].toLocaleString()}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const Panel = ({ title, action, children, pad=22, style }) => (
+  <div style={{ background:'var(--bg)', border:'1px solid var(--border)', borderRadius:16, overflow:'hidden', ...style }}>
+    {title && (
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, padding:'16px 22px', borderBottom:'1px solid var(--border)' }}>
+        <span style={{ fontFamily:'var(--font-head)', fontWeight:700, fontSize:15, color:'var(--text)', letterSpacing:'-0.01em' }}>{title}</span>
+        {action}
+      </div>
+    )}
+    <div style={{ padding:pad }}>{children}</div>
+  </div>
+);
+
+const Segmented = ({ options, value, onChange, size='md' }) => (
+  <div style={{ display:'inline-flex', gap:3, background:'var(--bg-alt)', border:'1px solid var(--border)', borderRadius:10, padding:3 }}>
+    {options.map(o => {
+      const active = value===o.key;
+      return (
+        <button key={o.key} onClick={() => onChange(o.key)} style={{ padding:size==='sm'?'5px 11px':'7px 15px', borderRadius:7, border:'none', cursor:'pointer', background:active?'var(--bg)':'transparent', color:active?'var(--text)':'var(--text-muted)', fontFamily:'var(--font-body)', fontSize:size==='sm'?12:13, fontWeight:active?700:500, boxShadow:active?'0 1px 3px rgba(26,23,20,0.08)':'none', transition:'all 0.15s', whiteSpace:'nowrap' }}>{o.label}</button>
+      );
+    })}
+  </div>
+);
+
+// ─── Shared style atoms ───────────────────────────────────────────────────────
+const inputS    = { padding:'9px 13px', borderRadius:9, border:'1px solid var(--border)', background:'var(--bg)', fontFamily:'var(--font-body)', fontSize:13, color:'var(--text)', outline:'none' };
+const thS       = { padding:'12px 18px', fontFamily:'var(--font-body)', fontSize:11.5, fontWeight:700, color:'var(--text-muted)', textAlign:'left', whiteSpace:'nowrap', textTransform:'uppercase', letterSpacing:'0.04em' };
+const tdS       = { padding:'13px 18px', fontFamily:'var(--font-body)', fontSize:13.5, color:'var(--text)', verticalAlign:'middle' };
+const primaryBtn = { background:'var(--accent)', color:'white', border:'none', borderRadius:10, padding:'10px 18px', cursor:'pointer', fontFamily:'var(--font-body)', fontSize:13, fontWeight:600, whiteSpace:'nowrap' };
+const actionBtn  = { display:'inline-flex', alignItems:'center', gap:6, padding:'9px 16px', borderRadius:10, border:'1px solid var(--border)', background:'var(--bg)', color:'var(--text-muted)', fontFamily:'var(--font-body)', fontSize:13, fontWeight:600, cursor:'pointer' };
+const miniBtn    = { background:'none', border:'1px solid var(--border)', borderRadius:7, padding:'5px 12px', cursor:'pointer', fontFamily:'var(--font-body)', fontSize:12, color:'var(--text-muted)', fontWeight:600 };
+const linkBtn    = { background:'none', border:'none', cursor:'pointer', fontFamily:'var(--font-body)', fontSize:13, fontWeight:600, color:'var(--accent)' };
+const fmtN = n => '₦' + Number(n).toLocaleString();
+const fmtU = n => '$' + Number(n).toLocaleString();
+
+// ─── TAB: Overview ────────────────────────────────────────────────────────────
+function OverviewTab({ isMobile, setTab, orders, revenueSeries, messages, products }) {
+  const visible   = orders.filter(o => !o.admin_hidden);
+  const totalNgn  = visible.reduce((s,o) => s+o.ngn, 0);
+  const delivered = visible.filter(o => o.status==='Delivered').length;
+  const active    = visible.filter(o => !['Delivered','Cancelled','Payment Pending'].includes(o.status)).length;
+  const pending   = visible.filter(o => o.status==='Payment Pending').length;
+  const unreadMsg = messages.filter(m => !m.read).length;
+  const outOfStock= products.filter(p => p.stock===0 && p.listingStatus!=='coming_soon').length;
+  const recent    = visible.slice(0,5);
+  const sparkData = revenueSeries.map(r => r.ngn);
+  const revTotal  = totalNgn >= 1e6 ? '₦'+(totalNgn/1e6).toFixed(1)+'M' : fmtN(totalNgn);
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
+      <div style={{ display:'grid', gridTemplateColumns:isMobile?'1fr 1fr':'repeat(4,1fr)', gap:14 }}>
+        <StatCard label="Revenue (all)" value={revTotal} sub={`${visible.length} orders`} spark={sparkData} icon={<Icon name="coins" size={16}/>}/>
+        <StatCard label="Active Orders" value={active} sub="in transit" accent="var(--accent)" icon={<Icon name="box" size={16}/>}/>
+        <StatCard label="Delivered" value={delivered} sub="genuine verified" accent="oklch(45% 0.15 155)" icon={<Icon name="cert" size={16}/>}/>
+        <StatCard label="Awaiting Pay" value={pending} sub={pending?'unconfirmed':'none'} accent="oklch(48% 0.18 55)" icon={<Icon name="ticket" size={16}/>}/>
+      </div>
+
+      <div style={{ display:'grid', gridTemplateColumns:isMobile?'1fr':'1.6fr 1fr', gap:16 }}>
+        <Panel title="Revenue trend" action={<span style={{ fontFamily:'var(--font-num)', fontWeight:800, fontSize:18, color:'var(--text)' }}>{revTotal}</span>}>
+          <AreaChart data={revenueSeries} xKey="day" yKey="ngn" height={200}/>
+        </Panel>
+        <Panel title="Orders by status">
+          <DonutChart total="ORDERS" segments={(() => {
+            const m = {};
+            orders.forEach(o => {
+              const k = o.status==='Delivered' ? 'delivered' : o.status==='Payment Pending' ? 'pending' : 'in_progress';
+              m[k] = (m[k]||0)+1;
+            });
+            return Object.entries(m).map(([label,value]) => ({ label, value }));
+          })()}/>
+        </Panel>
+      </div>
+
+      <div style={{ display:'grid', gridTemplateColumns:isMobile?'1fr':'1.6fr 1fr', gap:16 }}>
+        <Panel title="Recent orders" pad={0} action={<button onClick={() => setTab('orders')} style={linkBtn}>View all →</button>}>
+          {recent.length ? recent.map((o,i) => (
+            <div key={o.id} onClick={() => setTab('orders')} style={{ display:'flex', alignItems:'center', gap:12, padding:'14px 20px', borderTop:i?'1px solid var(--border)':'none', cursor:'pointer' }}
+              onMouseEnter={e => e.currentTarget.style.background='var(--bg-alt)'}
+              onMouseLeave={e => e.currentTarget.style.background='transparent'}>
+              <div style={{ width:36, height:36, borderRadius:9, background:'var(--bg-alt)', border:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontFamily:'var(--font-head)', fontWeight:700, fontSize:12, color:'var(--accent)' }}>
+                {o.customer.split(' ').map(n=>n[0]).join('').slice(0,2)}
+              </div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:13.5, fontWeight:600, color:'var(--text)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{o.customer}</div>
+                <div style={{ fontSize:12, color:'var(--text-muted)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{o.product}</div>
+              </div>
+              {!isMobile && <StatusPill status={o.status}/>}
+              <div style={{ fontFamily:'var(--font-num)', fontWeight:700, fontSize:13.5, color:'var(--text)', flexShrink:0 }}>{fmtN(o.ngn)}</div>
+            </div>
+          )) : <Empty label="No orders yet"/>}
+        </Panel>
+
+        <Panel title="Needs attention">
+          <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+            <AlertRow color="oklch(55% 0.18 55)" icon="ticket" title={`${pending} order${pending!==1?'s':''} awaiting payment`} sub="Confirm crypto payment to proceed" onClick={() => setTab('orders')}/>
+            <AlertRow color="oklch(55% 0.18 25)" icon="flag" title={`${orders.filter(o=>o.flag).length} flagged order${orders.filter(o=>o.flag).length!==1?'s':''}`} sub="Address change — confirm before shipping" onClick={() => setTab('orders')}/>
+            <AlertRow color="oklch(50% 0.16 250)" icon="mail" title={`${unreadMsg} unread message${unreadMsg!==1?'s':''}`} sub="Customers waiting on a reply" onClick={() => setTab('messages')}/>
+            {outOfStock>0 && <AlertRow color="oklch(55% 0.16 60)" icon="tag" title={`${outOfStock} product${outOfStock!==1?'s':''} out of stock`} sub="Update stock or hide listing" onClick={() => setTab('products')}/>}
+          </div>
+        </Panel>
+      </div>
+    </div>
+  );
+}
+
+function AlertRow({ color, icon, title, sub, onClick }) {
+  return (
+    <button onClick={onClick} style={{ display:'flex', alignItems:'center', gap:12, width:'100%', textAlign:'left', padding:'12px 14px', borderRadius:11, border:'1px solid var(--border)', background:'var(--bg-alt)', cursor:'pointer' }}
+      onMouseEnter={e => e.currentTarget.style.borderColor=color}
+      onMouseLeave={e => e.currentTarget.style.borderColor='var(--border)'}>
+      <span style={{ width:32, height:32, borderRadius:8, background:'var(--bg)', border:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+        <Icon name={icon} size={16} c={color}/>
+      </span>
+      <div style={{ flex:1, minWidth:0 }}>
+        <div style={{ fontSize:13, fontWeight:700, color:'var(--text)' }}>{title}</div>
+        <div style={{ fontSize:11.5, color:'var(--text-muted)' }}>{sub}</div>
+      </div>
+      <Icon name="chevron" size={15} c="var(--text-muted)"/>
+    </button>
+  );
+}
+
+// ─── Create order modal (phone / walk-in orders) ─────────────────────────────
+const NG_STATES = ['Abia','Adamawa','Akwa Ibom','Anambra','Bauchi','Bayelsa','Benue','Borno','Cross River','Delta','Ebonyi','Edo','Ekiti','Enugu','FCT – Abuja','Gombe','Imo','Jigawa','Kaduna','Kano','Katsina','Kebbi','Kogi','Kwara','Lagos','Nasarawa','Niger','Ogun','Ondo','Osun','Oyo','Plateau','Rivers','Sokoto','Taraba','Yobe','Zamfara'];
+
+function CreateOrderModal({ onClose, onDone, products, rate }) {
+  const [form, setForm] = useState({
+    // Customer
+    customer_name: '', customer_email: '', customer_phone: '',
+    // Delivery
+    address: '', state: 'Lagos',
+    // Product
+    product_id: '', product_name: '', product_subtitle: '', apple_url: '',
+    usd_price: '', variant_id: '', variant_color: '', variant_storage: '', variant_color_hex: '',
+    applecare: 'none', qty: 1,
+    // Order
+    payment_method: 'Cash / Bank Transfer',
+    initial_status: 'Order Confirmed',
+    notes: '',
+  });
+  const [productQ,   setProductQ]   = useState('');
+  const [showPicker, setShowPicker] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err,  setErr]  = useState('');
+
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const liveRate = rate || (() => { try { return parseInt(localStorage.getItem('certo_rate')||'1590',10)||1590; } catch(_){ return 1590; } })();
+  const usdNum   = parseFloat(form.usd_price) || 0;
+  const ngnTotal = usdNum * liveRate;
+
+  const filteredProds = (products || []).filter(p =>
+    !productQ.trim() || (p.name + ' ' + (p.subtitle||'')).toLowerCase().includes(productQ.toLowerCase())
+  ).slice(0, 12);
+
+  const pickProduct = (p) => {
+    const price = p.usdPrice || p.usd_price || 0;
+    set('product_id',       p.id);
+    set('product_name',     p.name);
+    set('product_subtitle', p.subtitle || '');
+    set('apple_url',        p.appleUrl || p.apple_url || '');
+    set('usd_price',        String(price));
+    set('variant_id',       '');
+    set('variant_color',    '');
+    set('variant_storage',  '');
+    set('variant_color_hex','');
+    setProductQ(p.name + (p.subtitle ? ' — ' + p.subtitle : ''));
+    setShowPicker(false);
   };
 
-  const RevenueTab = () => {
-    // Exclude Payment Pending and Cancelled — only count confirmed/paid orders
-    const revOrders  = applyTimeFilter(orders, revTimeFilter, revCustomFrom, revCustomTo)
-      .filter(o => o.status !== 'Payment Pending' && o.status !== 'Cancelled');
-    const revNgn     = revOrders.reduce((s, o) => s + o.ngn, 0);
-    const revUsd     = revOrders.reduce((s, o) => s + o.usd, 0);
-    const totalProfit= revOrders.reduce((s, o) => s + o.usd * 0.12, 0);
-    const avgNgn     = revOrders.length ? revNgn / revOrders.length : 0;
-    const avgUsd     = revOrders.length ? revUsd / revOrders.length : 0;
-    const isNgn      = revCurrency === 'ngn';
+  const pickStorage = (s) => {
+    set('variant_id',      s.id);
+    set('variant_storage', s.size || s.label || '');
+    set('usd_price',       String(s.price_usd || s.usdPrice || form.usd_price));
+  };
 
-    const fmtRev = (ngn, usd) => isNgn ? `₦${(ngn/1000000).toFixed(2)}M` : `$${usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    const fmtAvg = (ngn, usd) => isNgn ? `₦${Math.round(ngn).toLocaleString()}` : `$${usd.toFixed(2)}`;
+  const pickColor = (c) => {
+    set('variant_color',     c.name);
+    set('variant_color_hex', c.hex || '');
+  };
 
-    const tfInputStyle = { padding: '8px 12px', borderRadius: 9, border: '1.5px solid var(--border)', background: 'var(--bg)', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text)', outline: 'none', cursor: 'pointer' };
+  const selectedProd = (products||[]).find(p => p.id === form.product_id) || null;
+  const hasColors    = selectedProd?.variants?.colors?.length  > 0;
+  const hasStorages  = selectedProd?.variants?.storages?.length > 0;
 
+  const APPLECARE_OPTIONS = ['none', 'AppleCare+', 'AppleCare+ with Theft and Loss'];
+  const PAYMENT_METHODS   = ['Cash / Bank Transfer', 'Flutterwave', 'WhatsApp (USD/Crypto)', 'MoonPay', 'Other'];
+
+  const submit = async () => {
+    if (!form.customer_name.trim()) { setErr('Customer name is required.');  return; }
+    if (!form.customer_phone.trim()){ setErr('Customer phone is required.'); return; }
+    if (!form.address.trim())       { setErr('Delivery address is required.');return; }
+    if (!form.product_name.trim())  { setErr('Select or enter a product.');   return; }
+    if (!form.usd_price)            { setErr('Price is required.');           return; }
+    setErr(''); setBusy(true);
+    try {
+      const res = await authFetch('/api/orders', { method:'POST', body: JSON.stringify({
+        customer_name:      form.customer_name.trim(),
+        customer_email:     form.customer_email.trim() || `phone+${form.customer_phone.replace(/\D/g,'')}@certo.ng`,
+        customer_phone:     form.customer_phone.trim(),
+        address:            form.address.trim(),
+        state:              form.state,
+        product_id:         form.product_id || null,
+        product_name:       form.product_name.trim(),
+        product_subtitle:   form.product_subtitle.trim(),
+        apple_url:          form.apple_url.trim(),
+        product_image_url:  '',
+        applecare:          form.applecare,
+        qty:                Number(form.qty) || 1,
+        usd_price:          parseFloat(form.usd_price),
+        ngn_price:          parseFloat(form.usd_price) * liveRate,
+        forex_rate:         liveRate,
+        payment_method:     form.payment_method,
+        initial_status:     form.initial_status,
+        variant_id:         form.variant_id   || null,
+        variant_color:      form.variant_color || null,
+        variant_storage:    form.variant_storage || null,
+        variant_color_hex:  form.variant_color_hex || null,
+        items: [{
+          product_id:      form.product_id || '',
+          name:            form.product_name.trim(),
+          subtitle:        form.product_subtitle.trim(),
+          usd_price:       parseFloat(form.usd_price),
+          qty:             Number(form.qty) || 1,
+          applecare:       form.applecare,
+          apple_url:       form.apple_url.trim(),
+          variant_color:   form.variant_color || null,
+          variant_storage: form.variant_storage || null,
+          variant_color_hex: form.variant_color_hex || null,
+        }],
+      }) });
+      const json = await res.json();
+      if (!res.ok) { setErr(json.error || 'Failed to create order'); setBusy(false); return; }
+      onDone(json.order || json);
+      onClose();
+    } catch(e) { setErr(e.message); }
+    setBusy(false);
+  };
+
+  const L = { fontSize:11, fontWeight:700, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.05em', display:'block', marginBottom:6 };
+  const I = { ...inputS, width:'100%', boxSizing:'border-box' };
+
+  return (
+    <Modal
+      title="New order"
+      subtitle="Phone / walk-in"
+      onClose={onClose}
+      width={640}
+      footer={
+        <div style={{ display:'flex', gap:10, alignItems:'center' }}>
+          {usdNum > 0 && <span style={{ fontSize:13, color:'var(--text-muted)', marginRight:'auto' }}>Total: <strong style={{ color:'var(--text)' }}>${usdNum.toLocaleString('en-US',{minimumFractionDigits:2})} · ₦{ngnTotal.toLocaleString('en-NG')}</strong></span>}
+          <button onClick={onClose} style={{ ...actionBtn }}>Cancel</button>
+          <button onClick={submit} disabled={busy} style={{ ...primaryBtn, opacity:busy?0.7:1 }}>{busy?'Creating…':'Create order'}</button>
+        </div>
+      }
+    >
+      {err && <div style={{ fontSize:12.5, color:'oklch(50% 0.18 25)', padding:'10px 14px', background:'oklch(97% 0.03 25)', borderRadius:9, border:'1px solid oklch(85% 0.1 25)', marginBottom:16 }}>{err}</div>}
+
+      <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
+
+        {/* ── Customer ── */}
+        <div>
+          <div style={{ fontSize:11, fontWeight:700, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:12, display:'flex', alignItems:'center', gap:8 }}>
+            <span style={{ flex:1, height:1, background:'var(--border)' }}/> Customer <span style={{ flex:1, height:1, background:'var(--border)' }}/>
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+            <div style={{ gridColumn:'1/-1' }}><label style={L}>Full Name *</label><input value={form.customer_name} onChange={e => set('customer_name', e.target.value)} placeholder="e.g. Chidi Ozo" style={I}/></div>
+            <div><label style={L}>Phone *</label><input value={form.customer_phone} onChange={e => set('customer_phone', e.target.value)} placeholder="+234 800 000 0000" style={I}/></div>
+            <div><label style={L}>Email</label><input value={form.customer_email} onChange={e => set('customer_email', e.target.value)} placeholder="optional" style={I}/></div>
+          </div>
+        </div>
+
+        {/* ── Delivery ── */}
+        <div>
+          <div style={{ fontSize:11, fontWeight:700, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:12, display:'flex', alignItems:'center', gap:8 }}>
+            <span style={{ flex:1, height:1, background:'var(--border)' }}/> Delivery <span style={{ flex:1, height:1, background:'var(--border)' }}/>
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+            <div style={{ gridColumn:'1/-1' }}><label style={L}>Address *</label><input value={form.address} onChange={e => set('address', e.target.value)} placeholder="Street, area, city" style={I}/></div>
+            <div style={{ gridColumn:'1/-1' }}>
+              <label style={L}>State *</label>
+              <select value={form.state} onChange={e => set('state', e.target.value)} style={{ ...I, cursor:'pointer' }}>
+                {NG_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Product ── */}
+        <div>
+          <div style={{ fontSize:11, fontWeight:700, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:12, display:'flex', alignItems:'center', gap:8 }}>
+            <span style={{ flex:1, height:1, background:'var(--border)' }}/> Product <span style={{ flex:1, height:1, background:'var(--border)' }}/>
+          </div>
+          <div style={{ position:'relative', marginBottom:12 }}>
+            <label style={L}>Search products *</label>
+            <input
+              value={productQ}
+              onChange={e => { setProductQ(e.target.value); setShowPicker(true); if (!e.target.value) { set('product_id',''); set('product_name',''); set('usd_price',''); } }}
+              onFocus={() => setShowPicker(true)}
+              placeholder="Type to search, or enter product name manually below"
+              style={I}
+            />
+            {showPicker && productQ && filteredProds.length > 0 && (
+              <div style={{ position:'absolute', top:'100%', left:0, right:0, zIndex:50, background:'var(--bg)', border:'1px solid var(--border)', borderRadius:10, boxShadow:'0 8px 32px rgba(26,23,20,0.15)', maxHeight:200, overflowY:'auto', marginTop:4 }}>
+                {filteredProds.map(p => (
+                  <div key={p.id} onMouseDown={() => pickProduct(p)} style={{ padding:'10px 14px', cursor:'pointer', borderBottom:'1px solid var(--border)', fontSize:13 }}
+                    onMouseEnter={e => e.currentTarget.style.background='var(--bg-alt)'}
+                    onMouseLeave={e => e.currentTarget.style.background='transparent'}>
+                    <div style={{ fontWeight:600, color:'var(--text)' }}>{p.name}</div>
+                    {p.subtitle && <div style={{ fontSize:12, color:'var(--text-muted)' }}>{p.subtitle}</div>}
+                    <div style={{ fontSize:11, color:'var(--accent)', marginTop:2 }}>${(p.usdPrice||p.usd_price||0).toLocaleString('en-US',{minimumFractionDigits:2})}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Manual name override if no product selected from list */}
+          {!form.product_id && (
+            <div style={{ marginBottom:12 }}><label style={L}>Product name (manual)</label><input value={form.product_name} onChange={e => set('product_name', e.target.value)} placeholder="e.g. iPhone 16 Pro Max" style={I}/></div>
+          )}
+
+          {/* Variant selectors */}
+          {hasColors && (
+            <div style={{ marginBottom:12 }}>
+              <label style={L}>Color</label>
+              <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                {selectedProd.variants.colors.map(c => (
+                  <button key={c.id} onMouseDown={() => pickColor(c)} style={{ padding:'6px 14px', borderRadius:8, border:`2px solid ${form.variant_color===c.name?'var(--accent)':'var(--border)'}`, background:form.variant_color===c.name?'var(--accent-tint)':'var(--bg)', cursor:'pointer', fontSize:13, fontWeight:600, display:'flex', alignItems:'center', gap:6 }}>
+                    {c.hex && <span style={{ width:12, height:12, borderRadius:'50%', background:c.hex, border:'1px solid rgba(0,0,0,0.15)', display:'inline-block' }}/>}
+                    {c.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {hasStorages && (
+            <div style={{ marginBottom:12 }}>
+              <label style={L}>Storage / Size</label>
+              <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                {selectedProd.variants.storages.filter(s => s.in_stock!==false).map(s => (
+                  <button key={s.id} onMouseDown={() => pickStorage(s)} style={{ padding:'6px 14px', borderRadius:8, border:`2px solid ${form.variant_id===s.id?'var(--accent)':'var(--border)'}`, background:form.variant_id===s.id?'var(--accent-tint)':'var(--bg)', cursor:'pointer', fontSize:13, fontWeight:600 }}>
+                    {s.size} · ${Number(s.price_usd).toLocaleString()}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12 }}>
+            <div><label style={L}>USD Price *</label><input type="number" min="0" step="0.01" value={form.usd_price} onChange={e => set('usd_price', e.target.value)} style={I}/></div>
+            <div><label style={L}>Qty</label><input type="number" min="1" value={form.qty} onChange={e => set('qty', e.target.value)} style={I}/></div>
+            <div>
+              <label style={L}>AppleCare</label>
+              <select value={form.applecare} onChange={e => set('applecare', e.target.value)} style={{ ...I, cursor:'pointer' }}>
+                {APPLECARE_OPTIONS.map(o => <option key={o} value={o}>{o==='none'?'None':o}</option>)}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Payment ── */}
+        <div>
+          <div style={{ fontSize:11, fontWeight:700, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:12, display:'flex', alignItems:'center', gap:8 }}>
+            <span style={{ flex:1, height:1, background:'var(--border)' }}/> Payment <span style={{ flex:1, height:1, background:'var(--border)' }}/>
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+            <div>
+              <label style={L}>Payment Method</label>
+              <select value={form.payment_method} onChange={e => set('payment_method', e.target.value)} style={{ ...I, cursor:'pointer' }}>
+                {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={L}>Initial Status</label>
+              <select value={form.initial_status} onChange={e => set('initial_status', e.target.value)} style={{ ...I, cursor:'pointer' }}>
+                <option value="Order Confirmed">Order Confirmed</option>
+                <option value="Payment Pending">Payment Pending</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </Modal>
+  );
+}
+
+// ─── TAB: Orders ──────────────────────────────────────────────────────────────
+function OrdersTab({ isMobile, orders, onOrdersChange, certificates, products, rate }) {
+  const [sel,        setSel]        = useState(null);
+  const [statusF,    setStatusF]    = useState('all');
+  const [q,          setQ]          = useState('');
+  const [showCreate, setShowCreate] = useState(false);
+
+  // Hidden orders are completely invisible — filtered out at the source
+  const visible = orders.filter(o => !o.admin_hidden);
+
+  const filtered = visible.filter(o => {
+    if (statusF==='open'    && ['Delivered','Cancelled'].includes(o.status)) return false;
+    if (statusF==='flagged' && !o.flag) return false;
+    if (statusF==='pending' && o.status!=='Payment Pending') return false;
+    if (q.trim()) {
+      const s = q.toLowerCase();
+      return o.id.toLowerCase().includes(s) || o.customer.toLowerCase().includes(s) || o.product.toLowerCase().includes(s);
+    }
+    return true;
+  });
+
+  if (sel) return <OrderDetail order={sel} onBack={() => setSel(null)} isMobile={isMobile} onOrdersChange={(updated) => { onOrdersChange && onOrdersChange(updated); if (updated.admin_hidden) setSel(null); }} existingCerts={(certificates||[]).filter(c => c.order_id===sel.id)}/>;
+
+  const handleCreatedOrder = (raw) => {
+    const mapped = mapOrder(raw);
+    onOrdersChange && onOrdersChange(mapped, true); // true = new order
+    setSel(mapped); // open the new order detail immediately
+  };
+
+  const delivered = visible.filter(o => o.status==='Delivered').length;
+  const active    = visible.filter(o => !['Delivered','Cancelled','Payment Pending'].includes(o.status)).length;
+  const pending   = visible.filter(o => o.status==='Payment Pending').length;
+  const flagged   = visible.filter(o => o.flag).length;
+
+  return (
+    <>
+      {showCreate && <CreateOrderModal onClose={() => setShowCreate(false)} onDone={handleCreatedOrder} products={products} rate={rate}/>}
+      <div style={{ display:'flex', flexDirection:'column', gap:18 }}>
+      <div style={{ display:'grid', gridTemplateColumns:isMobile?'repeat(2,1fr)':'repeat(4,1fr)', gap:14 }}>
+        <StatCard label="Active"       value={active}    accent="var(--accent)"       icon={<Icon name="box"    size={16}/>}/>
+        <StatCard label="Delivered"    value={delivered} accent="oklch(45% 0.15 155)" icon={<Icon name="cert"   size={16}/>}/>
+        <StatCard label="Awaiting Pay" value={pending}   accent="oklch(48% 0.18 55)"  icon={<Icon name="ticket" size={16}/>}/>
+        <StatCard label="Flagged"      value={flagged}   accent="oklch(52% 0.18 25)"  icon={<Icon name="flag"   size={16}/>}/>
+      </div>
+
+      <Panel pad={0}>
+        <div style={{ display:'flex', flexWrap:'wrap', gap:10, padding:'14px 18px', borderBottom:'1px solid var(--border)', alignItems:'center' }}>
+          <div style={{ position:'relative', flex:'1 1 200px', minWidth:0 }}>
+            <span style={{ position:'absolute', left:11, top:'50%', transform:'translateY(-50%)', color:'var(--text-muted)', display:'flex' }}><Icon name="search" size={15}/></span>
+            <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search orders…" style={{ ...inputS, paddingLeft:33, width:'100%', boxSizing:'border-box' }}/>
+          </div>
+          <Segmented value={statusF} onChange={setStatusF} options={[
+            {key:'all',     label:'All'},
+            {key:'open',    label:'Open'},
+            {key:'pending', label:'Awaiting Pay'},
+            {key:'flagged', label:'Flagged'},
+          ]}/>
+          <button onClick={() => setShowCreate(true)} style={{ ...primaryBtn, display:'flex', alignItems:'center', gap:6, marginLeft:'auto' }}>
+            <Icon name="plus" size={15} c="white"/> New order
+          </button>
+          <span style={{ fontSize:12.5, color:'var(--text-muted)', whiteSpace:'nowrap' }}>{filtered.length} of {visible.length}</span>
+        </div>
+
+        {isMobile ? (
+          <div>
+            {filtered.map((o,i) => (
+              <div key={o.id} onClick={() => setSel(o)} style={{ padding:'14px 18px', borderTop:i?'1px solid var(--border)':'none', cursor:'pointer' }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
+                  <span style={{ fontFamily:'var(--font-body)', fontWeight:700, fontSize:13, color:'var(--accent)' }}>{o.flag&&'🚩 '}{o.id}</span>
+                  <span style={{ fontFamily:'var(--font-num)', fontWeight:700, fontSize:14, color:'var(--text)' }}>{fmtN(o.ngn)}</span>
+                </div>
+                <div style={{ fontSize:13.5, fontWeight:600, color:'var(--text)', marginBottom:2 }}>{o.customer}</div>
+                <div style={{ fontSize:12, color:'var(--text-muted)', marginBottom:8 }}>{o.product}</div>
+                <StatusPill status={o.status}/>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ overflowX:'auto' }}>
+            <table style={{ width:'100%', borderCollapse:'collapse', minWidth:640 }}>
+              <thead>
+                <tr style={{ background:'var(--bg-alt)' }}>
+                  {['Order','Customer','Product','Status','Via','Total',''].map(h => <th key={h} style={thS}>{h}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map(o => (
+                  <tr key={o.id} onClick={() => setSel(o)} style={{ borderTop:'1px solid var(--border)', cursor:'pointer' }}
+                    onMouseEnter={e => e.currentTarget.style.background='var(--bg-alt)'}
+                    onMouseLeave={e => e.currentTarget.style.background='transparent'}>
+                    <td style={{ ...tdS, fontWeight:700, color:'var(--accent)' }}>{o.status==='Payment Pending'&&'⏳ '}{o.flag&&'🚩 '}{o.id}</td>
+                    <td style={tdS}><div style={{ fontWeight:600, color:'var(--text)' }}>{o.customer}</div><div style={{ fontSize:12, color:'var(--text-muted)' }}>{o.phone}</div></td>
+                    <td style={{ ...tdS, maxWidth:180, color:'var(--text-muted)', fontSize:12.5 }}><div style={{ whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{o.product}</div>{o.items.length>1&&<span style={{ color:'var(--accent)', fontSize:11 }}>+{o.items.length-1} more</span>}</td>
+                    <td style={tdS}><StatusPill status={o.status}/></td>
+                    <td style={tdS}><PayPill method={o.payment_method}/></td>
+                    <td style={{ ...tdS, fontFamily:'var(--font-num)', fontWeight:700, color:'var(--text)' }}>{fmtN(o.ngn)}</td>
+                    <td style={tdS}><Icon name="chevron" size={15} c="var(--accent)"/></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {!filtered.length && <Empty label="No orders match this filter"/>}
+      </Panel>
+    </div>
+    </>
+  );
+}
+
+// ─── Reusable Modal shell ─────────────────────────────────────────────────────
+function Modal({ title, subtitle, onClose, children, footer, width=480 }) {
+  useEffect(() => {
+    const onKey = (e) => { if (e.key==='Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  return (
+    <div onClick={onClose} style={{ position:'fixed', inset:0, zIndex:1000, background:'rgba(26,23,20,0.45)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', padding:'16px 12px', overflowY:'auto' }}>
+      <div onClick={e => e.stopPropagation()} style={{ background:'var(--bg)', borderRadius:20, border:'1px solid var(--border)', width:'100%', maxWidth:width, boxShadow:'0 24px 80px rgba(26,23,20,0.22)', overflow:'hidden', maxHeight:'calc(100dvh - 32px)', display:'flex', flexDirection:'column' }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'18px 20px', borderBottom:'1px solid var(--border)', flexShrink:0 }}>
+          <div>
+            <span style={{ fontFamily:'var(--font-head)', fontWeight:800, fontSize:17, color:'var(--text)', letterSpacing:'-0.01em' }}>{title}</span>
+            {subtitle && <div style={{ fontSize:12, color:'var(--text-muted)', marginTop:2 }}>{subtitle}</div>}
+          </div>
+          <button onClick={onClose} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--text-muted)', padding:4, display:'flex', borderRadius:7, lineHeight:1 }} aria-label="Close">✕</button>
+        </div>
+        <div style={{ padding:20, overflowY:'auto', flex:1 }}>{children}</div>
+        {footer && <div style={{ padding:'14px 20px', borderTop:'1px solid var(--border)', flexShrink:0 }}>{footer}</div>}
+      </div>
+    </div>
+  );
+}
+
+// ─── WhatsApp QR modal ────────────────────────────────────────────────────────
+function WhatsAppModal({ phone, name, onClose }) {
+  const cleaned = (phone||'').replace(/[^0-9]/g,'');
+  const waUrl   = `https://wa.me/${cleaned}`;
+  const qrSrc   = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&color=1a1714&bgcolor=faf9f7&data=${encodeURIComponent(waUrl)}`;
+  return (
+    <Modal title="WhatsApp customer" onClose={onClose} width={380}>
+      <div style={{ textAlign:'center' }}>
+        <div style={{ fontSize:13, color:'var(--text-muted)', marginBottom:20 }}>
+          Scan with your phone to open WhatsApp with <strong style={{ color:'var(--text)' }}>{name}</strong>
+        </div>
+        <div style={{ display:'inline-flex', padding:12, background:'var(--bg-alt)', borderRadius:16, border:'1px solid var(--border)', marginBottom:20 }}>
+          <img src={qrSrc} alt="WhatsApp QR" width={200} height={200} style={{ display:'block', borderRadius:8 }}/>
+        </div>
+        <div style={{ fontSize:12, color:'var(--text-muted)', marginBottom:24, fontFamily:'var(--font-mono,monospace)' }}>{phone}</div>
+        <div style={{ display:'flex', gap:10 }}>
+          <a href={waUrl} target="_blank" rel="noreferrer" onClick={onClose} style={{ ...primaryBtn, flex:1, textAlign:'center', textDecoration:'none', background:'oklch(50% 0.18 145)', display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+            Continue on Web
+          </a>
+          <button onClick={onClose} style={{ ...actionBtn, flex:1, justifyContent:'center' }}>Close</button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+// ─── Flag order modal ─────────────────────────────────────────────────────────
+function FlagModal({ order, onClose, onDone }) {
+  const [reason, setReason] = useState(order.flag_reason || '');
+  const [busy, setBusy]     = useState(false);
+  const adminName = getName();
+  const isFlagged = order.flag;
+
+  const labelS = { fontSize:11, fontWeight:700, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.05em', display:'block', marginBottom:8 };
+
+  const patch = async (body) => {
+    setBusy(true);
+    try {
+      const res = await authFetch(`/api/orders/${order.id}`, { method:'PATCH', body: JSON.stringify(body) });
+      if (res.ok) { const updated = await res.json(); onDone(mapOrder(updated)); }
+    } catch(e) { console.error(e); }
+    setBusy(false);
+    onClose();
+  };
+
+  return (
+    <Modal title={isFlagged ? 'Edit flag' : 'Flag order'} onClose={onClose} width={440}>
+      {isFlagged ? (
+        <>
+          <div style={{ fontSize:13, color:'var(--text-muted)', marginBottom:16 }}>
+            Updating as <strong style={{ color:'var(--text)' }}>{adminName}</strong>. Reason is visible to all admins.
+          </div>
+          <label style={labelS}>Flag reason *</label>
+          <textarea
+            value={reason}
+            onChange={e => setReason(e.target.value)}
+            placeholder="e.g. Customer requested address change — confirm before shipping"
+            rows={4}
+            style={{ ...inputS, width:'100%', boxSizing:'border-box', resize:'vertical', marginBottom:20, lineHeight:1.6 }}
+          />
+          <div style={{ display:'flex', gap:10 }}>
+            <button
+              onClick={() => patch({ flag_reason: `[${adminName}] ${reason.trim()}` })}
+              disabled={busy || !reason.trim()}
+              style={{ ...primaryBtn, background:'oklch(50% 0.18 25)', flex:1, opacity:(!reason.trim()||busy)?0.6:1 }}
+            >{busy ? 'Saving…' : 'Update reason'}</button>
+            <button
+              onClick={() => patch({ flagged: false, flag_reason: '' })}
+              disabled={busy}
+              style={{ ...actionBtn, flex:1, justifyContent:'center', color:'oklch(45% 0.18 25)', borderColor:'oklch(85% 0.1 25)' }}
+            >Remove flag</button>
+          </div>
+        </>
+      ) : (
+        <>
+          <div style={{ fontSize:13, color:'var(--text-muted)', marginBottom:16 }}>
+            Flagging as <strong style={{ color:'var(--text)' }}>{adminName}</strong>. The reason will be visible to all admins.
+          </div>
+          <label style={labelS}>Reason *</label>
+          <textarea
+            value={reason}
+            onChange={e => setReason(e.target.value)}
+            placeholder="e.g. Customer requested address change — confirm before shipping"
+            rows={4}
+            style={{ ...inputS, width:'100%', boxSizing:'border-box', resize:'vertical', marginBottom:20, lineHeight:1.6 }}
+          />
+          <div style={{ display:'flex', gap:10 }}>
+            <button
+              onClick={() => patch({ flagged: true, flag_reason: `[${adminName}] ${reason.trim()}` })}
+              disabled={busy || !reason.trim()}
+              style={{ ...primaryBtn, background:'oklch(50% 0.18 25)', flex:1, opacity:(!reason.trim()||busy)?0.6:1 }}
+            >{busy ? 'Flagging…' : 'Flag order'}</button>
+            <button onClick={onClose} style={{ ...actionBtn, flex:1, justifyContent:'center' }}>Cancel</button>
+          </div>
+        </>
+      )}
+    </Modal>
+  );
+}
+
+// ─── Certificate modal (create / edit draft / view published) ────────────────
+function CertModal({ order, existingCert, onClose, onDone }) {
+  const isMobile    = useIsMobile();
+  const isPublished = existingCert?.status === 'published';
+  const isDraft     = existingCert?.status === 'draft';
+  const isCreate    = !existingCert;
+
+  // Editable state (create or edit-draft mode)
+  const initCoc = (isDraft && Array.isArray(existingCert?.chain_of_custody) && existingCert.chain_of_custody.length)
+    ? existingCert.chain_of_custody.map(e => ({ step: e.step || '', actor: e.actor || '' }))
+    : [{ step: '', actor: 'Certo' }];
+
+  const [serial,   setSerial]   = useState(existingCert?.serial_number    || '');
+  const [appleRef, setAppleRef] = useState(existingCert?.apple_order_ref  || '');
+  const [asDraft,  setAsDraft]  = useState(false);
+  const [coc,      setCoc]      = useState(initCoc);
+  const [busy,     setBusy]     = useState(false);
+  const [err,      setErr]      = useState('');
+
+  const addStep    = ()            => setCoc(p => [...p, { step:'', actor:'Certo' }]);
+  const removeStep = (i)           => setCoc(p => p.filter((_,j) => j!==i));
+  const setStep    = (i, k, v)     => setCoc(p => p.map((e,j) => j===i ? {...e,[k]:v} : e));
+
+  const labelS = { fontSize:11, fontWeight:700, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.05em', display:'block', marginBottom:6 };
+
+  const submit = async () => {
+    setErr('');
+    const status      = asDraft ? 'draft' : 'published';
+    const filledCoc   = coc.filter(e => e.step.trim());
+    if (!asDraft) {
+      if (!serial.trim())    { setErr('Serial number is required to publish.'); return; }
+      if (!appleRef.trim())  { setErr('Apple order reference is required to publish.'); return; }
+      if (!filledCoc.length) { setErr('At least one chain of custody step is required to publish.'); return; }
+    }
+    setBusy(true);
+    try {
+      const cocWithTs = filledCoc.map(e => ({ step: e.step.trim(), actor: e.actor.trim() || 'Certo', ts: new Date().toISOString() }));
+      const body = {
+        serial_number: serial.trim(),
+        apple_order_ref: appleRef.trim(),
+        chain_of_custody: asDraft ? [] : cocWithTs,
+        status,
+        ...(isCreate ? {
+          order_id: order.id, product_name: order.product,
+          product_subtitle: order.product_subtitle || '',
+          recipient_name: order.customer, recipient_address: order.address,
+        } : {}),
+      };
+      const url    = isDraft ? `/api/certificates/${existingCert.id}` : '/api/certificates';
+      const method = isDraft ? 'PATCH' : 'POST';
+      const res  = await authFetch(url, { method, body: JSON.stringify(body) });
+      const json = await res.json();
+      if (!res.ok) { setErr(json.error || 'Failed to save certificate'); setBusy(false); return; }
+      onDone && onDone(json);
+      onClose();
+    } catch(e) { setErr(e.message); }
+    setBusy(false);
+  };
+
+  // ── Published: read-only view ──────────────────────────────────────────────
+  if (isPublished) {
+    const pubCoc = Array.isArray(existingCert.chain_of_custody) ? existingCert.chain_of_custody : [];
+    const pubDate = existingCert.published_at || existingCert.issued_at || existingCert.created_at;
     return (
-      <div>
-        {/* Toolbar */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', marginBottom: 24 }}>
-          <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: isMobile ? 18 : 22, color: 'var(--text)', margin: 0, flex: 1 }}>Revenue Overview</h2>
-          <RefreshBtn onClick={fetchOrders} loading={ordersLoading} />
+      <Modal title="Certificate" onClose={onClose} width={520}>
+        <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
 
-          {/* Currency toggle */}
-          <div style={{ display: 'flex', gap: 2, background: 'var(--bg-alt)', borderRadius: 10, padding: 4, border: '1px solid var(--border)' }}>
-            {[['ngn', '₦ NGN'], ['usd', '$ USD']].map(([val, label]) => (
-              <button key={val} onClick={() => setRevCurrency(val)} style={{ padding: '7px 16px', borderRadius: 8, border: 'none', cursor: 'pointer', background: revCurrency === val ? 'var(--accent)' : 'transparent', color: revCurrency === val ? 'white' : 'var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: revCurrency === val ? 700 : 400 }}>{label}</button>
+          {/* Header chip */}
+          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+            <span style={{ padding:'4px 12px', borderRadius:100, background:'oklch(93% 0.06 155)', color:'oklch(35% 0.15 155)', fontSize:11.5, fontWeight:700 }}>✓ Published</span>
+            {pubDate && <span style={{ fontSize:12, color:'var(--text-muted)' }}>{new Date(pubDate).toLocaleDateString('en-NG',{day:'numeric',month:'short',year:'numeric'})}</span>}
+          </div>
+
+          {/* Order + cert ID */}
+          <div style={{ padding:'12px 16px', background:'var(--bg-alt)', borderRadius:10, border:'1px solid var(--border)' }}>
+            <div style={{ fontSize:11, fontWeight:700, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:4 }}>Certificate ID</div>
+            <div style={{ fontFamily:'var(--font-mono,monospace)', fontWeight:700, fontSize:14, color:'var(--text)' }}>{existingCert.id}</div>
+            <div style={{ fontSize:12, color:'var(--text-muted)', marginTop:4 }}>{order.id} — {order.customer} — {order.product}</div>
+          </div>
+
+          {/* Serial + Apple ref */}
+          <div style={{ display:'grid', gridTemplateColumns:isMobile?'1fr':'1fr 1fr', gap:12 }}>
+            <div>
+              <div style={labelS}>Serial number</div>
+              <div style={{ fontFamily:'var(--font-mono,monospace)', fontSize:14, fontWeight:700, color:'var(--text)', padding:'8px 12px', background:'var(--bg-alt)', borderRadius:8, border:'1px solid var(--border)' }}>{existingCert.serial_number||'—'}</div>
+            </div>
+            <div>
+              <div style={labelS}>Apple order ref</div>
+              <div style={{ fontFamily:'var(--font-mono,monospace)', fontSize:14, fontWeight:700, color:'var(--text)', padding:'8px 12px', background:'var(--bg-alt)', borderRadius:8, border:'1px solid var(--border)' }}>{existingCert.apple_order_ref||'—'}</div>
+            </div>
+          </div>
+
+          {/* Chain of custody */}
+          <div>
+            <div style={labelS}>Chain of custody</div>
+            {pubCoc.length ? (
+              <div style={{ display:'flex', flexDirection:'column', gap:0, borderRadius:10, border:'1px solid var(--border)', overflow:'hidden' }}>
+                {pubCoc.map((e,i) => (
+                  <div key={i} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px', borderTop:i?'1px solid var(--border)':'none', background:'var(--bg)' }}>
+                    <div style={{ width:22, height:22, borderRadius:'50%', background:'var(--accent)', color:'white', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:800, flexShrink:0 }}>{i+1}</div>
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontSize:13.5, fontWeight:600, color:'var(--text)' }}>{e.step}</div>
+                      <div style={{ fontSize:11.5, color:'var(--text-muted)' }}>{e.actor}{e.ts&&` · ${new Date(e.ts).toLocaleDateString('en-NG',{day:'numeric',month:'short',year:'numeric'})}`}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : <div style={{ fontSize:13, color:'var(--text-muted)' }}>No chain of custody recorded.</div>}
+          </div>
+
+          <div style={{ display:'flex', gap:10 }}>
+            <a href={`/verify/${order.id}`} target="_blank" rel="noreferrer" style={{ ...primaryBtn, textDecoration:'none', flex:1, textAlign:'center', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              Open public certificate
+            </a>
+            <button onClick={onClose} style={{ ...actionBtn, flex:1, justifyContent:'center' }}>Close</button>
+          </div>
+        </div>
+      </Modal>
+    );
+  }
+
+  // ── Create / Edit draft ────────────────────────────────────────────────────
+  const title = isDraft ? 'Edit draft certificate' : 'Publish certificate';
+  return (
+    <Modal title={title} onClose={onClose} width={540}>
+      <div style={{ display:'flex', flexDirection:'column', gap:16, maxHeight:'75vh', overflowY:'auto', paddingRight:2 }}>
+
+        {/* Order context */}
+        <div style={{ padding:'12px 16px', background:'var(--bg-alt)', borderRadius:10, border:'1px solid var(--border)' }}>
+          <div style={{ fontSize:11, fontWeight:700, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:4 }}>Order</div>
+          <div style={{ fontSize:14, fontWeight:700, color:'var(--text)' }}>{order.id} — {order.customer}</div>
+          <div style={{ fontSize:12, color:'var(--text-muted)' }}>{order.product}</div>
+        </div>
+
+        {/* Serial */}
+        <div>
+          <label style={labelS}>Serial number {!asDraft&&'*'}</label>
+          <input value={serial} onChange={e => setSerial(e.target.value)} placeholder="e.g. F2LWQ1JKXXX" style={{ ...inputS, width:'100%', boxSizing:'border-box', fontFamily:'var(--font-mono,monospace)', letterSpacing:'0.04em' }}/>
+        </div>
+
+        {/* Apple ref */}
+        <div>
+          <label style={labelS}>Apple order reference {!asDraft&&'*'}</label>
+          <input value={appleRef} onChange={e => setAppleRef(e.target.value)} placeholder="e.g. W12345678" style={{ ...inputS, width:'100%', boxSizing:'border-box' }}/>
+        </div>
+
+        {/* Chain of custody builder */}
+        <div>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
+            <label style={{ ...labelS, marginBottom:0 }}>Chain of custody {!asDraft&&'*'}</label>
+            <button onClick={addStep} style={{ ...miniBtn, color:'var(--accent)', borderColor:'var(--accent)', display:'flex', alignItems:'center', gap:5 }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+              Add step
+            </button>
+          </div>
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            {coc.map((entry, i) => (
+              <div key={i} style={{ display:'flex', gap:8, alignItems:isMobile?'flex-start':'center', flexWrap:isMobile?'wrap':'nowrap' }}>
+                <div style={{ width:22, height:22, borderRadius:'50%', background:'var(--bg-alt)', border:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, color:'var(--text-muted)', flexShrink:0, marginTop:isMobile?10:0 }}>{i+1}</div>
+                <input
+                  value={entry.step}
+                  onChange={e => setStep(i,'step',e.target.value)}
+                  placeholder={i===0 ? 'e.g. Purchased from Apple US' : i===1 ? 'e.g. Shipped to Certo Nigeria' : 'e.g. Quality checked and packaged'}
+                  style={{ ...inputS, flex: isMobile ? '1 1 100%' : 2, minWidth:0 }}
+                />
+                <input
+                  value={entry.actor}
+                  onChange={e => setStep(i,'actor',e.target.value)}
+                  placeholder="Actor"
+                  style={{ ...inputS, flex: isMobile ? '1 1 calc(100% - 30px)' : 1, minWidth:0 }}
+                />
+                {coc.length > 1 && (
+                  <button onClick={() => removeStep(i)} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--text-muted)', padding:'4px 6px', borderRadius:6, flexShrink:0, fontSize:14, lineHeight:1, marginTop:isMobile?2:0 }} title="Remove step">✕</button>
+                )}
+              </div>
+            ))}
+          </div>
+          {!asDraft && <div style={{ fontSize:11.5, color:'var(--text-muted)', marginTop:8 }}>Timestamps are recorded automatically on publish.</div>}
+        </div>
+
+        {/* Draft toggle */}
+        <label style={{ display:'flex', alignItems:'center', gap:10, cursor:'pointer', padding:'10px 14px', borderRadius:10, border:'1px solid var(--border)', background:'var(--bg-alt)' }}>
+          <input type="checkbox" checked={asDraft} onChange={e => setAsDraft(e.target.checked)} style={{ width:16, height:16, accentColor:'var(--accent)' }}/>
+          <div>
+            <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>Save as draft only</div>
+            <div style={{ fontSize:11.5, color:'var(--text-muted)' }}>Fill in the details later — chain of custody won't be recorded until you publish</div>
+          </div>
+        </label>
+
+        {err && <div style={{ fontSize:12.5, color:'oklch(50% 0.18 25)', padding:'10px 14px', background:'oklch(97% 0.03 25)', borderRadius:9, border:'1px solid oklch(85% 0.1 25)' }}>{err}</div>}
+
+        <div style={{ display:'flex', gap:10 }}>
+          <button onClick={submit} disabled={busy} style={{ ...primaryBtn, flex:1, opacity:busy?0.7:1 }}>
+            {busy ? 'Saving…' : asDraft ? 'Save draft' : `✓ ${isDraft?'Publish draft':'Publish certificate'}`}
+          </button>
+          <button onClick={onClose} style={{ ...actionBtn, flex:1, justifyContent:'center' }}>Cancel</button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+// ─── Product edit modal ───────────────────────────────────────────────────────
+function ProductEditModal({ productId, onClose, onDone }) {
+  const [activeTab, setActiveTab] = useState('basic');
+  const [loading,   setLoading]   = useState(true);
+  const [form,      setForm]      = useState(null);
+  const [busy,      setBusy]      = useState(false);
+  const [err,       setErr]       = useState('');
+
+  const rate = (() => { try { return parseInt(localStorage.getItem('certo_rate') || '1590', 10) || 1590; } catch(_) { return 1590; } })();
+
+  useEffect(() => {
+    authFetch(`/api/products/${productId}`)
+      .then(r => r.json())
+      .then(p => {
+        // Normalise variants: colours store images as a newline-joined string for the textarea
+        const rawV   = p.variants && !Array.isArray(p.variants) ? p.variants : { colors:[], storages:[] };
+        const colors   = (rawV.colors  || []).map(c => ({ ...c, images: Array.isArray(c.images) ? c.images.join('\n') : (c.images || '') }));
+        const storages = rawV.storages || [];
+
+        setForm({
+          name:           p.name           || '',
+          subtitle:       p.subtitle       || '',
+          usd_price:      p.usd_price      ?? 0,
+          stock_count:    p.stock_count    ?? 0,
+          in_stock:       p.in_stock       !== false,
+          condition:      p.condition      || 'New',
+          condition_note: p.condition_note || '',
+          listing_status: p.listing_status || 'live',
+          featured:       p.featured       || false,
+          badge:          p.badge          || '',
+          delivery_days:  p.delivery_days  || '',
+          apple_url:      p.apple_url      || '',
+          image_urls:     Array.isArray(p.image_urls)  ? p.image_urls  : [],
+          overview:       Array.isArray(p.overview)    ? p.overview    : [],
+          specs:          Array.isArray(p.specs)       ? p.specs       : [],
+          includes:       Array.isArray(p.includes)    ? p.includes    : [],
+          features:       Array.isArray(p.features)    ? p.features    : [],
+          tech_specs:     Array.isArray(p.tech_specs)  ? p.tech_specs  : [],
+          variants:       { colors, storages },
+        });
+        setLoading(false);
+      })
+      .catch(e => { setErr(e.message); setLoading(false); });
+  }, [productId]);
+
+  const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
+
+  // ── list-field helpers ──────────────────────────────────────────────────────
+  const addItem    = (key)         => set(key, [...form[key], '']);
+  const setItem    = (key, i, val) => set(key, form[key].map((v, j) => j === i ? val : v));
+  const removeItem = (key, i)      => set(key, form[key].filter((_, j) => j !== i));
+
+  // ── variant helpers ─────────────────────────────────────────────────────────
+  const addColor    = () => set('variants', { ...form.variants, colors: [...form.variants.colors, { id: Date.now().toString(36), name:'', hex:'#888888', images:'' }] });
+  const removeColor = (i) => set('variants', { ...form.variants, colors: form.variants.colors.filter((_,j) => j!==i) });
+  const setColor    = (i, k, v) => set('variants', { ...form.variants, colors: form.variants.colors.map((c,j) => j===i ? {...c,[k]:v} : c) });
+
+  const addStorage    = () => set('variants', { ...form.variants, storages: [...form.variants.storages, { id: Date.now().toString(36), size:'', price_usd:0, in_stock:true }] });
+  const removeStorage = (i) => set('variants', { ...form.variants, storages: form.variants.storages.filter((_,j) => j!==i) });
+  const setStorage    = (i, k, v) => set('variants', { ...form.variants, storages: form.variants.storages.map((s,j) => j===i ? {...s,[k]:v} : s) });
+
+  const submit = async () => {
+    if (!form.name.trim()) { setErr('Product name is required.'); setActiveTab('basic'); return; }
+    setErr(''); setBusy(true);
+    try {
+      const hasVariants = form.variants.colors.length > 0 || form.variants.storages.length > 0;
+      const variants = hasVariants ? {
+        colors:   form.variants.colors.map(c => ({ ...c, images: typeof c.images === 'string' ? c.images.split('\n').map(s=>s.trim()).filter(Boolean) : (c.images||[]) })),
+        storages: form.variants.storages.map(s => ({ ...s, price_usd: Number(s.price_usd) })),
+      } : [];
+
+      const res  = await authFetch(`/api/products/${productId}`, { method:'PATCH', body: JSON.stringify({
+        name: form.name.trim(), subtitle: form.subtitle.trim(),
+        usd_price: Number(form.usd_price), stock_count: Number(form.stock_count),
+        in_stock: form.in_stock, condition: form.condition, condition_note: form.condition_note,
+        listing_status: form.listing_status, featured: form.featured,
+        badge: form.badge.trim(), delivery_days: form.delivery_days.trim(), apple_url: form.apple_url.trim(),
+        image_urls: form.image_urls.filter(Boolean),
+        overview:   form.overview.filter(s => s.trim()),
+        specs:      form.specs.filter(s => s.trim()),
+        includes:   form.includes.filter(s => s.trim()),
+        features:   form.features.filter(s => s.trim()),
+        tech_specs: form.tech_specs.filter(s => s.trim()),
+        variants,
+      }) });
+      const json = await res.json();
+      if (!res.ok) { setErr(json.error || 'Update failed'); setBusy(false); return; }
+      onDone(json);
+      onClose();
+    } catch(e) { setErr(e.message); }
+    setBusy(false);
+  };
+
+  const TABS = [
+    { id:'basic',      label:'Basic Info' },
+    { id:'condition',  label:'Condition' },
+    { id:'images',     label:'Images' },
+    { id:'variants',   label:'Variants' },
+    { id:'overview',   label:'Overview' },
+    { id:'specs',      label:'Quick Specs' },
+    { id:'includes',   label:"What's in the Box" },
+    { id:'features',   label:'Features' },
+    { id:'tech_specs', label:'Tech Specs' },
+  ];
+
+  const L  = { fontSize:11, fontWeight:700, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.05em', display:'block', marginBottom:6 };
+  const I  = { ...inputS, width:'100%', boxSizing:'border-box' };
+  const TA = { ...I, resize:'vertical', fontFamily:'var(--font-body)', fontSize:13, lineHeight:1.6 };
+
+  const ListEditor = ({ fieldKey, placeholder }) => (
+    <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+      {form[fieldKey].map((val, i) => (
+        <div key={i} style={{ display:'flex', gap:8, alignItems:'center' }}>
+          <input value={val} onChange={e => setItem(fieldKey, i, e.target.value)} placeholder={placeholder} style={{ ...I, flex:1 }}/>
+          <button onClick={() => removeItem(fieldKey, i)} style={{ flexShrink:0, width:30, height:30, borderRadius:7, border:'1px solid var(--border)', background:'var(--bg-alt)', color:'var(--text-muted)', cursor:'pointer', fontSize:16, display:'flex', alignItems:'center', justifyContent:'center' }}>×</button>
+        </div>
+      ))}
+      <button onClick={() => addItem(fieldKey)} style={{ alignSelf:'flex-start', padding:'6px 14px', borderRadius:8, border:'1px solid var(--accent)', background:'var(--accent-tint)', color:'var(--accent)', fontSize:12.5, fontWeight:600, cursor:'pointer' }}>+ Add item</button>
+    </div>
+  );
+
+  return (
+    <Modal
+      title="Edit Product"
+      subtitle={form?.name || (loading ? 'Loading…' : 'Product')}
+      onClose={onClose}
+      width={800}
+      footer={
+        <div style={{ display:'flex', gap:10 }}>
+          <button onClick={submit} disabled={busy || loading || !form} style={{ ...primaryBtn, flex:1, opacity:(busy||loading||!form)?0.7:1 }}>{busy?'Saving…':'Save changes'}</button>
+          <button onClick={onClose} style={{ ...actionBtn, flex:1, justifyContent:'center' }}>Cancel</button>
+        </div>
+      }
+    >
+      {loading ? (
+        <div style={{ textAlign:'center', padding:'48px 0', color:'var(--text-muted)' }}>Loading product…</div>
+      ) : !form ? (
+        <div style={{ color:'oklch(50% 0.18 25)', padding:'20px 0' }}>{err || 'Failed to load product.'}</div>
+      ) : (
+        <>
+          {err && <div style={{ fontSize:12.5, color:'oklch(50% 0.18 25)', padding:'10px 14px', background:'oklch(97% 0.03 25)', borderRadius:9, border:'1px solid oklch(85% 0.1 25)', marginBottom:12 }}>{err}</div>}
+
+          <div style={{ display:'flex', gap:0, minHeight:480 }}>
+
+            {/* ── Sidebar ───────────────────────────────────────────────── */}
+            <div style={{ width:168, flexShrink:0, borderRight:'1px solid var(--border)', marginLeft:-20, marginTop:-20, marginBottom:-20, paddingTop:8 }}>
+              {TABS.map(t => (
+                <button key={t.id} onClick={() => setActiveTab(t.id)} style={{
+                  display:'block', width:'100%', textAlign:'left',
+                  padding:'9px 16px', fontSize:13.5, border:'none', cursor:'pointer', borderRadius:0,
+                  fontWeight: activeTab===t.id ? 700 : 400,
+                  color:      activeTab===t.id ? 'var(--accent)' : 'var(--text)',
+                  background: activeTab===t.id ? 'var(--accent-tint)' : 'transparent',
+                  fontFamily: 'var(--font-body)',
+                }}>{t.label}</button>
+              ))}
+            </div>
+
+            {/* ── Content ───────────────────────────────────────────────── */}
+            <div style={{ flex:1, paddingLeft:24, display:'flex', flexDirection:'column', gap:16 }}>
+
+              {/* Basic Info */}
+              {activeTab === 'basic' && <>
+                <div><label style={L}>Product Name</label><input value={form.name} onChange={e => set('name', e.target.value)} style={I}/></div>
+                <div><label style={L}>Subtitle / Storage / Color</label><input value={form.subtitle} onChange={e => set('subtitle', e.target.value)} placeholder="e.g. 256GB · Desert Titanium" style={I}/></div>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+                  <div><label style={L}>USD Price</label><input type="number" min="0" step="0.01" value={form.usd_price} onChange={e => set('usd_price', e.target.value)} style={I}/></div>
+                  <div><label style={L}>Stock Count</label><input type="number" min="0" value={form.stock_count} onChange={e => set('stock_count', e.target.value)} style={I}/></div>
+                </div>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+                  <div>
+                    <label style={L}>Condition</label>
+                    <select value={form.condition} onChange={e => set('condition', e.target.value)} style={{ ...I, cursor:'pointer' }}>
+                      <option value="New">New</option>
+                      <option value="Refurb">Refurb</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={L}>Listing Status</label>
+                    <select value={form.listing_status} onChange={e => set('listing_status', e.target.value)} style={{ ...I, cursor:'pointer' }}>
+                      <option value="live">🟢 Live (on sale)</option>
+                      <option value="out_of_stock">Out of stock</option>
+                      <option value="coming_soon">Coming soon</option>
+                      <option value="hidden">Hidden</option>
+                    </select>
+                  </div>
+                </div>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+                  <div><label style={L}>Badge Label</label><input value={form.badge} onChange={e => set('badge', e.target.value)} placeholder="e.g. New model" style={I}/></div>
+                  <div><label style={L}>Delivery Estimate</label><input value={form.delivery_days} onChange={e => set('delivery_days', e.target.value)} placeholder="10–18 business days" style={I}/></div>
+                </div>
+                <div><label style={L}>Apple.com URL</label><input value={form.apple_url} onChange={e => set('apple_url', e.target.value)} placeholder="https://www.apple.com/shop/buy-iphone/…" style={I}/></div>
+                <div style={{ display:'flex', gap:20, padding:'10px 14px', background:'var(--bg-alt)', borderRadius:10, border:'1px solid var(--border)' }}>
+                  <label style={{ cursor:'pointer', display:'flex', alignItems:'center', gap:8 }}>
+                    <input type="checkbox" checked={form.in_stock} onChange={e => set('in_stock', e.target.checked)} style={{ width:15, height:15, accentColor:'var(--accent)' }}/>
+                    <span style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>In stock</span>
+                  </label>
+                  <label style={{ cursor:'pointer', display:'flex', alignItems:'center', gap:8 }}>
+                    <input type="checkbox" checked={form.featured} onChange={e => set('featured', e.target.checked)} style={{ width:15, height:15, accentColor:'var(--accent)' }}/>
+                    <span style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>Featured ★</span>
+                  </label>
+                </div>
+                <div style={{ fontSize:13, color:'var(--text-muted)', padding:'8px 12px', background:'var(--bg-alt)', borderRadius:8, border:'1px solid var(--border)' }}>
+                  {form.usd_price ? <>
+                    Customers see: <strong style={{ color:'var(--text)' }}>${(Number(form.usd_price)*1.07).toFixed(2)}</strong>
+                    {' · '}₦{Math.round(Number(form.usd_price)*1.07*rate).toLocaleString('en-NG')}
+                    <span style={{ marginLeft:6, fontSize:11, color:'var(--accent)' }}>+7% margin applied</span>
+                  </> : 'Enter a price to see customer-facing amount'}
+                </div>
+              </>}
+
+              {/* Condition */}
+              {activeTab === 'condition' && <>
+                <div>
+                  <label style={L}>Condition Note (shown on product page)</label>
+                  <textarea value={form.condition_note} onChange={e => set('condition_note', e.target.value)} rows={7} style={TA}/>
+                  <div style={{ fontSize:12, color:'var(--text-muted)', marginTop:8, lineHeight:1.65 }}>This text appears in the condition box on the product detail page. Describe sourcing, warranty status, and any cosmetic notes.</div>
+                </div>
+              </>}
+
+              {/* Images */}
+              {activeTab === 'images' && <>
+                <div>
+                  <label style={L}>Image URLs (one per line)</label>
+                  <ListEditor fieldKey="image_urls" placeholder="https://store.storeimages.cdn-apple.com/…"/>
+                  <div style={{ fontSize:12, color:'var(--text-muted)', marginTop:10, lineHeight:1.65 }}>The first image is the main display image; additional images appear as thumbnails in the gallery.</div>
+                </div>
+              </>}
+
+              {/* Variants */}
+              {activeTab === 'variants' && <>
+                <div style={{ fontSize:12.5, color:'var(--text-muted)', lineHeight:1.65, padding:'10px 14px', background:'var(--bg-alt)', borderRadius:9, border:'1px solid var(--border)' }}>
+                  Define colors and storage sizes separately. Customers choose their preferred color (which shows that color's images) and their storage size (which sets the price). Leave both empty for products with no variants.
+                </div>
+
+                <div>
+                  <label style={L}>Colors</label>
+                  {form.variants.colors.map((c, i) => (
+                    <div key={c.id||i} style={{ padding:14, background:'var(--bg-alt)', borderRadius:10, border:'1px solid var(--border)', marginBottom:10 }}>
+                      <div style={{ display:'grid', gridTemplateColumns:'1fr auto', gap:10, marginBottom:10 }}>
+                        <div><label style={{ ...L, marginBottom:4 }}>Color Name</label><input value={c.name} onChange={e => setColor(i,'name',e.target.value)} placeholder="Desert Titanium" style={I}/></div>
+                        <div>
+                          <label style={{ ...L, marginBottom:4 }}>Hex Color</label>
+                          <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+                            <input value={c.hex} onChange={e => setColor(i,'hex',e.target.value)} placeholder="#888888" style={{ ...I, width:90 }}/>
+                            <input type="color" value={/^#[0-9a-f]{6}$/i.test(c.hex) ? c.hex : '#888888'} onChange={e => setColor(i,'hex',e.target.value)} style={{ width:32, height:34, padding:2, border:'1px solid var(--border)', borderRadius:7, cursor:'pointer', flexShrink:0 }}/>
+                          </div>
+                        </div>
+                      </div>
+                      <label style={{ ...L, marginBottom:4 }}>Images (one URL per line)</label>
+                      <textarea value={c.images} onChange={e => setColor(i,'images',e.target.value)} rows={3} placeholder="https://store.storeimages.cdn-apple.com/…" style={{ ...TA, marginBottom:8 }}/>
+                      <button onClick={() => removeColor(i)} style={{ fontSize:12, color:'oklch(50% 0.18 25)', border:'none', background:'none', cursor:'pointer', padding:0, fontFamily:'var(--font-body)' }}>Remove color</button>
+                    </div>
+                  ))}
+                  <button onClick={addColor} style={{ padding:'6px 14px', borderRadius:8, border:'1px solid var(--accent)', background:'var(--accent-tint)', color:'var(--accent)', fontSize:12.5, fontWeight:600, cursor:'pointer', fontFamily:'var(--font-body)' }}>+ Add Color</button>
+                </div>
+
+                <div>
+                  <label style={L}>Storage Sizes & Prices</label>
+                  {form.variants.storages.map((s, i) => (
+                    <div key={s.id||i} style={{ padding:14, background:'var(--bg-alt)', borderRadius:10, border:'1px solid var(--border)', marginBottom:10 }}>
+                      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:10 }}>
+                        <div><label style={{ ...L, marginBottom:4 }}>Size Label</label><input value={s.size} onChange={e => setStorage(i,'size',e.target.value)} placeholder="256GB" style={I}/></div>
+                        <div><label style={{ ...L, marginBottom:4 }}>Price (USD)</label><input type="number" min="0" step="0.01" value={s.price_usd} onChange={e => setStorage(i,'price_usd',e.target.value)} style={I}/></div>
+                      </div>
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                        <label style={{ cursor:'pointer', display:'flex', alignItems:'center', gap:7 }}>
+                          <input type="checkbox" checked={s.in_stock !== false} onChange={e => setStorage(i,'in_stock',e.target.checked)} style={{ width:14, height:14, accentColor:'var(--accent)' }}/>
+                          <span style={{ fontSize:13, color:'var(--text)', fontFamily:'var(--font-body)' }}>In stock</span>
+                        </label>
+                        <button onClick={() => removeStorage(i)} style={{ fontSize:12, color:'oklch(50% 0.18 25)', border:'none', background:'none', cursor:'pointer', padding:0, fontFamily:'var(--font-body)' }}>Remove</button>
+                      </div>
+                    </div>
+                  ))}
+                  <button onClick={addStorage} style={{ padding:'6px 14px', borderRadius:8, border:'1px solid var(--accent)', background:'var(--accent-tint)', color:'var(--accent)', fontSize:12.5, fontWeight:600, cursor:'pointer', fontFamily:'var(--font-body)' }}>+ Add Storage</button>
+                </div>
+              </>}
+
+              {activeTab === 'overview'   && <><label style={L}>Overview Bullets</label><ListEditor fieldKey="overview"   placeholder="e.g. 48MP Fusion camera system"/></>}
+              {activeTab === 'specs'      && <><label style={L}>Quick Specs</label>      <ListEditor fieldKey="specs"      placeholder="e.g. A18 Pro chip · 6-core CPU"/></>}
+              {activeTab === 'includes'   && <><label style={L}>What's in the Box</label><ListEditor fieldKey="includes"   placeholder="e.g. iPhone with iOS 18"/></>}
+              {activeTab === 'features'   && <><label style={L}>Features</label>         <ListEditor fieldKey="features"   placeholder="e.g. Face ID for secure authentication"/></>}
+              {activeTab === 'tech_specs' && <><label style={L}>Tech Specs</label>       <ListEditor fieldKey="tech_specs" placeholder="e.g. 6.3-inch Super Retina XDR display"/></>}
+
+            </div>
+          </div>
+        </>
+      )}
+    </Modal>
+  );
+}
+
+// ─── Create product modal ─────────────────────────────────────────────────────
+function ProductCreateModal({ onClose, onDone }) {
+  const [activeTab, setActiveTab] = useState('basic');
+  const [form, setForm] = useState({
+    name: '', subtitle: '', category: 'iPhone',
+    usd_price: '', stock_count: 0,
+    in_stock: true, condition: 'New', condition_note: '',
+    listing_status: 'live', featured: false,
+    badge: '', delivery_days: '10–18 business days', apple_url: '',
+    image_urls: [],
+    overview: [],
+    specs: [],
+    includes: [],
+    features: [],
+    tech_specs: [],
+    variants: { colors: [], storages: [] },
+  });
+  const [busy, setBusy] = useState(false);
+  const [err,  setErr]  = useState('');
+
+  const rate = (() => { try { return parseInt(localStorage.getItem('certo_rate') || '1590', 10) || 1590; } catch(_) { return 1590; } })();
+
+  const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
+
+  // ── list-field helpers ──────────────────────────────────────────────────────
+  const addItem    = (key)         => set(key, [...form[key], '']);
+  const setItem    = (key, i, val) => set(key, form[key].map((v, j) => j === i ? val : v));
+  const removeItem = (key, i)      => set(key, form[key].filter((_, j) => j !== i));
+
+  // ── variant helpers ─────────────────────────────────────────────────────────
+  const addColor    = () => set('variants', { ...form.variants, colors: [...form.variants.colors, { id: Date.now().toString(36), name:'', hex:'#888888', images:'' }] });
+  const removeColor = (i) => set('variants', { ...form.variants, colors: form.variants.colors.filter((_,j) => j!==i) });
+  const setColor    = (i, k, v) => set('variants', { ...form.variants, colors: form.variants.colors.map((c,j) => j===i ? {...c,[k]:v} : c) });
+
+  const addStorage    = () => set('variants', { ...form.variants, storages: [...form.variants.storages, { id: Date.now().toString(36), size:'', price_usd:0, in_stock:true }] });
+  const removeStorage = (i) => set('variants', { ...form.variants, storages: form.variants.storages.filter((_,j) => j!==i) });
+  const setStorage    = (i, k, v) => set('variants', { ...form.variants, storages: form.variants.storages.map((s,j) => j===i ? {...s,[k]:v} : s) });
+
+  const submit = async () => {
+    if (!form.name.trim()) { setErr('Product name is required.'); setActiveTab('basic'); return; }
+    if (!form.usd_price)   { setErr('USD price is required.');    setActiveTab('basic'); return; }
+    setErr(''); setBusy(true);
+    try {
+      // Apply 7% selling-price margin to base cost before saving
+      const applyMargin = (p) => Math.round(Number(p) * 1.07 * 100) / 100;
+
+      const hasVariants = form.variants.colors.length > 0 || form.variants.storages.length > 0;
+      const variants = hasVariants ? {
+        colors:   form.variants.colors.map(c => ({ ...c, images: typeof c.images === 'string' ? c.images.split('\n').map(s=>s.trim()).filter(Boolean) : (c.images||[]) })),
+        storages: form.variants.storages.map(s => ({ ...s, price_usd: applyMargin(s.price_usd) })),
+      } : [];
+
+      const res  = await authFetch('/api/products', { method: 'POST', body: JSON.stringify({
+        name: form.name.trim(), subtitle: form.subtitle.trim(), category: form.category,
+        usd_price: applyMargin(form.usd_price), stock_count: Number(form.stock_count),
+        in_stock: form.in_stock, condition: form.condition, condition_note: form.condition_note,
+        listing_status: form.listing_status, featured: form.featured,
+        badge: form.badge.trim(), delivery_days: form.delivery_days.trim(), apple_url: form.apple_url.trim(),
+        image_urls: form.image_urls.filter(Boolean),
+        overview:   form.overview.filter(s => s.trim()),
+        specs:      form.specs.filter(s => s.trim()),
+        includes:   form.includes.filter(s => s.trim()),
+        features:   form.features.filter(s => s.trim()),
+        tech_specs: form.tech_specs.filter(s => s.trim()),
+        variants,
+      }) });
+      const json = await res.json();
+      if (!res.ok) { setErr(json.error || 'Create failed'); setBusy(false); return; }
+      onDone(json);
+      onClose();
+    } catch(e) { setErr(e.message); }
+    setBusy(false);
+  };
+
+  const TABS = [
+    { id:'basic',      label:'Basic Info' },
+    { id:'condition',  label:'Condition' },
+    { id:'images',     label:'Images' },
+    { id:'variants',   label:'Variants' },
+    { id:'overview',   label:'Overview' },
+    { id:'specs',      label:'Quick Specs' },
+    { id:'includes',   label:"What's in the Box" },
+    { id:'features',   label:'Features' },
+    { id:'tech_specs', label:'Tech Specs' },
+  ];
+
+  const L  = { fontSize:11, fontWeight:700, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.05em', display:'block', marginBottom:6 };
+  const I  = { ...inputS, width:'100%', boxSizing:'border-box' };
+  const TA = { ...I, resize:'vertical', fontFamily:'var(--font-body)', fontSize:13, lineHeight:1.6 };
+
+  const ListEditor = ({ fieldKey, placeholder }) => (
+    <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+      {form[fieldKey].map((val, i) => (
+        <div key={i} style={{ display:'flex', gap:8, alignItems:'center' }}>
+          <input value={val} onChange={e => setItem(fieldKey, i, e.target.value)} placeholder={placeholder} style={{ ...I, flex:1 }}/>
+          <button onClick={() => removeItem(fieldKey, i)} style={{ flexShrink:0, width:30, height:30, borderRadius:7, border:'1px solid var(--border)', background:'var(--bg-alt)', color:'var(--text-muted)', cursor:'pointer', fontSize:16, display:'flex', alignItems:'center', justifyContent:'center' }}>×</button>
+        </div>
+      ))}
+      <button onClick={() => addItem(fieldKey)} style={{ alignSelf:'flex-start', padding:'6px 14px', borderRadius:8, border:'1px solid var(--accent)', background:'var(--accent-tint)', color:'var(--accent)', fontSize:12.5, fontWeight:600, cursor:'pointer' }}>+ Add item</button>
+    </div>
+  );
+
+  return (
+    <Modal
+      title="Add Product"
+      subtitle={form.name || 'New Product'}
+      onClose={onClose}
+      width={800}
+      footer={
+        <div style={{ display:'flex', gap:10 }}>
+          <button onClick={submit} disabled={busy} style={{ ...primaryBtn, flex:1, opacity:busy?0.7:1 }}>{busy?'Creating…':'Add product'}</button>
+          <button onClick={onClose} style={{ ...actionBtn, flex:1, justifyContent:'center' }}>Cancel</button>
+        </div>
+      }
+    >
+      {/* error banner (always visible above content) */}
+      {err && <div style={{ fontSize:12.5, color:'oklch(50% 0.18 25)', padding:'10px 14px', background:'oklch(97% 0.03 25)', borderRadius:9, border:'1px solid oklch(85% 0.1 25)', marginBottom:12 }}>{err}</div>}
+
+      <div style={{ display:'flex', gap:0, minHeight:480 }}>
+
+        {/* ── Sidebar ─────────────────────────────────────────────────────── */}
+        <div style={{ width:168, flexShrink:0, borderRight:'1px solid var(--border)', marginLeft:-20, marginTop:-20, marginBottom:-20, paddingTop:8 }}>
+          {TABS.map(t => (
+            <button key={t.id} onClick={() => setActiveTab(t.id)} style={{
+              display:'block', width:'100%', textAlign:'left',
+              padding:'9px 16px', fontSize:13.5, border:'none', cursor:'pointer', borderRadius:0,
+              fontWeight: activeTab===t.id ? 700 : 400,
+              color:      activeTab===t.id ? 'var(--accent)' : 'var(--text)',
+              background: activeTab===t.id ? 'var(--accent-tint)' : 'transparent',
+              fontFamily: 'var(--font-body)',
+            }}>{t.label}</button>
+          ))}
+        </div>
+
+        {/* ── Content ─────────────────────────────────────────────────────── */}
+        <div style={{ flex:1, paddingLeft:24, display:'flex', flexDirection:'column', gap:16 }}>
+
+          {/* Basic Info */}
+          {activeTab === 'basic' && <>
+            <div><label style={L}>Product Name</label><input value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. iPhone 16 Pro" style={I}/></div>
+            <div><label style={L}>Subtitle / Storage / Color</label><input value={form.subtitle} onChange={e => set('subtitle', e.target.value)} placeholder="e.g. 256GB · Desert Titanium" style={I}/></div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+              <div><label style={L}>USD Price</label><input type="number" min="0" step="0.01" value={form.usd_price} onChange={e => set('usd_price', e.target.value)} placeholder="0" style={I}/></div>
+              <div><label style={L}>Stock Count</label><input type="number" min="0" value={form.stock_count} onChange={e => set('stock_count', e.target.value)} style={I}/></div>
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+              <div>
+                <label style={L}>Condition</label>
+                <select value={form.condition} onChange={e => set('condition', e.target.value)} style={{ ...I, cursor:'pointer' }}>
+                  <option value="New">New</option>
+                  <option value="Refurb">Refurb</option>
+                </select>
+              </div>
+              <div>
+                <label style={L}>Listing Status</label>
+                <select value={form.listing_status} onChange={e => set('listing_status', e.target.value)} style={{ ...I, cursor:'pointer' }}>
+                  <option value="live">🟢 Live (on sale)</option>
+                  <option value="out_of_stock">Out of stock</option>
+                  <option value="coming_soon">Coming soon</option>
+                  <option value="hidden">Hidden</option>
+                </select>
+              </div>
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+              <div><label style={L}>Badge Label</label><input value={form.badge} onChange={e => set('badge', e.target.value)} placeholder="e.g. New model" style={I}/></div>
+              <div><label style={L}>Delivery Estimate</label><input value={form.delivery_days} onChange={e => set('delivery_days', e.target.value)} placeholder="10–18 business days" style={I}/></div>
+            </div>
+            <div><label style={L}>Apple.com URL</label><input value={form.apple_url} onChange={e => set('apple_url', e.target.value)} placeholder="https://www.apple.com/shop/buy-iphone/…" style={I}/></div>
+            <div style={{ display:'flex', gap:20, padding:'10px 14px', background:'var(--bg-alt)', borderRadius:10, border:'1px solid var(--border)' }}>
+              <label style={{ cursor:'pointer', display:'flex', alignItems:'center', gap:8 }}>
+                <input type="checkbox" checked={form.in_stock} onChange={e => set('in_stock', e.target.checked)} style={{ width:15, height:15, accentColor:'var(--accent)' }}/>
+                <span style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>In stock</span>
+              </label>
+              <label style={{ cursor:'pointer', display:'flex', alignItems:'center', gap:8 }}>
+                <input type="checkbox" checked={form.featured} onChange={e => set('featured', e.target.checked)} style={{ width:15, height:15, accentColor:'var(--accent)' }}/>
+                <span style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>Featured ★</span>
+              </label>
+            </div>
+            <div style={{ fontSize:13, color:'var(--text-muted)', padding:'8px 12px', background:'var(--bg-alt)', borderRadius:8, border:'1px solid var(--border)' }}>
+              NGN at current rate: <strong style={{ color:'var(--text)' }}>₦{form.usd_price ? (Number(form.usd_price)*rate).toLocaleString('en-NG') : '0'}</strong>
+            </div>
+          </>}
+
+          {/* Condition */}
+          {activeTab === 'condition' && <>
+            <div>
+              <label style={L}>Condition Note (shown on product page)</label>
+              <textarea value={form.condition_note} onChange={e => set('condition_note', e.target.value)} rows={7} style={TA}/>
+              <div style={{ fontSize:12, color:'var(--text-muted)', marginTop:8, lineHeight:1.65 }}>This text appears in the condition box on the product detail page. Describe sourcing, warranty status, and any cosmetic notes.</div>
+            </div>
+          </>}
+
+          {/* Images */}
+          {activeTab === 'images' && <>
+            <div>
+              <label style={L}>Image URLs (one per line)</label>
+              <ListEditor fieldKey="image_urls" placeholder="https://store.storeimages.cdn-apple.com/…"/>
+              <div style={{ fontSize:12, color:'var(--text-muted)', marginTop:10, lineHeight:1.65 }}>Add full image URLs (https://…). The first image is the main display image; additional images appear as thumbnails in the gallery.</div>
+            </div>
+          </>}
+
+          {/* Variants */}
+          {activeTab === 'variants' && <>
+            <div style={{ fontSize:12.5, color:'var(--text-muted)', lineHeight:1.65, padding:'10px 14px', background:'var(--bg-alt)', borderRadius:9, border:'1px solid var(--border)' }}>
+              Define colors and storage sizes separately. Customers choose their preferred color (which shows that color's images) and their storage size (which sets the price). Leave both empty for products with no variants.
+            </div>
+
+            {/* Colors */}
+            <div>
+              <label style={L}>Colors</label>
+              {form.variants.colors.map((c, i) => (
+                <div key={c.id} style={{ padding:14, background:'var(--bg-alt)', borderRadius:10, border:'1px solid var(--border)', marginBottom:10 }}>
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr auto', gap:10, marginBottom:10 }}>
+                    <div><label style={{ ...L, marginBottom:4 }}>Color Name</label><input value={c.name} onChange={e => setColor(i,'name',e.target.value)} placeholder="Desert Titanium" style={I}/></div>
+                    <div>
+                      <label style={{ ...L, marginBottom:4 }}>Hex Color</label>
+                      <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+                        <input value={c.hex} onChange={e => setColor(i,'hex',e.target.value)} placeholder="#888888" style={{ ...I, width:90 }}/>
+                        <input type="color" value={/^#[0-9a-f]{6}$/i.test(c.hex) ? c.hex : '#888888'} onChange={e => setColor(i,'hex',e.target.value)} style={{ width:32, height:34, padding:2, border:'1px solid var(--border)', borderRadius:7, cursor:'pointer', flexShrink:0 }}/>
+                      </div>
+                    </div>
+                  </div>
+                  <label style={{ ...L, marginBottom:4 }}>Images (one URL per line)</label>
+                  <textarea value={c.images} onChange={e => setColor(i,'images',e.target.value)} rows={3} placeholder="https://store.storeimages.cdn-apple.com/…" style={{ ...TA, marginBottom:8 }}/>
+                  <button onClick={() => removeColor(i)} style={{ fontSize:12, color:'oklch(50% 0.18 25)', border:'none', background:'none', cursor:'pointer', padding:0, fontFamily:'var(--font-body)' }}>Remove color</button>
+                </div>
+              ))}
+              <button onClick={addColor} style={{ padding:'6px 14px', borderRadius:8, border:'1px solid var(--accent)', background:'var(--accent-tint)', color:'var(--accent)', fontSize:12.5, fontWeight:600, cursor:'pointer', fontFamily:'var(--font-body)' }}>+ Add Color</button>
+            </div>
+
+            {/* Storages */}
+            <div>
+              <label style={L}>Storage Sizes & Prices</label>
+              {form.variants.storages.map((s, i) => (
+                <div key={s.id} style={{ padding:14, background:'var(--bg-alt)', borderRadius:10, border:'1px solid var(--border)', marginBottom:10 }}>
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:10 }}>
+                    <div><label style={{ ...L, marginBottom:4 }}>Size Label</label><input value={s.size} onChange={e => setStorage(i,'size',e.target.value)} placeholder="256GB" style={I}/></div>
+                    <div><label style={{ ...L, marginBottom:4 }}>Price (USD)</label><input type="number" min="0" step="0.01" value={s.price_usd} onChange={e => setStorage(i,'price_usd',e.target.value)} style={I}/></div>
+                  </div>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                    <label style={{ cursor:'pointer', display:'flex', alignItems:'center', gap:7 }}>
+                      <input type="checkbox" checked={s.in_stock !== false} onChange={e => setStorage(i,'in_stock',e.target.checked)} style={{ width:14, height:14, accentColor:'var(--accent)' }}/>
+                      <span style={{ fontSize:13, color:'var(--text)', fontFamily:'var(--font-body)' }}>In stock</span>
+                    </label>
+                    <button onClick={() => removeStorage(i)} style={{ fontSize:12, color:'oklch(50% 0.18 25)', border:'none', background:'none', cursor:'pointer', padding:0, fontFamily:'var(--font-body)' }}>Remove</button>
+                  </div>
+                </div>
+              ))}
+              <button onClick={addStorage} style={{ padding:'6px 14px', borderRadius:8, border:'1px solid var(--accent)', background:'var(--accent-tint)', color:'var(--accent)', fontSize:12.5, fontWeight:600, cursor:'pointer', fontFamily:'var(--font-body)' }}>+ Add Storage</button>
+            </div>
+          </>}
+
+          {/* Overview */}
+          {activeTab === 'overview' && <>
+            <label style={L}>Overview Bullets</label>
+            <ListEditor fieldKey="overview" placeholder="e.g. 48MP Fusion camera system"/>
+          </>}
+
+          {/* Quick Specs */}
+          {activeTab === 'specs' && <>
+            <label style={L}>Quick Specs</label>
+            <ListEditor fieldKey="specs" placeholder="e.g. A18 Pro chip · 6-core CPU"/>
+          </>}
+
+          {/* What's in the Box */}
+          {activeTab === 'includes' && <>
+            <label style={L}>What's in the Box</label>
+            <ListEditor fieldKey="includes" placeholder="e.g. iPhone with iOS 18"/>
+          </>}
+
+          {/* Features */}
+          {activeTab === 'features' && <>
+            <label style={L}>Features</label>
+            <ListEditor fieldKey="features" placeholder="e.g. Face ID for secure authentication"/>
+          </>}
+
+          {/* Tech Specs */}
+          {activeTab === 'tech_specs' && <>
+            <label style={L}>Tech Specs</label>
+            <ListEditor fieldKey="tech_specs" placeholder="e.g. 6.3-inch Super Retina XDR display"/>
+          </>}
+
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+// ─── Delete (soft-hide) order modal ──────────────────────────────────────────
+function DeleteOrderModal({ order, onClose, onDone }) {
+  const [busy, setBusy] = useState(false);
+
+  const submit = async () => {
+    setBusy(true);
+    try {
+      const res = await authFetch(`/api/orders/${order.id}`, { method:'PATCH', body: JSON.stringify({ admin_hidden: true }) });
+      if (res.ok) { const updated = await res.json(); onDone(mapOrder(updated)); }
+    } catch(e) { console.error(e); }
+    setBusy(false);
+    onClose();
+  };
+
+  return (
+    <Modal title="Delete order" onClose={onClose} width={380}>
+      <div style={{ fontSize:14, color:'var(--text)', lineHeight:1.7, marginBottom:24 }}>
+        Are you sure you want to delete this?
+      </div>
+      <div style={{ display:'flex', gap:10 }}>
+        <button onClick={submit} disabled={busy} style={{ ...primaryBtn, background:'oklch(48% 0.2 25)', flex:1, opacity:busy?0.7:1 }}>{busy?'Deleting…':'Delete'}</button>
+        <button onClick={onClose} style={{ ...actionBtn, flex:1, justifyContent:'center' }}>Cancel</button>
+      </div>
+    </Modal>
+  );
+}
+
+function PayPill({ method }) {
+  const m = method==='MoonPay'
+    ? { bg:'oklch(94% 0.05 280)', fg:'oklch(42% 0.16 280)' }
+    : { bg:'oklch(93% 0.06 145)', fg:'oklch(36% 0.15 145)' };
+  return <span style={{ padding:'3px 9px', borderRadius:6, background:m.bg, color:m.fg, fontFamily:'var(--font-body)', fontSize:11, fontWeight:700, whiteSpace:'nowrap' }}>{method||'Paystack'}</span>;
+}
+
+function OrderDetail({ order: initialOrder, onBack, isMobile, onOrdersChange, existingCerts }) {
+  const [order,   setOrder]   = useState(initialOrder);
+  const [status,  setStatus]  = useState(initialOrder.status);
+  const [saving,  setSaving]  = useState(false);
+  const [resend,      setResend]      = useState('idle'); // 'idle' | 'sending' | 'sent' | 'error'
+  const [resendError, setResendError] = useState('');
+  const [waModal,     setWaModal]     = useState(false);
+  const [flagModal,   setFlagModal]   = useState(false);
+  const [certModal,   setCertModal]   = useState(false);
+  const [deleteModal, setDeleteModal] = useState(false);
+  const [localCerts,  setLocalCerts]  = useState(existingCerts || []);
+
+  useEffect(() => { setLocalCerts(existingCerts || []); }, [existingCerts]);
+
+  const existingCert    = localCerts[0] || null;
+  const certIsPublished = existingCert?.status === 'published';
+  const certIsDraft     = existingCert?.status === 'draft';
+  const certBtnLabel    = certIsPublished ? '✓ View certificate' : certIsDraft ? '⏳ Edit draft certificate' : '＋ Publish certificate';
+  const certBtnStyle    = certIsPublished
+    ? { ...actionBtn, borderColor:'oklch(70% 0.15 155)', color:'oklch(35% 0.15 155)', background:'oklch(93% 0.06 155)' }
+    : certIsDraft
+    ? { ...actionBtn, borderColor:'oklch(75% 0.12 55)', color:'oklch(42% 0.14 55)', background:'oklch(95% 0.07 70)' }
+    : { ...actionBtn, borderColor:'var(--accent)', color:'var(--accent)', background:'var(--accent-tint,#f7e9df)' };
+
+  const STATUSES = ['Payment Pending','Order Confirmed','Purchased from Apple','In Transit to US Partner','Customs Clearance','Arrived in Nigeria','Out for Delivery','Delivered','Cancelled'];
+
+  const updateStatus = async (newStatus) => {
+    setStatus(newStatus);
+    setSaving(true);
+    try {
+      const res = await authFetch(`/api/orders/${order.id}`, { method:'PATCH', body: JSON.stringify({ status: newStatus }) });
+      if (res.ok) {
+        const updated = await res.json();
+        const mapped  = mapOrder(updated);
+        setOrder(mapped);
+        onOrdersChange && onOrdersChange(mapped);
+      }
+    } catch(e) { console.error(e); }
+    setSaving(false);
+  };
+
+  const handleFlagDone = (updated) => {
+    setOrder(updated);
+    onOrdersChange && onOrdersChange(updated);
+  };
+
+  const resendEmail = async () => {
+    setResend('sending');
+    setResendError('');
+    try {
+      const res = await authFetch(`/api/orders/${order.id}/resend-email`, { method:'POST' });
+      if (res.ok) {
+        setResend('sent');
+        setTimeout(() => setResend('idle'), 4000);
+      } else {
+        let msg = 'Send failed';
+        try { const j = await res.json(); msg = j.error || msg; } catch(_) {}
+        setResendError(msg);
+        setResend('error');
+        setTimeout(() => { setResend('idle'); setResendError(''); }, 6000);
+      }
+    } catch(e) {
+      setResendError(e.message || 'Network error');
+      setResend('error');
+      setTimeout(() => { setResend('idle'); setResendError(''); }, 6000);
+    }
+  };
+
+  const infoFields = [
+    ['Customer', order.customer],
+    ['Phone',    order.phone],
+    ['Email',    order.email],
+    ['USD Total',fmtU(order.usd)],
+    ['NGN Total',fmtN(order.ngn)],
+    ['Payment',  order.payment_method],
+    ['Order Date',order.date],
+    ['Address',  order.address],
+  ];
+
+  return (
+    <>
+      {waModal     && <WhatsAppModal phone={order.phone} name={order.customer} onClose={() => setWaModal(false)}/>}
+      {flagModal   && <FlagModal order={order} onClose={() => setFlagModal(false)} onDone={handleFlagDone}/>}
+      {certModal   && <CertModal order={order} existingCert={existingCert} onClose={() => setCertModal(false)} onDone={(cert) => setLocalCerts([cert])}/>}
+      {deleteModal && <DeleteOrderModal order={order} onClose={() => setDeleteModal(false)} onDone={(updated) => { onOrdersChange && onOrdersChange(updated); onBack(); }}/>}
+
+      <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+        <button onClick={onBack} style={{ ...linkBtn, alignSelf:'flex-start', display:'flex', alignItems:'center', gap:6 }}>← Back to orders</button>
+        <Panel>
+          {/* Header */}
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:12, marginBottom:24 }}>
+            <div>
+              <div style={{ fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--text-muted)', marginBottom:6 }}>Order</div>
+              <div style={{ fontFamily:'var(--font-head)', fontWeight:800, fontSize:26, color:'var(--text)', letterSpacing:'-0.02em', display:'flex', alignItems:'center', gap:10 }}>
+                {order.flag && <span title={order.flag_reason}>🚩</span>}{order.id}
+              </div>
+            </div>
+            <select value={status} onChange={e => updateStatus(e.target.value)} disabled={saving} style={{ padding:'10px 16px', borderRadius:10, border:'1.5px solid var(--accent)', background:'var(--accent-tint,#f7e9df)', color:'var(--accent)', fontFamily:'var(--font-body)', fontSize:14, fontWeight:700, cursor:'pointer', outline:'none' }}>
+              {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+
+          {/* Info grid */}
+          <div style={{ display:'grid', gridTemplateColumns:isMobile?'1fr 1fr':'repeat(3,1fr)', gap:18, marginBottom:24 }}>
+            {infoFields.map(([k,v]) => (
+              <div key={k} style={{ minWidth:0 }}>
+                <div style={{ fontSize:11, color:'var(--text-muted)', marginBottom:4, textTransform:'uppercase', letterSpacing:'0.04em', fontWeight:600 }}>{k}</div>
+                <div style={{ fontSize:14, fontWeight:600, color:'var(--text)', wordBreak:'break-word' }}>{v}</div>
+              </div>
             ))}
           </div>
 
-          {/* Timeframe filter */}
-          <select value={revTimeFilter} onChange={e => setRevTimeFilter(e.target.value)} style={tfInputStyle}>
-            <option value="all">All time</option>
-            <option value="today">Today</option>
-            <option value="week">Last 7 days</option>
-            <option value="month">Last 30 days</option>
-            <option value="year">Last 12 months</option>
-            <option value="custom">Custom</option>
+          {/* Order items */}
+          <div style={{ background:'var(--bg-alt)', borderRadius:12, border:'1px solid var(--border)', padding:16, marginBottom:20 }}>
+            <div style={{ fontSize:11, fontWeight:700, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:12 }}>Order items ({order.items.length})</div>
+            {order.items.map((it,i) => (
+              <div key={i} style={{ padding:'10px 0', borderTop:i?'1px solid var(--border)':'none' }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
+                  <div>
+                    <div style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>{it.qty>1&&`${it.qty}× `}{it.name}</div>
+                    {it.subtitle&&<div style={{ fontSize:12, color:'var(--text-muted)' }}>{it.subtitle}</div>}
+                    {(it.variant_color || it.variant_storage) && (
+                      <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginTop:6 }}>
+                        {it.variant_color && (
+                          <span style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'2px 9px', borderRadius:6, background:'var(--bg)', border:'1px solid var(--border)', fontSize:12, fontWeight:500, color:'var(--text)' }}>
+                            {it.variant_color_hex && <span style={{ width:10, height:10, borderRadius:'50%', background:it.variant_color_hex, border:'1px solid rgba(0,0,0,0.12)', display:'inline-block', flexShrink:0 }}/>}
+                            {it.variant_color}
+                          </span>
+                        )}
+                        {it.variant_storage && (
+                          <span style={{ display:'inline-flex', alignItems:'center', padding:'2px 9px', borderRadius:6, background:'var(--bg)', border:'1px solid var(--border)', fontSize:12, fontWeight:500, color:'var(--text)' }}>
+                            {it.variant_storage}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {it.applecare&&it.applecare!=='none'&&<div style={{ fontSize:12, color:'var(--accent)', marginTop:4 }}>+ {it.applecare}</div>}
+                  </div>
+                  <div style={{ fontFamily:'var(--font-num)', fontWeight:700, fontSize:14, color:'var(--text)' }}>{fmtU(it.usd_price*(it.qty||1))}</div>
+                </div>
+                {(it.apple_url || it.product_id) && (
+                  <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:8 }}>
+                    {it.apple_url && (
+                      <a href={it.apple_url} target="_blank" rel="noreferrer" style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'5px 11px', borderRadius:7, background:'var(--bg)', border:'1px solid var(--border)', fontSize:12, fontWeight:600, color:'var(--text)', textDecoration:'none' }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                        Apple.com
+                      </a>
+                    )}
+                    {it.product_id && (
+                      <a href={`/shop/${it.product_id}`} target="_blank" rel="noreferrer" style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'5px 11px', borderRadius:7, background:'var(--bg)', border:'1px solid var(--border)', fontSize:12, fontWeight:600, color:'var(--text)', textDecoration:'none' }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/></svg>
+                        Certo listing
+                      </a>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Actions */}
+          <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
+            <button onClick={() => setWaModal(true)} style={{ ...actionBtn, background:'oklch(93% 0.08 145)', borderColor:'oklch(80% 0.12 145)', color:'oklch(35% 0.15 145)' }}>💬 WhatsApp customer</button>
+            <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
+              <button
+                onClick={resendEmail}
+                disabled={resend === 'sending' || resend === 'sent'}
+                style={{
+                  ...actionBtn,
+                  ...(resend === 'sent'  ? { color:'oklch(35% 0.15 155)', borderColor:'oklch(72% 0.12 155)', background:'oklch(93% 0.06 155)' } : {}),
+                  ...(resend === 'error' ? { color:'oklch(48% 0.2 25)',   borderColor:'oklch(85% 0.1 25)',   background:'oklch(98% 0.01 25)'  } : {}),
+                }}
+              >
+                {resend === 'sending' ? '⏳ Sending…' : resend === 'sent' ? '✓ Email sent' : resend === 'error' ? '✕ Failed — retry' : '✉ Resend confirmation'}
+              </button>
+              {resend === 'error' && resendError && (
+                <span style={{ fontSize:11, color:'oklch(48% 0.2 25)', paddingLeft:2 }}>{resendError}</span>
+              )}
+            </div>
+            <button onClick={() => setFlagModal(true)} style={{ ...actionBtn, color:order.flag?'oklch(45% 0.18 25)':'var(--text-muted)', borderColor:order.flag?'oklch(85% 0.1 25)':'var(--border)', background:order.flag?'oklch(97% 0.03 25)':'var(--bg)' }}>
+              🚩 {order.flag?'Unflag':'Flag'} order
+            </button>
+            <button onClick={() => setCertModal(true)} style={certBtnStyle}>{certBtnLabel}</button>
+            {isMobile ? (
+              <button onClick={() => setDeleteModal(true)} style={{ ...actionBtn, color:'oklch(48% 0.2 25)', borderColor:'oklch(85% 0.1 25)', background:'oklch(98% 0.01 25)', width:'100%', justifyContent:'center' }}>🗑 Delete order</button>
+            ) : (
+              <button onClick={() => setDeleteModal(true)} style={{ ...actionBtn, color:'oklch(48% 0.2 25)', borderColor:'oklch(85% 0.1 25)', background:'oklch(98% 0.01 25)', marginLeft:'auto' }}>🗑 Delete order</button>
+            )}
+          </div>
+
+          {/* Flag reason banner */}
+          {order.flag && (
+            <div style={{ marginTop:16, padding:14, background:'oklch(97% 0.03 25)', border:'1.5px solid oklch(85% 0.1 25)', borderRadius:12 }}>
+              <div style={{ fontSize:11, fontWeight:700, color:'oklch(45% 0.18 25)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:6 }}>🚩 Flag reason</div>
+              <div style={{ fontSize:14, color:'oklch(35% 0.15 25)', lineHeight:1.6 }}>{order.flag_reason}</div>
+            </div>
+          )}
+        </Panel>
+      </div>
+    </>
+  );
+}
+
+// ─── TAB: Products ────────────────────────────────────────────────────────────
+function ProductsTab({ isMobile, products, onProductUpdate }) {
+  const [q,            setQ]           = useState('');
+  const [editId,       setEditId]      = useState(null);
+  const [showCreate,   setShowCreate]  = useState(false);
+  const [deleteTarget, setDeleteTarget]= useState(null);
+  const [deleting,     setDeleting]    = useState(false);
+  const [localProds,   setLocalProds]  = useState(products);
+  const [savingOrder,  setSavingOrder] = useState(false);
+  const [dragIdx,      setDragIdx]     = useState(null);
+  const [dragOverIdx,  setDragOverIdx] = useState(null);
+
+  useEffect(() => { setLocalProds(products); }, [products]);
+
+  const filtered = localProds.filter(p => !q.trim() || (p.name+p.subtitle+p.type).toLowerCase().includes(q.toLowerCase()));
+  const STATUS_MAP = {
+    live:        { label:'Live',         bg:'oklch(93% 0.06 155)', fg:'oklch(35% 0.15 155)' },
+    out_of_stock:{ label:'Out of stock', bg:'oklch(94% 0.02 0)',   fg:'oklch(48% 0.05 0)'   },
+    coming_soon: { label:'Coming soon',  bg:'oklch(95% 0.07 70)',  fg:'oklch(45% 0.16 55)'  },
+    hidden:      { label:'Hidden',       bg:'oklch(94% 0.02 0)',   fg:'oklch(48% 0.05 0)'   },
+  };
+
+  const handleEditDone = (raw) => {
+    const mapped = mapProduct(raw);
+    setLocalProds(prev => prev.map(p => p.id===mapped.id ? mapped : p));
+    onProductUpdate && onProductUpdate(mapped);
+  };
+
+  const handleCreateDone = (raw) => {
+    const mapped = mapProduct(raw);
+    setLocalProds(prev => [mapped, ...prev]);
+    onProductUpdate && onProductUpdate(mapped);
+  };
+
+  // ── Drag-to-reorder ──────────────────────────────────────────────────────────
+  const onDragStart = (i) => setDragIdx(i);
+  const onDragOver  = (e, i) => { e.preventDefault(); setDragOverIdx(i); };
+  const onDrop = (i) => {
+    if (dragIdx === null || dragIdx === i) { setDragIdx(null); setDragOverIdx(null); return; }
+    const next = [...localProds];
+    const [moved] = next.splice(dragIdx, 1);
+    next.splice(i, 0, moved);
+    setLocalProds(next);
+    setDragIdx(null);
+    setDragOverIdx(null);
+    // Auto-save immediately after drop
+    setSavingOrder(true);
+    const payload = next.map((p, idx) => ({ id: p.id, sort_order: idx + 1 }));
+    authFetch('/api/products/reorder', { method:'PATCH', body: JSON.stringify({ order: payload }) })
+      .catch(e => console.error('Reorder failed:', e))
+      .finally(() => setSavingOrder(false));
+  };
+  const onDragEnd = () => { setDragIdx(null); setDragOverIdx(null); };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await authFetch(`/api/products/${deleteTarget.id}`, { method: 'DELETE' });
+      if (res.ok) { setLocalProds(prev => prev.filter(x => x.id !== deleteTarget.id)); setDeleteTarget(null); }
+    } catch(e) { console.error(e); }
+    setDeleting(false);
+  };
+
+  return (
+    <>
+      {editId && <ProductEditModal productId={editId} onClose={() => setEditId(null)} onDone={handleEditDone}/>}
+      {showCreate && <ProductCreateModal onClose={() => setShowCreate(false)} onDone={handleCreateDone}/>}
+      {deleteTarget && (
+        <Modal title="Delete product" onClose={() => setDeleteTarget(null)} width={380}>
+          <p style={{ fontSize:14, color:'var(--text)', lineHeight:1.65, marginBottom:6 }}>
+            Are you sure you want to delete <strong>{deleteTarget.name}</strong>?
+          </p>
+          <p style={{ fontSize:13, color:'var(--text-muted)', lineHeight:1.6, marginBottom:24 }}>
+            This cannot be undone. Any existing orders for this product will not be affected.
+          </p>
+          <div style={{ display:'flex', gap:10 }}>
+            <button onClick={confirmDelete} disabled={deleting} style={{ ...primaryBtn, background:'oklch(48% 0.2 25)', flex:1, opacity:deleting?0.7:1 }}>
+              {deleting ? 'Deleting…' : 'Delete'}
+            </button>
+            <button onClick={() => setDeleteTarget(null)} style={{ ...actionBtn, flex:1, justifyContent:'center' }}>Cancel</button>
+          </div>
+        </Modal>
+      )}
+      <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+        <div style={{ display:'flex', gap:10, alignItems:'center', flexWrap:'wrap' }}>
+          <div style={{ position:'relative', flex:'1 1 220px' }}>
+            <span style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', color:'var(--text-muted)', display:'flex' }}><Icon name="search" size={15}/></span>
+            <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search products…" style={{ ...inputS, paddingLeft:34, width:'100%', boxSizing:'border-box' }}/>
+          </div>
+          <span style={{ fontSize:12.5, color:'var(--text-muted)' }}>{filtered.length} of {localProds.length}</span>
+          {savingOrder && <span style={{ fontSize:12, color:'var(--text-muted)', fontStyle:'italic' }}>Saving…</span>}
+          <button onClick={() => setShowCreate(true)} style={{ ...primaryBtn, display:'flex', alignItems:'center', gap:7 }}><Icon name="plus" size={16} c="white"/> Add product</button>
+        </div>
+
+        {isMobile ? (
+          <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+            {filtered.map((p, i) => {
+              const st = STATUS_MAP[p.listingStatus]||STATUS_MAP.live;
+              const isDragOver = dragOverIdx === i;
+              return (
+                <div key={p.id}
+                  draggable={!q.trim()}
+                  onDragStart={() => onDragStart(i)}
+                  onDragOver={e => onDragOver(e, i)}
+                  onDrop={() => onDrop(i)}
+                  onDragEnd={onDragEnd}
+                  style={{ opacity: dragIdx===i ? 0.4 : 1, borderTop: isDragOver ? '2px solid var(--accent)' : '2px solid transparent', transition:'border-color 0.15s' }}
+                >
+                  <Panel pad={16}>
+                    <div style={{ display:'flex', justifyContent:'space-between', gap:12 }}>
+                      {!q.trim() && <div title="Drag to reorder" style={{ cursor:'grab', color:'var(--text-muted)', fontSize:16, alignSelf:'center', flexShrink:0 }}>⠿</div>}
+                      <div style={{ minWidth:0, flex:1 }}>
+                        <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4 }}>
+                          <div style={{ fontFamily:'var(--font-head)', fontWeight:700, fontSize:15, color:'var(--text)' }}>{p.name}{p.featured&&<span style={{ color:'var(--accent)', marginLeft:4 }}>★</span>}</div>
+                          {p.code && <span style={{ fontFamily:'var(--font-mono,monospace)', fontWeight:700, fontSize:11, color:'var(--accent)', background:'var(--accent-tint)', padding:'2px 7px', borderRadius:6, letterSpacing:'0.05em', flexShrink:0 }}>#{p.code}</span>}
+                        </div>
+                        <div style={{ fontSize:12.5, color:'var(--text-muted)', marginBottom:8 }}>{p.subtitle}</div>
+                        <span style={{ padding:'3px 9px', borderRadius:6, background:st.bg, color:st.fg, fontSize:11, fontWeight:700 }}>{st.label}</span>
+                      </div>
+                      <div style={{ textAlign:'right', flexShrink:0 }}>
+                        <div style={{ fontFamily:'var(--font-num)', fontWeight:800, fontSize:16, color:'var(--text)' }}>{fmtU(p.usdPrice)}</div>
+                        <div style={{ fontSize:12, color:p.stock===0?'oklch(55% 0.18 25)':'var(--text-muted)', marginTop:4 }}>{p.stock} in stock</div>
+                        <div style={{ display:'flex', gap:6, marginTop:8, justifyContent:'flex-end' }}>
+                          {p.listingStatus==='live' && <a href={`/shop/${p.id}`} target="_blank" rel="noreferrer" style={{ ...miniBtn, textDecoration:'none' }}>View ↗</a>}
+                          <button onClick={() => setEditId(p.id)} style={miniBtn}>Edit</button>
+                          <button onClick={() => setDeleteTarget(p)} style={{ ...miniBtn, color:'oklch(50% 0.18 25)', borderColor:'oklch(88% 0.08 25)' }}>Delete</button>
+                        </div>
+                      </div>
+                    </div>
+                  </Panel>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <Panel pad={0}>
+            <div style={{ overflowX:'auto' }}>
+              <table style={{ width:'100%', borderCollapse:'collapse', minWidth:720 }}>
+                <thead><tr style={{ background:'var(--bg-alt)' }}>{[!q.trim()?'⠿':'','Product','Type','Condition','USD','Stock','Status',''].map((h,i)=><th key={i} style={thS}>{h}</th>)}</tr></thead>
+                <tbody>
+                  {filtered.map((p, i) => {
+                    const st = STATUS_MAP[p.listingStatus]||STATUS_MAP.live;
+                    const isDragOver = dragOverIdx === i;
+                    return (
+                      <tr key={p.id}
+                        draggable={!q.trim()}
+                        onDragStart={() => onDragStart(i)}
+                        onDragOver={e => onDragOver(e, i)}
+                        onDrop={() => onDrop(i)}
+                        onDragEnd={onDragEnd}
+                        style={{ borderTop: isDragOver ? '2px solid var(--accent)' : '1px solid var(--border)', opacity: dragIdx===i ? 0.4 : 1, cursor: q.trim() ? 'default' : 'grab' }}
+                        onMouseEnter={e => e.currentTarget.style.background='var(--bg-alt)'}
+                        onMouseLeave={e => e.currentTarget.style.background='transparent'}>
+                        <td style={{ ...tdS, color:'var(--text-muted)', fontSize:18, width:32, textAlign:'center' }}>{!q.trim() ? '⠿' : ''}</td>
+                        <td style={tdS}>
+                          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                            <div style={{ fontWeight:700, color:'var(--text)' }}>{p.name}{p.featured&&<span title="Featured" style={{ color:'var(--accent)' }}>★</span>}</div>
+                            {p.code && <span style={{ fontFamily:'var(--font-mono,monospace)', fontWeight:700, fontSize:11, color:'var(--accent)', background:'var(--accent-tint)', padding:'2px 7px', borderRadius:6, letterSpacing:'0.05em', flexShrink:0 }}>#{p.code}</span>}
+                          </div>
+                          <div style={{ fontSize:12, color:'var(--text-muted)' }}>{p.subtitle}</div>
+                        </td>
+                        <td style={{ ...tdS, color:'var(--text-muted)', fontSize:12.5 }}>{p.type}</td>
+                        <td style={tdS}><CondBadge condition={p.condition}/></td>
+                        <td style={{ ...tdS, fontSize:13 }}>{fmtU(p.usdPrice)}</td>
+                        <td style={{ ...tdS, color:p.stock===0?'oklch(55% 0.18 25)':'var(--text)', fontWeight:600 }}>{p.stock}</td>
+                        <td style={tdS}><span style={{ padding:'3px 9px', borderRadius:6, background:st.bg, color:st.fg, fontSize:11, fontWeight:700, whiteSpace:'nowrap' }}>{st.label}</span></td>
+                        <td style={{ ...tdS, whiteSpace:'nowrap' }}>
+                          <div style={{ display:'flex', gap:6 }}>
+                            {p.listingStatus==='live' && <a href={`/shop/${p.id}`} target="_blank" rel="noreferrer" style={{ ...miniBtn, textDecoration:'none' }}>View ↗</a>}
+                            <button onClick={() => setEditId(p.id)} style={miniBtn}>Edit</button>
+                            <button onClick={() => setDeleteTarget(p)} style={{ ...miniBtn, color:'oklch(50% 0.18 25)', borderColor:'oklch(88% 0.08 25)' }}>Delete</button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            {!filtered.length&&<Empty label="No products found"/>}
+          </Panel>
+        )}
+      </div>
+    </>
+  );
+}
+
+function CondBadge({ condition }) {
+  const s = condition==='Refurb'||condition==='refurb'
+    ? { bg:'oklch(94% 0.06 250)', fg:'oklch(40% 0.15 250)', label:'Refurb' }
+    : { bg:'oklch(93% 0.06 155)', fg:'oklch(35% 0.15 155)', label:'New' };
+  return <span style={{ padding:'3px 9px', borderRadius:6, background:s.bg, color:s.fg, fontSize:11, fontWeight:700 }}>{s.label}</span>;
+}
+
+// ─── TAB: Certificates ────────────────────────────────────────────────────────
+function CertificatesTab({ isMobile, certificates }) {
+  const [q, setQ] = useState('');
+  const certs = certificates.filter(c => !q.trim() || (c.id+c.order_id+c.product_name+c.serial_number).toLowerCase().includes(q.toLowerCase()));
+  const published = certificates.filter(c => c.status==='published').length;
+  const drafts    = certificates.filter(c => c.status==='draft').length;
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+      <div style={{ display:'grid', gridTemplateColumns:isMobile?'1fr 1fr':'repeat(3,1fr)', gap:14 }}>
+        <StatCard label="Published"   value={published}           accent="oklch(45% 0.15 155)" icon={<Icon name="cert" size={16}/>}/>
+        <StatCard label="Drafts"      value={drafts}              accent="oklch(48% 0.18 55)"  icon={<Icon name="cert" size={16}/>}/>
+        <StatCard label="Total issued" value={certificates.length} sub="all time"              icon={<Icon name="cert" size={16}/>}/>
+      </div>
+
+      <div style={{ position:'relative' }}>
+        <span style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', color:'var(--text-muted)', display:'flex' }}><Icon name="search" size={15}/></span>
+        <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search by serial, order, product…" style={{ ...inputS, paddingLeft:34, width:'100%', boxSizing:'border-box' }}/>
+      </div>
+
+      <Panel pad={0}>
+        {certs.length ? certs.map((c,i) => (
+          <div key={c.id} style={{ display:'flex', alignItems:'center', gap:14, padding:'15px 20px', borderTop:i?'1px solid var(--border)':'none' }}>
+            <div style={{ width:40, height:40, borderRadius:10, background:c.status==='published'?'oklch(93% 0.06 155)':'oklch(95% 0.07 70)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+              <Icon name="cert" size={18} c={c.status==='published'?'oklch(40% 0.15 155)':'oklch(48% 0.16 55)'}/>
+            </div>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontSize:14, fontWeight:700, color:'var(--text)' }}>{c.product_name}</div>
+              <div style={{ fontSize:12, color:'var(--text-muted)', fontFamily:'var(--font-mono,monospace)' }}>{c.order_id}{c.serial_number?` · ${c.serial_number}`:' · no serial yet'}</div>
+            </div>
+            {!isMobile&&<div style={{ fontSize:12, color:'var(--text-muted)' }}>{c.date}</div>}
+            <span style={{ padding:'4px 11px', borderRadius:100, fontSize:11, fontWeight:700, whiteSpace:'nowrap', background:c.status==='published'?'oklch(93% 0.06 155)':'oklch(95% 0.07 70)', color:c.status==='published'?'oklch(35% 0.15 155)':'oklch(45% 0.16 55)' }}>{c.status==='published'?'✓ Published':'⏳ Draft'}</span>
+            <button style={miniBtn}>{c.status==='published'?'View':'Edit'}</button>
+          </div>
+        )) : <Empty label="No certificates yet"/>}
+      </Panel>
+    </div>
+  );
+}
+
+// ─── TAB: Messages ────────────────────────────────────────────────────────────
+function MessagesTab({ isMobile, messages: initialMessages }) {
+  const [sel,  setSel]  = useState(null);
+  const [msgs, setMsgs] = useState(initialMessages);
+
+  useEffect(() => { setMsgs(initialMessages); }, [initialMessages]);
+
+  const open = async (m) => {
+    setSel(m);
+    if (!m.read) {
+      setMsgs(prev => prev.map(x => x.id===m.id ? {...x, read:true} : x));
+      setSel(s => s?.id===m.id ? {...s, read:true} : s);
+      try { await authFetch(`/api/contact/${m.id}`, { method:'PATCH', body: JSON.stringify({ read:true }) }); } catch(e){}
+    }
+  };
+
+  const markUnread = async () => {
+    if (!sel) return;
+    setMsgs(prev => prev.map(x => x.id===sel.id ? {...x, read:false} : x));
+    setSel(s => ({...s, read:false}));
+    try { await authFetch(`/api/contact/${sel.id}`, { method:'PATCH', body: JSON.stringify({ read:false }) }); } catch(e){}
+  };
+
+  const deleteMsg = async () => {
+    if (!sel) return;
+    try {
+      const res = await authFetch(`/api/contact/${sel.id}`, { method:'DELETE' });
+      if (res.ok) {
+        setMsgs(prev => prev.filter(x => x.id !== sel.id));
+        setSel(null);
+      }
+    } catch(e) { console.error(e); }
+  };
+
+  return (
+    <div style={{ display:'grid', gridTemplateColumns:isMobile?'1fr':'340px 1fr', gap:16, alignItems:'start' }}>
+      <Panel pad={0} title={`Inbox · ${msgs.filter(m=>!m.read).length} unread`}>
+        {msgs.length ? msgs.map((m,i) => {
+          const active = sel?.id===m.id;
+          return (
+            <button key={m.id} onClick={() => open(m)} style={{ display:'block', width:'100%', textAlign:'left', cursor:'pointer', padding:'14px 18px', border:'none', borderTop:i?'1px solid var(--border)':'none', borderLeft:active?'3px solid var(--accent)':'3px solid transparent', background:active?'var(--bg-alt)':'var(--bg)' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4 }}>
+                {!m.read&&<span style={{ width:7, height:7, borderRadius:'50%', background:'var(--accent)', flexShrink:0 }}/>}
+                <span style={{ fontSize:13.5, fontWeight:m.read?600:800, color:'var(--text)', flex:1 }}>{m.name}</span>
+                <span style={{ fontSize:11, color:'var(--text-muted)' }}>{m.created_at.split('·')[0]}</span>
+              </div>
+              <div style={{ fontSize:12.5, color:'var(--text-muted)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{m.message}</div>
+            </button>
+          );
+        }) : <Empty label="No messages yet"/>}
+      </Panel>
+
+      {(sel||!isMobile)&&(
+        <Panel style={{ minHeight:300 }}>
+          {sel ? (
+            <div>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:20, gap:12, flexWrap:'wrap' }}>
+                <div>
+                  <div style={{ fontFamily:'var(--font-head)', fontWeight:800, fontSize:20, color:'var(--text)' }}>{sel.name}</div>
+                  <a href={`mailto:${sel.email}`} style={{ fontSize:13, color:'var(--accent)', textDecoration:'none' }}>{sel.email}</a>
+                  <div style={{ fontSize:12, color:'var(--text-muted)', marginTop:2 }}>{sel.created_at}</div>
+                </div>
+                <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                  <a href={`mailto:${sel.email}`} style={{ ...primaryBtn, textDecoration:'none' }}>Reply</a>
+                  <button onClick={markUnread} disabled={!sel.read} style={{ ...actionBtn, opacity:sel.read?1:0.4, cursor:sel.read?'pointer':'default' }}>Mark unread</button>
+                  <button onClick={deleteMsg} style={{ ...actionBtn, color:'oklch(50% 0.18 25)', borderColor:'oklch(88% 0.08 25)' }}>Delete</button>
+                </div>
+              </div>
+              <div style={{ background:'var(--bg-alt)', borderRadius:12, padding:20, fontSize:15, lineHeight:1.7, color:'var(--text)' }}>{sel.message}</div>
+            </div>
+          ) : (
+            <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:280, gap:12, color:'var(--text-muted)' }}>
+              <Icon name="mail" size={32} c="var(--border)"/>
+              <span style={{ fontSize:13 }}>Select a message to read</span>
+            </div>
+          )}
+        </Panel>
+      )}
+    </div>
+  );
+}
+
+// ─── Coupon create modal ──────────────────────────────────────────────────────
+function CouponCreateModal({ onClose, onDone }) {
+  const [form, setForm] = useState({
+    code: '', description: '', discount_type: 'percent',
+    discount_value: '', applies_to: 'all',  // 'all' | 'product' | 'service' | 'delivery' | 'fees'
+    max_uses: '', expires_at: '',
+  });
+  const [busy, setBusy] = useState(false);
+  const [err,  setErr]  = useState('');
+
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const L = { fontSize:11, fontWeight:700, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.05em', display:'block', marginBottom:6 };
+  const I = { ...inputS, width:'100%', boxSizing:'border-box' };
+
+  const submit = async () => {
+    if (!form.code.trim())       { setErr('Coupon code is required.');    return; }
+    if (!form.discount_value)    { setErr('Discount value is required.'); return; }
+    setErr(''); setBusy(true);
+    try {
+      const res  = await authFetch('/api/coupons', { method:'POST', body: JSON.stringify({
+        code:           form.code.trim().toUpperCase(),
+        description:    form.description.trim(),
+        discount_type:  form.discount_type,
+        discount_value: Number(form.discount_value),
+        applies_to:     form.applies_to,
+        max_uses:       form.max_uses ? Number(form.max_uses) : null,
+        expires_at:     form.expires_at || null,
+      }) });
+      const json = await res.json();
+      if (!res.ok) { setErr(json.error || 'Create failed'); setBusy(false); return; }
+      onDone(json);
+      onClose();
+    } catch(e) { setErr(e.message); }
+    setBusy(false);
+  };
+
+  return (
+    <Modal title="New coupon" onClose={onClose} width={480}
+      footer={
+        <div style={{ display:'flex', gap:10 }}>
+          <button onClick={submit} disabled={busy} style={{ ...primaryBtn, flex:1, opacity:busy?0.7:1 }}>{busy?'Creating…':'Create coupon'}</button>
+          <button onClick={onClose} style={{ ...actionBtn, flex:1, justifyContent:'center' }}>Cancel</button>
+        </div>
+      }
+    >
+      {err && <div style={{ fontSize:12.5, color:'oklch(50% 0.18 25)', padding:'10px 14px', background:'oklch(97% 0.03 25)', borderRadius:9, border:'1px solid oklch(85% 0.1 25)', marginBottom:14 }}>{err}</div>}
+      <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+        <div><label style={L}>Coupon Code *</label><input value={form.code} onChange={e => set('code', e.target.value.toUpperCase())} placeholder="e.g. SAVE20" style={I}/></div>
+        <div><label style={L}>Description</label><input value={form.description} onChange={e => set('description', e.target.value)} placeholder="e.g. 20% off all iPhones" style={I}/></div>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+          <div>
+            <label style={L}>Discount Type *</label>
+            <select value={form.discount_type} onChange={e => set('discount_type', e.target.value)} style={{ ...I, cursor:'pointer' }}>
+              <option value="percent">Percentage (%)</option>
+              <option value="fixed">Fixed amount (₦)</option>
+            </select>
+          </div>
+          <div><label style={L}>Discount Value *</label><input type="number" min="0" step="0.01" value={form.discount_value} onChange={e => set('discount_value', e.target.value)} placeholder={form.discount_type==='percent'?'e.g. 20':'e.g. 5000'} style={I}/></div>
+        </div>
+        <div>
+          <label style={L}>Applies To</label>
+          <select value={form.applies_to} onChange={e => set('applies_to', e.target.value)} style={{ ...I, cursor:'pointer' }}>
+            <option value="all">Entire order total</option>
+            <option value="product">Product price only</option>
+            <option value="service">Service fee only ($35)</option>
+            <option value="delivery">Delivery fee only</option>
+            <option value="fees">All fees (service + delivery)</option>
           </select>
-          {revTimeFilter === 'custom' && (
-            <>
-              <input type="date" value={revCustomFrom} onChange={e => setRevCustomFrom(e.target.value)} style={{ ...tfInputStyle, cursor: 'auto' }} />
-              <input type="date" value={revCustomTo}   onChange={e => setRevCustomTo(e.target.value)}   style={{ ...tfInputStyle, cursor: 'auto' }} />
-            </>
+        </div>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+          <div><label style={L}>Max Uses</label><input type="number" min="1" value={form.max_uses} onChange={e => set('max_uses', e.target.value)} placeholder="Unlimited" style={I}/></div>
+          <div><label style={L}>Expiry Date</label><input type="date" value={form.expires_at} onChange={e => set('expires_at', e.target.value)} style={I}/></div>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+// ─── TAB: Coupons ─────────────────────────────────────────────────────────────
+function CouponsTab({ isMobile, coupons: initialCoupons }) {
+  const [localCoupons, setLocalCoupons] = useState(initialCoupons);
+  const [showCreate,   setShowCreate]   = useState(false);
+
+  useEffect(() => { setLocalCoupons(initialCoupons); }, [initialCoupons]);
+
+  const handleCreated = (raw) => {
+    setLocalCoupons(prev => [mapCoupon(raw), ...prev]);
+  };
+
+  const toggleActive = async (c) => {
+    try {
+      const res = await authFetch(`/api/coupons/${c.id}`, { method:'PATCH', body: JSON.stringify({ is_active: !c.active }) });
+      if (res.ok) {
+        const updated = mapCoupon(await res.json());
+        setLocalCoupons(prev => prev.map(x => x.id===updated.id ? updated : x));
+      }
+    } catch(e) { console.error(e); }
+  };
+
+  const deleteCoupon = async (c) => {
+    if (!window.confirm(`Delete coupon "${c.code}"? This cannot be undone.`)) return;
+    try {
+      const res = await authFetch(`/api/coupons/${c.id}`, { method:'DELETE' });
+      if (res.ok) setLocalCoupons(prev => prev.filter(x => x.id !== c.id));
+    } catch(e) { console.error(e); }
+  };
+
+  return (
+    <>
+      {showCreate && <CouponCreateModal onClose={() => setShowCreate(false)} onDone={handleCreated}/>}
+      <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          <h2 style={{ fontFamily:'var(--font-head)', fontWeight:700, fontSize:18, color:'var(--text)', margin:0 }}>Discount codes</h2>
+          <button onClick={() => setShowCreate(true)} style={{ ...primaryBtn, display:'flex', alignItems:'center', gap:7 }}><Icon name="plus" size={16} c="white"/> New coupon</button>
+        </div>
+        {localCoupons.length ? (
+          <div style={{ display:'grid', gridTemplateColumns:isMobile?'1fr':'repeat(3,1fr)', gap:14 }}>
+            {localCoupons.map(c => {
+              const usagePct = c.max_uses ? Math.min(100, Math.round((c.uses / c.max_uses) * 100)) : 0;
+              return (
+                <div key={c.id} style={{ background:'var(--bg)', border:'1px solid var(--border)', borderRadius:16, padding:20, position:'relative', overflow:'hidden' }}>
+                  <div style={{ position:'absolute', top:-12, right:-12, width:70, height:70, borderRadius:'50%', background:c.active?'var(--accent-tint,#f7e9df)':'var(--bg-alt)', opacity:0.6 }}/>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:12, position:'relative' }}>
+                    <div style={{ fontFamily:'var(--font-mono,monospace)', fontWeight:700, fontSize:16, color:'var(--text)', letterSpacing:'0.04em', background:'var(--bg-alt)', border:'1px dashed var(--border)', borderRadius:8, padding:'5px 12px' }}>{c.code}</div>
+                    <button onClick={() => toggleActive(c)} style={{ padding:'3px 9px', borderRadius:100, fontSize:10.5, fontWeight:700, cursor:'pointer', border:'none', background:c.active?'oklch(93% 0.06 155)':'oklch(94% 0.02 0)', color:c.active?'oklch(35% 0.15 155)':'oklch(50% 0.04 0)' }}>{c.active?'Active':'Inactive'}</button>
+                  </div>
+                  <div style={{ fontFamily:'var(--font-num)', fontWeight:800, fontSize:28, color:'var(--accent)', letterSpacing:'-0.02em', marginBottom:2 }}>
+                    {c.type==='percent' ? `${c.value}% off` : `₦${Number(c.value).toLocaleString()} off`}
+                  </div>
+                  {c.description && <div style={{ fontSize:12.5, color:'var(--text-muted)', marginBottom:4 }}>{c.description}</div>}
+                  <div style={{ fontSize:12, color:'var(--text-muted)', marginBottom:14 }}>Expires {c.expires}</div>
+                  {c.max_uses ? (<>
+                    <div style={{ marginBottom:6, display:'flex', justifyContent:'space-between', fontSize:12, color:'var(--text-muted)' }}>
+                      <span>{c.uses} / {c.max_uses} used</span>
+                      <span>{usagePct}%</span>
+                    </div>
+                    <div style={{ height:6, background:'var(--bg-alt)', borderRadius:4, overflow:'hidden', marginBottom:14 }}>
+                      <div style={{ height:'100%', width:`${usagePct}%`, background:'var(--accent)', borderRadius:4 }}/>
+                    </div>
+                  </>) : (
+                    <div style={{ fontSize:12, color:'var(--text-muted)', marginBottom:14 }}>{c.uses} uses · No limit</div>
+                  )}
+                  <button onClick={() => deleteCoupon(c)} style={{ ...miniBtn, color:'oklch(50% 0.18 25)', borderColor:'oklch(88% 0.08 25)' }}>Delete</button>
+                </div>
+              );
+            })}
+          </div>
+        ) : <Empty label="No coupons yet"/>}
+      </div>
+    </>
+  );
+}
+
+// ─── TAB: Analytics ───────────────────────────────────────────────────────────
+function AnalyticsTab({ isMobile, analytics: analyticsData }) {
+  const [tf, setTf] = useState('7days');
+  const [data, setData] = useState(analyticsData);
+  const [loading, setLoading] = useState(false);
+
+  const reload = useCallback(async (timeframe) => {
+    setLoading(true);
+    try {
+      const res = await authFetch(`/api/analytics?timeframe=${timeframe}`);
+      if (res.ok) setData(await res.json());
+    } catch(e){}
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { reload(tf); }, [tf]);
+
+  const ov = data?.overview || {};
+  const NG = { LA:'Lagos', FC:'Abuja (FCT)', RV:'Rivers', OY:'Oyo' };
+  const locLabel = r => r.country==='NG' ? '🇳🇬 '+(NG[r.region]||r.region||r.location) : '🌍 '+(r.location||r.country||'Unknown');
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:18, opacity:loading?0.7:1, transition:'opacity 0.2s' }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:12, flexWrap:'wrap' }}>
+        <div style={{ display:'inline-flex', alignItems:'center', gap:10, padding:'8px 14px', borderRadius:10, background:'oklch(93% 0.06 155)', border:'1px solid oklch(82% 0.1 155)' }}>
+          <span style={{ width:8, height:8, borderRadius:'50%', background:'oklch(50% 0.17 155)' }}/>
+          <span style={{ fontSize:12.5, fontWeight:700, color:'oklch(35% 0.15 155)' }}>Server online</span>
+        </div>
+        <Segmented value={tf} onChange={v => { setTf(v); }} options={[{key:'today',label:'Today'},{key:'7days',label:'7d'},{key:'30days',label:'30d'},{key:'90days',label:'90d'}]}/>
+      </div>
+
+      <div style={{ display:'grid', gridTemplateColumns:isMobile?'1fr 1fr':'repeat(3,1fr)', gap:14 }}>
+        <StatCard label="Page Views"      value={(ov.pageviews||0).toLocaleString()}         sub={`${(ov.unique_sessions||0).toLocaleString()} unique`}    icon={<Icon name="chart"  size={16}/>}/>
+        <StatCard label="Product Views"   value={(ov.product_views||0).toLocaleString()}     accent="oklch(50% 0.18 250)"                                  icon={<Icon name="tag"    size={16}/>}/>
+        <StatCard label="Add to Cart"     value={(ov.add_to_cart||0).toLocaleString()}       accent="oklch(45% 0.18 155)"                                  icon={<Icon name="box"    size={16}/>}/>
+        <StatCard label="Checkout Starts" value={(ov.checkout_starts||0).toLocaleString()}   accent="oklch(48% 0.18 55)"                                   icon={<Icon name="ticket" size={16}/>}/>
+        <StatCard label="Conversion"      value={ov.unique_sessions ? ((ov.checkout_starts||0)/ov.unique_sessions*100).toFixed(1)+'%':'—'} sub="sessions → checkout" accent="oklch(50% 0.16 310)" icon={<Icon name="pulse" size={16}/>}/>
+        <StatCard label="Total Events"    value={ov.total_events ? ((ov.total_events/1000).toFixed(1)+'k') : '0'} sub="tracked actions" accent="var(--text-muted)" icon={<Icon name="grid" size={16}/>}/>
+      </div>
+
+      {data?.daily?.length ? (
+        <Panel title="Daily page views">
+          <AreaChart data={data.daily.map(x => ({ day: new Date(x.day+'T12:00').toLocaleDateString('en-NG',{month:'short',day:'numeric'}), views: x.views }))} xKey="day" yKey="views" height={200}/>
+        </Panel>
+      ) : null}
+
+      <div style={{ display:'grid', gridTemplateColumns:isMobile?'1fr':'1fr 1fr', gap:16 }}>
+        <Panel title="Top pages">{data?.topPages?.length ? <BarList items={data.topPages} labelKey="page" valueKey="views"/> : <Empty label="No page data yet"/>}</Panel>
+        <Panel title="Top products">{data?.topProducts?.length ? <BarList items={data.topProducts} labelKey="product_name" valueKey="views" color="oklch(52% 0.18 250)"/> : <Empty label="No product view data yet"/>}</Panel>
+      </div>
+
+      <div style={{ display:'grid', gridTemplateColumns:isMobile?'1fr':'1fr 1fr', gap:16 }}>
+        <Panel title="Visitor locations">{data?.locations?.length ? <BarList items={data.locations.map(l => ({ ...l, label:locLabel(l) }))} labelKey="label" valueKey="sessions" color="oklch(50% 0.16 310)"/> : <Empty label="No location data yet"/>}</Panel>
+        <Panel title="Event breakdown">{data?.eventBreakdown?.length ? <DonutChart total="EVENTS" segments={data.eventBreakdown.map(e => ({ label:e.event_type, value:e.count }))}/> : <Empty label="No event data yet"/>}</Panel>
+      </div>
+    </div>
+  );
+}
+
+// ─── TAB: Activity ────────────────────────────────────────────────────────────
+function ActivityTab({ isMobile, logs, onLogsCleared }) {
+  const [clearing, setClearing] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const iconFor = a => a.includes('order')||a.includes('status') ? 'box' : a.includes('certificate') ? 'cert' : a.includes('product') ? 'tag' : a.includes('forex')||a.includes('rate') ? 'coins' : a.includes('message') ? 'mail' : 'pulse';
+
+  const doClear = async () => {
+    setConfirmOpen(false);
+    setClearing(true);
+    try {
+      const res = await authFetch('/api/admin/logs', { method: 'DELETE' });
+      if (res.ok) onLogsCleared();
+    } catch(e) { console.error(e); }
+    setClearing(false);
+  };
+
+  return (
+    <>
+      {confirmOpen && (
+        <Modal title="Clear activity log?" onClose={() => setConfirmOpen(false)} width={380}>
+          <p style={{ fontSize:14, color:'var(--text-muted)', lineHeight:1.6, margin:'0 0 20px' }}>
+            This will permanently delete all {logs.length} log {logs.length === 1 ? 'entry' : 'entries'}. This action cannot be undone.
+          </p>
+          <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
+            <button onClick={() => setConfirmOpen(false)} style={{ ...actionBtn }}>Cancel</button>
+            <button onClick={doClear} style={{ ...actionBtn, background:'oklch(48% 0.2 25)', color:'white', borderColor:'transparent' }}>
+              Delete all
+            </button>
+          </div>
+        </Modal>
+      )}
+      <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          <h2 style={{ fontFamily:'var(--font-head)', fontWeight:700, fontSize:18, color:'var(--text)', margin:0 }}>Activity log</h2>
+          {logs.length > 0 && (
+            <button
+              onClick={() => setConfirmOpen(true)}
+              disabled={clearing}
+              style={{ ...actionBtn, color:'oklch(48% 0.2 25)', borderColor:'oklch(85% 0.1 25)', background:'oklch(98% 0.01 25)', opacity:clearing?0.5:1 }}
+            >
+              {clearing ? 'Clearing…' : 'Clear log'}
+            </button>
           )}
         </div>
+        <Panel pad={0}>
+          {logs.length ? logs.map((l,i) => (
+            <div key={i} style={{ display:'flex', alignItems:'center', gap:14, padding:'15px 20px', borderTop:i?'1px solid var(--border)':'none' }}>
+              <div style={{ width:36, height:36, borderRadius:9, background:'var(--bg-alt)', border:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                <Icon name={iconFor(l.action.toLowerCase())} size={16} c="var(--accent)"/>
+              </div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:13.5, fontWeight:600, color:'var(--text)' }}>{l.action}</div>
+                <div style={{ fontSize:12, color:'var(--text-muted)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{l.details}</div>
+              </div>
+              <div style={{ textAlign:'right', flexShrink:0 }}>
+                <div style={{ fontSize:12, fontWeight:600, color:'var(--text)' }}>{l.admin}</div>
+                <div style={{ fontSize:11, color:'var(--text-muted)' }}>{l.ts}</div>
+              </div>
+            </div>
+          )) : <Empty label="No activity yet"/>}
+        </Panel>
+      </div>
+    </>
+  );
+}
 
-        {/* Stats cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
-          <StatCard label={`Total Revenue (${revCurrency.toUpperCase()})`} value={fmtRev(revNgn, revUsd)} sub={`${revOrders.length} orders`} />
-          <StatCard label="Total Orders"   value={revOrders.length} />
-          <StatCard label="Est. Net Profit" value={`$${totalProfit.toFixed(0)}`} sub="~12% avg margin" accent="oklch(45% 0.15 155)" />
-          <StatCard label="Avg Order Value" value={fmtAvg(avgNgn, avgUsd)} sub="Per order" />
+// ─── TAB: Forex ───────────────────────────────────────────────────────────────
+function ForexTab({ isMobile, liveRate, rateFetched, onRateChange, products }) {
+  // `displayRate` is what we show on the card — kept in sync with the prop
+  const [displayRate, setDisplayRate] = useState(liveRate || 1590);
+  // override input state
+  const [overrideInput, setOverrideInput] = useState(String(liveRate || 1590));
+  const [overrideSaved, setOverrideSaved] = useState(false);
+  // fetch state
+  const [fetching,   setFetching]   = useState(false);
+  const [fetchError, setFetchError] = useState('');
+  const [fetchedAt,  setFetchedAt]  = useState(rateFetched || null);
+  // raw market rate (= display rate − 100 markup) — only set after an explicit fetch
+  const [marketRate, setMarketRate] = useState(null);
+  // whether the current rate is an override (vs. auto-fetched)
+  const [isOverride, setIsOverride] = useState(false);
+
+  // Keep display rate in sync with prop (e.g. auto-refresh in App.jsx)
+  useEffect(() => {
+    if (liveRate) {
+      setDisplayRate(liveRate);
+      if (!isOverride) setOverrideInput(String(liveRate));
+    }
+  }, [liveRate]);
+
+  useEffect(() => { if (rateFetched) setFetchedAt(rateFetched); }, [rateFetched]);
+
+  const fetchLive = async () => {
+    setFetching(true);
+    setFetchError('');
+    try {
+      const res = await fetch('/api/forex');
+      if (!res.ok) throw new Error(`Server ${res.status}`);
+      const data = await res.json();
+      const withMarkup = Number(data.rate);          // already includes +₦100
+      const raw        = withMarkup - 100;            // pure market rate
+      setMarketRate(raw);
+      setDisplayRate(withMarkup);
+      setOverrideInput(String(withMarkup));
+      setIsOverride(false);
+      setFetchedAt(new Date());
+      if (onRateChange) onRateChange(withMarkup);
+    } catch(e) {
+      setFetchError(e.message || 'Failed to fetch rate');
+    }
+    setFetching(false);
+  };
+
+  const applyOverride = () => {
+    const n = Number(overrideInput);
+    if (!n || n < 100) return;
+    setDisplayRate(n);
+    setIsOverride(true);
+    setMarketRate(null);
+    setOverrideSaved(true);
+    setTimeout(() => setOverrideSaved(false), 2000);
+    if (onRateChange) onRateChange(n);
+  };
+
+  const fmtTs = (ts) => {
+    if (!ts) return null;
+    const d = ts instanceof Date ? ts : new Date(ts);
+    return d.toLocaleTimeString('en-NG', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+  };
+
+  return (
+    <div style={{ display:'grid', gridTemplateColumns:isMobile?'1fr':'1fr 1fr', gap:16, alignItems:'start', maxWidth:900 }}>
+      {/* ── Left dark card ── */}
+      <div style={{ background:'var(--ink,#1a1714)', borderRadius:18, padding:isMobile?22:32, color:'white', position:'relative', overflow:'hidden' }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:20 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:8, fontSize:11, fontWeight:700, letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(255,255,255,0.6)' }}>
+            <span style={{ width:7, height:7, borderRadius:'50%', background: isOverride ? 'var(--accent,#d97757)' : '#34d399', flexShrink:0 }}/>
+            {isOverride ? 'Custom override' : 'Live buying rate'}
+          </div>
+          <button
+            onClick={fetchLive}
+            disabled={fetching}
+            style={{ display:'flex', alignItems:'center', gap:6, background:'rgba(255,255,255,0.1)', border:'1px solid rgba(255,255,255,0.15)', borderRadius:8, padding:'6px 12px', color:'white', fontSize:12, fontWeight:600, cursor:fetching?'not-allowed':'pointer', opacity:fetching?0.6:1, whiteSpace:'nowrap' }}
+          >
+            <span style={{ display:'flex', animation: fetching ? 'spin 0.75s linear infinite' : 'none' }}>
+              <Icon name="refresh" size={13} c="white"/>
+            </span>
+            {fetching ? 'Fetching…' : 'Fetch live'}
+          </button>
         </div>
 
-        {/* Per-order table */}
-        <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 20, overflow: 'hidden' }}>
-          <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 16, color: 'var(--text)' }}>Per-Order Breakdown</span>
-            <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)' }}>{revOrders.length} orders</span>
+        <div style={{ display:'flex', alignItems:'baseline', gap:10 }}>
+          <span style={{ fontFamily:'var(--font-num)', fontWeight:800, fontSize:isMobile?48:64, letterSpacing:'-0.04em', lineHeight:1 }}>₦{displayRate.toLocaleString()}</span>
+          <span style={{ fontSize:16, color:'rgba(255,255,255,0.5)', fontFamily:'var(--font-mono,monospace)' }}>/ $1</span>
+        </div>
+
+        {/* Rate breakdown row */}
+        {marketRate !== null && (
+          <div style={{ display:'flex', gap:12, marginTop:14, flexWrap:'wrap' }}>
+            <div style={{ background:'rgba(255,255,255,0.07)', borderRadius:8, padding:'6px 12px', fontSize:12 }}>
+              <span style={{ color:'rgba(255,255,255,0.5)' }}>Market rate  </span>
+              <span style={{ fontWeight:700, color:'white' }}>₦{marketRate.toLocaleString()}</span>
+            </div>
+            <div style={{ background:'rgba(52,211,153,0.15)', borderRadius:8, padding:'6px 12px', fontSize:12 }}>
+              <span style={{ color:'rgba(255,255,255,0.5)' }}>+ markup  </span>
+              <span style={{ fontWeight:700, color:'#34d399' }}>₦100</span>
+            </div>
           </div>
-          <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 560 }}>
+        )}
+
+        <div style={{ fontSize:12, color: fetchError ? 'oklch(65% 0.2 25)' : '#34d399', marginTop:12 }}>
+          {fetchError
+            ? `⚠ ${fetchError}`
+            : fetchedAt
+              ? `Last fetched at ${fmtTs(fetchedAt)}`
+              : 'Not yet fetched this session'}
+        </div>
+
+        <div style={{ marginTop:20, paddingTop:16, borderTop:'1px solid rgba(255,255,255,0.12)' }}>
+          <svg width="100%" height="44" viewBox="0 0 320 48" preserveAspectRatio="none">
+            <defs><linearGradient id="fxg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--accent)" stopOpacity="0.4"/><stop offset="100%" stopColor="var(--accent)" stopOpacity="0"/></linearGradient></defs>
+            <path d="M0,32 L40,30 L80,34 L120,26 L160,28 L200,20 L240,24 L280,14 L320,10 L320,48 L0,48 Z" fill="url(#fxg)"/>
+            <path d="M0,32 L40,30 L80,34 L120,26 L160,28 L200,20 L240,24 L280,14 L320,10" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </div>
+      </div>
+
+      {/* ── Right panel ── */}
+      <Panel title="Override rate">
+        <p style={{ fontSize:13, color:'var(--text-muted)', lineHeight:1.6, margin:'0 0 16px' }}>
+          Click <strong>Fetch live</strong> to pull the current market rate (already including +₦100 markup). Or type a custom rate below and hit <strong>Override</strong> to lock it instantly across the whole catalog.
+        </p>
+
+        <label style={{ fontSize:11, fontWeight:700, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.05em', display:'block', marginBottom:8 }}>Custom rate (₦ per $1)</label>
+        <div style={{ display:'flex', gap:10 }}>
+          <input
+            type="number"
+            value={overrideInput}
+            onChange={e => { setOverrideInput(e.target.value); setOverrideSaved(false); }}
+            onKeyDown={e => { if (e.key === 'Enter') applyOverride(); }}
+            style={{ ...inputS, flex:1, fontFamily:'var(--font-head)', fontSize:20, fontWeight:700, padding:'12px 16px' }}
+          />
+          <button
+            onClick={applyOverride}
+            style={{ ...primaryBtn, padding:'12px 22px', background: overrideSaved ? 'oklch(50% 0.17 155)' : 'var(--accent)', minWidth:96 }}
+          >
+            {overrideSaved ? '✓ Saved' : 'Override'}
+          </button>
+        </div>
+
+        {isOverride && (
+          <div style={{ marginTop:10, display:'flex', alignItems:'center', gap:7, fontSize:12, color:'var(--accent)', fontWeight:600 }}>
+            <span style={{ width:6, height:6, borderRadius:'50%', background:'var(--accent)', flexShrink:0 }}/>
+            Custom override active — fetch live to reset
+          </div>
+        )}
+
+        <div style={{ marginTop:20, background:'var(--bg-alt)', borderRadius:12, padding:16 }}>
+          <div style={{ fontSize:11, fontWeight:700, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:12 }}>
+            Preview at ₦{Number(overrideInput || displayRate).toLocaleString()}
+          </div>
+          {products.slice(0,4).map(p => (
+            <div key={p.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'7px 0', borderTop:'1px solid var(--border)', fontSize:13, gap:8 }}>
+              <span style={{ color:'var(--text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', flex:1 }}>{p.name} {(p.subtitle||'').split('·')[0].trim()}</span>
+              <span style={{ fontFamily:'var(--font-num)', fontWeight:700, color:'var(--text)', flexShrink:0 }}>{fmtN(p.usdPrice * Number(overrideInput || displayRate))}</span>
+            </div>
+          ))}
+          {!products.length && <div style={{ fontSize:13, color:'var(--text-muted)' }}>No products to preview.</div>}
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
+// ─── TAB: Revenue ─────────────────────────────────────────────────────────────
+// ── Est. net helpers ─────────────────────────────────────────────────────────
+// Service fee: $35 flat + $20 per extra unit (2nd item onwards)
+function orderServiceFee(order) {
+  const totalUnits = (order.items || []).reduce((s, it) => s + (it.qty || 1), 0) || 1;
+  return 35 + Math.max(0, totalUnits - 1) * 20;
+}
+// Price margin: 7% of the USD selling price
+function orderPriceMargin(order) { return order.usd * 0.07; }
+// Forex margin: ₦100 per every $1 charged → total NGN gain
+function orderForexGainNgn(order) { return order.usd * 100; }
+// Combined Est. Net in USD (service fee + 7% margin)
+function orderEstNetUsd(order) { return orderServiceFee(order) + orderPriceMargin(order); }
+// Combined Est. Net in NGN: USD net converted at implied rate + ₦100/$ forex gain
+function orderEstNetNgn(order) {
+  const impliedRate = order.usd > 0 ? order.ngn / order.usd : 1590;
+  return orderEstNetUsd(order) * impliedRate + orderForexGainNgn(order);
+}
+
+function RevenueTab({ isMobile, orders, revenueSeries }) {
+  const [cur, setCur] = useState('ngn');
+  const visible      = orders.filter(o => !o.admin_hidden);
+  const totalNgn     = visible.reduce((s,o) => s+o.ngn, 0);
+  const totalUsd     = visible.reduce((s,o) => s+o.usd, 0);
+  const totalNetUsd  = visible.reduce((s,o) => s+orderEstNetUsd(o), 0);
+  const totalNetNgn  = visible.reduce((s,o) => s+orderEstNetNgn(o), 0);
+
+  const netDisplay = cur === 'ngn'
+    ? '₦' + Math.round(totalNetNgn / 1000).toLocaleString('en-NG') + 'k'
+    : fmtU(totalNetUsd.toFixed(0));
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:18 }}>
+      <div style={{ display:'flex', justifyContent:'flex-end' }}>
+        <Segmented value={cur} onChange={setCur} options={[{key:'ngn',label:'₦ NGN'},{key:'usd',label:'$ USD'}]}/>
+      </div>
+      <div style={{ display:'grid', gridTemplateColumns:isMobile?'1fr 1fr':'repeat(4,1fr)', gap:14 }}>
+        <StatCard label="Gross Revenue"   value={cur==='ngn'?'₦'+(totalNgn/1e6).toFixed(1)+'M':fmtU(totalUsd)} spark={revenueSeries.map(r=>r.ngn)} icon={<Icon name="coins" size={16}/>}/>
+        <StatCard label="Est. Net Profit" value={netDisplay} sub="fee + 7% + forex" accent="oklch(45% 0.15 155)" icon={<Icon name="pulse" size={16}/>}/>
+        <StatCard label="Avg Order Value" value={visible.length?(cur==='ngn'?'₦'+Math.round(totalNgn/visible.length/1000).toLocaleString('en-NG')+'k':fmtU((totalUsd/visible.length).toFixed(0))):'—'} icon={<Icon name="box" size={16}/>}/>
+        <StatCard label="Orders"          value={visible.length} sub="this period" accent="var(--accent)" icon={<Icon name="ticket" size={16}/>}/>
+      </div>
+
+      <Panel title="Revenue trend" action={<span style={{ fontFamily:'var(--font-num)', fontWeight:800, fontSize:18 }}>{cur==='ngn'?'₦'+(totalNgn/1e6).toFixed(1)+'M':fmtU(totalUsd)}</span>}>
+        <AreaChart data={revenueSeries} xKey="day" yKey="ngn" color="oklch(50% 0.15 155)" height={210}/>
+      </Panel>
+
+      <Panel title="Per-order breakdown" pad={0}>
+        <div style={{ overflowX:'auto' }}>
+          <table style={{ width:'100%', borderCollapse:'collapse', minWidth:640 }}>
             <thead>
-              <tr style={{ background: 'var(--bg-alt)' }}>
-                {['Order', 'Customer', 'Revenue', 'Est. Cost', 'Est. Net', 'Status'].map(h => (
-                  <th key={h} style={{ padding: '12px 20px', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textAlign: 'left' }}>{h}</th>
-                ))}
+              <tr style={{ background:'var(--bg-alt)' }}>
+                {['Order','Customer','Revenue','Service fee','Price margin','Forex gain','Est. Net'].map(h=><th key={h} style={thS}>{h}</th>)}
               </tr>
             </thead>
             <tbody>
-              {revOrders.length === 0 ? (
-                <tr><td colSpan={6} style={{ padding: '40px 20px', textAlign: 'center', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)' }}>No orders in this period.</td></tr>
-              ) : revOrders.map(o => {
-                const cost = o.usd * 0.88;
-                const net  = o.usd * 0.12;
+              {orders.map(o => {
+                const sf   = orderServiceFee(o);
+                const pm   = orderPriceMargin(o);
+                const fxNgn = orderForexGainNgn(o);
+                const netUsd = sf + pm;
+                const impliedRate = o.usd > 0 ? o.ngn / o.usd : 1590;
+                const netNgn = netUsd * impliedRate + fxNgn;
                 return (
-                  <tr key={o.id} style={{ borderTop: '1px solid var(--border)' }}>
-                    <td style={{ padding: '14px 20px', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 700, color: 'var(--accent)' }}>{o.id}</td>
-                    <td style={{ padding: '14px 20px', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text)' }}>{o.customer}</td>
-                    <td style={{ padding: '14px 20px', fontFamily: 'var(--font-head)', fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>
-                      {isNgn ? `₦${o.ngn.toLocaleString()}` : `$${o.usd.toLocaleString()}`}
-                    </td>
-                    <td style={{ padding: '14px 20px', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)' }}>${cost.toFixed(0)}</td>
-                    <td style={{ padding: '14px 20px', fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 700, color: 'oklch(45% 0.15 155)' }}>${net.toFixed(0)}</td>
-                    <td style={{ padding: '14px 20px' }}>
-                      <span style={{ ...statusColor(o.status), padding: '3px 8px', borderRadius: 5, fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-body)' }}>{o.status}</span>
+                  <tr key={o.id} style={{ borderTop:'1px solid var(--border)' }}>
+                    <td style={{ ...tdS, fontWeight:700, color:'var(--accent)' }}>{o.id}</td>
+                    <td style={tdS}>{o.customer}</td>
+                    <td style={{ ...tdS, fontFamily:'var(--font-num)', fontWeight:700 }}>{cur==='ngn'?fmtN(o.ngn):fmtU(o.usd)}</td>
+                    <td style={{ ...tdS, color:'var(--text-muted)' }}>{fmtU(sf.toFixed(0))}</td>
+                    <td style={{ ...tdS, color:'var(--text-muted)' }}>{fmtU(pm.toFixed(0))}</td>
+                    <td style={{ ...tdS, color:'var(--text-muted)' }}>{fmtN(fxNgn)}</td>
+                    <td style={{ ...tdS, color:'oklch(45% 0.15 155)', fontWeight:700 }}>
+                      {cur==='ngn' ? fmtN(netNgn) : fmtU(netUsd.toFixed(0))}
                     </td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
-          </div>
+          {!orders.length && <Empty label="No revenue data yet"/>}
         </div>
-      </div>
-    );
-  };
-
-  const CustomersTab = () => {
-    // Group orders by customer email/name to aggregate stats
-    const customerMap = new Map();
-    orders.forEach(o => {
-      const key = o.email || o.customer;
-      if (!customerMap.has(key)) {
-        customerMap.set(key, { customer: o.customer, email: o.email, phone: o.phone, orders: [], totalNgn: 0, totalUsd: 0, lastDate: '' });
-      }
-      const c = customerMap.get(key);
-      c.orders.push(o);
-      c.totalNgn += o.ngn;
-      c.totalUsd += o.usd;
-      if (!c.lastDate || o.date > c.lastDate) c.lastDate = o.date;
-    });
-    const customers = [...customerMap.values()].sort((a, b) => b.orders.length - a.orders.length);
-
-    return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 22, color: 'var(--text)', margin: 0 }}>Customer Database</h2>
-        <RefreshBtn onClick={fetchOrders} loading={ordersLoading} />
-      </div>
-      <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 20, overflow: 'hidden' }}>
-        <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 520 }}>
-          <thead>
-            <tr style={{ background: 'var(--bg-alt)' }}>
-              {['Customer', 'Orders', 'Total Spent', 'Last Order', 'Contact'].map(h => (
-                <th key={h} style={{ padding: '12px 20px', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textAlign: 'left' }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {customers.length === 0 ? (
-              <tr><td colSpan={5} style={{ padding: '40px 20px', textAlign: 'center', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)' }}>No customers yet.</td></tr>
-            ) : customers.map(c => (
-              <tr key={c.email || c.customer} style={{ borderTop: '1px solid var(--border)' }}
-                onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-alt)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                <td style={{ padding: '14px 20px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--accent-tint)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 13, color: 'var(--accent)', flexShrink: 0 }}>
-                      {c.customer.split(' ').map(n => n[0]).join('').substring(0, 2)}
-                    </div>
-                    <div>
-                      <div style={{ fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>{c.customer}</div>
-                      <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)' }}>{c.email || c.phone}</div>
-                    </div>
-                  </div>
-                </td>
-                <td style={{ padding: '14px 20px', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text)', fontWeight: 600 }}>{c.orders.length}</td>
-                <td style={{ padding: '14px 20px', fontFamily: 'var(--font-head)', fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>₦{Math.round(c.totalNgn).toLocaleString()}</td>
-                <td style={{ padding: '14px 20px', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)' }}>{c.lastDate}</td>
-                <td style={{ padding: '14px 20px' }}>
-                  {c.phone ? (
-                    <a href={`https://wa.me/${c.phone.replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer"
-                      style={{ display: 'inline-block', background: 'oklch(93% 0.08 145)', border: '1px solid oklch(80% 0.12 145)', borderRadius: 6, padding: '5px 12px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 12, color: 'oklch(35% 0.15 145)', fontWeight: 600, textDecoration: 'none' }}>
-                      💬 WhatsApp
-                    </a>
-                  ) : <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        </div>
-      </div>
+      </Panel>
     </div>
-    );
-  };
+  );
+}
 
-  const MessagesTab = () => {
-    // selectedMessage / setSelectedMessage live in the parent scope (lifted for hook-count stability)
+// ─── TAB: Customers ───────────────────────────────────────────────────────────
+function CustAvatar({ name }) {
+  return <div style={{ width:32, height:32, borderRadius:'50%', background:'var(--accent-tint,#f7e9df)', color:'var(--accent)', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'var(--font-head)', fontWeight:700, fontSize:12, flexShrink:0 }}>{(name||'?').split(' ').map(n=>n[0]).join('').slice(0,2)}</div>;
+}
 
-    const markRead = async (msg, read) => {
-      await authFetch(`/api/contact/${msg.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ read }),
-      });
-      fetchMessages();
-      if (selectedMessage?.id === msg.id) setSelectedMessage(s => ({ ...s, read }));
-    };
+function CustomersTab({ isMobile, orders }) {
+  const [waCustomer, setWaCustomer] = useState(null);
 
-    const deleteMsg = async (id) => {
-      if (!confirm('Delete this message?')) return;
-      await authFetch(`/api/contact/${id}`, { method: 'DELETE' });
-      fetchMessages();
-      if (selectedMessage?.id === id) setSelectedMessage(null);
-    };
+  const map = new Map();
+  orders.forEach(o => {
+    if (!map.has(o.customer)) map.set(o.customer, { name:o.customer, phone:o.phone, orders:0, spent:0, last:o.date });
+    const c = map.get(o.customer); c.orders++; c.spent+=o.ngn;
+  });
+  const customers = [...map.values()].sort((a,b) => b.spent-a.spent);
 
-    const openMsg = (msg) => {
-      setSelectedMessage(msg);
-      if (!msg.read) markRead(msg, true);
-    };
-
-    return (
-      <div style={{ display: 'grid', gridTemplateColumns: selectedMessage ? '1fr 1fr' : '1fr', gap: 20 }}>
-        {/* List */}
-        <div style={{ background: 'var(--bg)', borderRadius: 14, border: '1px solid var(--border)', overflow: 'hidden' }}>
-          <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 20, color: 'var(--text)', margin: 0 }}>
-              Messages {unreadMessages > 0 && <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--accent)' }}>({unreadMessages} unread)</span>}
-            </h2>
-            <RefreshBtn onClick={fetchMessages} loading={messagesLoading} />
-          </div>
-
-          {messagesLoading ? (
-            <div style={{ textAlign: 'center', padding: 40, fontFamily: 'var(--font-body)', color: 'var(--text-muted)' }}>Loading…</div>
-          ) : messages.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: 60, fontFamily: 'var(--font-body)', color: 'var(--text-muted)' }}>No messages yet.</div>
-          ) : messages.map((msg, i) => (
-            <div
-              key={msg.id}
-              onClick={() => openMsg(msg)}
-              style={{
-                padding: '14px 20px', cursor: 'pointer',
-                borderBottom: i < messages.length - 1 ? '1px solid var(--border)' : 'none',
-                background: selectedMessage?.id === msg.id ? 'var(--accent-tint)' : msg.read ? 'var(--bg)' : 'oklch(98% 0.01 250)',
-                borderLeft: `3px solid ${selectedMessage?.id === msg.id ? 'var(--accent)' : msg.read ? 'transparent' : 'var(--accent)'}`,
-              }}
-              onMouseEnter={e => { if (selectedMessage?.id !== msg.id) e.currentTarget.style.background = 'var(--bg-alt)'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = selectedMessage?.id === msg.id ? 'var(--accent-tint)' : msg.read ? 'var(--bg)' : 'oklch(98% 0.01 250)'; }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-                <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: msg.read ? 500 : 700, color: 'var(--text)', marginBottom: 2 }}>
-                  {!msg.read && <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: 'var(--accent)', marginRight: 6, verticalAlign: 'middle', marginTop: -2 }} />}
-                  {msg.name}
-                </div>
-                <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--text-muted)', flexShrink: 0 }}>
-                  {new Date(msg.created_at).toLocaleDateString('en-NG', { month: 'short', day: 'numeric' })}
-                </div>
-              </div>
-              <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>{msg.email}</div>
-              <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {msg.message}
-              </div>
-            </div>
-          ))}
+  return (
+    <>
+      {waCustomer && <WhatsAppModal phone={waCustomer.phone} name={waCustomer.name} onClose={() => setWaCustomer(null)}/>}
+      <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+        <div style={{ display:'grid', gridTemplateColumns:isMobile?'1fr 1fr':'repeat(3,1fr)', gap:14 }}>
+          <StatCard label="Total Customers" value={customers.length} icon={<Icon name="users" size={16}/>}/>
+          <StatCard label="Repeat Buyers"   value={customers.filter(c=>c.orders>1).length} accent="var(--accent)" sub="more than 1 order" icon={<Icon name="pulse" size={16}/>}/>
+          <StatCard label="Avg Lifetime"    value={customers.length?'₦'+Math.round(customers.reduce((s,c)=>s+c.spent,0)/customers.length/1000).toLocaleString('en-NG')+'k':'—'} accent="oklch(45% 0.15 155)" icon={<Icon name="coins" size={16}/>}/>
         </div>
-
-        {/* Detail pane */}
-        {selectedMessage && (
-          <div style={{ background: 'var(--bg)', borderRadius: 14, border: '1px solid var(--border)', padding: 24, alignSelf: 'start', position: 'sticky', top: 80 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
-              <div>
-                <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 18, color: 'var(--text)', marginBottom: 4 }}>{selectedMessage.name}</div>
-                <a href={`mailto:${selectedMessage.email}`} style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--accent)', textDecoration: 'none' }}>{selectedMessage.email}</a>
+        <Panel pad={0}>
+          {isMobile ? customers.map((c,i) => (
+            <div key={c.name} style={{ display:'flex', alignItems:'center', gap:12, padding:'14px 18px', borderTop:i?'1px solid var(--border)':'none' }}>
+              <CustAvatar name={c.name}/>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:14, fontWeight:700, color:'var(--text)' }}>{c.name}</div>
+                <div style={{ fontSize:12, color:'var(--text-muted)' }}>{c.orders} order{c.orders>1?'s':''} · {c.last}</div>
               </div>
-              <button onClick={() => setSelectedMessage(null)} style={{ background: 'none', border: '1.5px solid var(--border)', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', fontSize: 14, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+              <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:6 }}>
+                <div style={{ fontFamily:'var(--font-num)', fontWeight:700, fontSize:14 }}>{fmtN(c.spent)}</div>
+                <button onClick={() => setWaCustomer(c)} style={{ ...miniBtn, background:'oklch(93% 0.08 145)', borderColor:'oklch(80% 0.12 145)', color:'oklch(35% 0.15 145)' }}>💬 WhatsApp</button>
+              </div>
             </div>
-
-            <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginBottom: 16 }}>
-              {new Date(selectedMessage.created_at).toLocaleString('en-NG', { month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-            </div>
-
-            <div style={{ fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--text)', lineHeight: 1.75, whiteSpace: 'pre-wrap', background: 'var(--bg-alt)', borderRadius: 10, padding: '16px', marginBottom: 20, border: '1px solid var(--border)' }}>
-              {selectedMessage.message}
-            </div>
-
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <a href={`mailto:${selectedMessage.email}`}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 18px', borderRadius: 10, background: 'var(--accent)', color: 'white', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 700, textDecoration: 'none', cursor: 'pointer' }}>
-                ✉ Reply via Email
-              </a>
-              <button onClick={() => markRead(selectedMessage, !selectedMessage.read)}
-                style={{ padding: '10px 16px', borderRadius: 10, border: '1.5px solid var(--border)', background: 'transparent', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text)', cursor: 'pointer' }}>
-                {selectedMessage.read ? 'Mark Unread' : 'Mark Read'}
-              </button>
-              <button onClick={() => deleteMsg(selectedMessage.id)}
-                style={{ padding: '10px 16px', borderRadius: 10, border: '1px solid oklch(85% 0.05 20)', background: 'transparent', fontFamily: 'var(--font-body)', fontSize: 13, color: 'oklch(50% 0.18 20)', cursor: 'pointer' }}>
-                Delete
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const BLANK_COUPON ={ code: '', description: '', discount_type: 'fixed', discount_value: '', applies_to: 'delivery', max_uses: '', expires_at: '', is_active: true };
-
-  const CouponsTab = () => {
-    const saveCoupon = async () => {
-      setCouponSaving(true);
-      setCouponSaveErr('');
-      try {
-        const isNew = !couponForm.id;
-        const url   = isNew ? '/api/coupons' : `/api/coupons/${couponForm.id}`;
-        const method = isNew ? 'POST' : 'PATCH';
-        const body = { ...couponForm };
-        if (!body.max_uses) body.max_uses = null;
-        if (!body.expires_at) body.expires_at = null;
-        if (!isNew) delete body.code; // code is immutable after creation
-
-        const r = await authFetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-        const d = await r.json();
-        if (!r.ok) throw new Error(d.error || 'Save failed');
-        setCouponForm(null);
-        fetchCoupons();
-      } catch (e) {
-        setCouponSaveErr(e.message);
-      } finally {
-        setCouponSaving(false);
-      }
-    };
-
-    const deleteCoupon = async (id) => {
-      if (!confirm('Delete this coupon?')) return;
-      await authFetch(`/api/coupons/${id}`, { method: 'DELETE' });
-      fetchCoupons();
-    };
-
-    const toggleActive = async (c) => {
-      await authFetch(`/api/coupons/${c.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_active: !c.is_active }),
-      });
-      fetchCoupons();
-    };
-
-    const fieldStyle = { width: '100%', padding: '10px 12px', borderRadius: 8, border: '1.5px solid var(--border)', fontFamily: 'var(--font-body)', fontSize: 14, background: 'var(--bg)', color: 'var(--text)', outline: 'none', boxSizing: 'border-box' };
-    const labelStyle = { fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: 5 };
-
-    return (
-      <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 22, color: 'var(--text)', margin: 0 }}>Coupons</h2>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <RefreshBtn onClick={fetchCoupons} loading={couponsLoading} />
-            <button onClick={() => { setCouponForm({ ...BLANK_COUPON }); setCouponSaveErr(''); }}
-              style={{ padding: '10px 20px', borderRadius: 10, border: 'none', background: 'var(--accent)', color: 'white', fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
-              + New Coupon
-            </button>
-          </div>
-        </div>
-
-        {/* Create / edit form */}
-        {couponForm && (
-          <div style={{ background: 'var(--bg)', border: '1.5px solid var(--accent)', borderRadius: 14, padding: 24, marginBottom: 24 }}>
-            <h3 style={{ fontFamily: 'var(--font-head)', fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 20, marginTop: 0 }}>
-              {couponForm.id ? `Edit Coupon — ${couponForm.code}` : 'New Coupon'}
-            </h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16, marginBottom: 16 }}>
-              {!couponForm.id && (
-                <div>
-                  <label style={labelStyle}>Code *</label>
-                  <input style={fieldStyle} value={couponForm.code} placeholder="e.g. WELCOME20"
-                    onChange={e => setCouponForm(f => ({ ...f, code: e.target.value.toUpperCase() }))} />
-                </div>
-              )}
-              <div>
-                <label style={labelStyle}>Description</label>
-                <input style={fieldStyle} value={couponForm.description} placeholder="e.g. Welcome discount"
-                  onChange={e => setCouponForm(f => ({ ...f, description: e.target.value }))} />
-              </div>
-              <div>
-                <label style={labelStyle}>Discount Type *</label>
-                <select style={fieldStyle} value={couponForm.discount_type}
-                  onChange={e => setCouponForm(f => ({ ...f, discount_type: e.target.value }))}>
-                  <option value="fixed">Fixed ($)</option>
-                  <option value="percent">Percent (%)</option>
-                </select>
-              </div>
-              <div>
-                <label style={labelStyle}>Discount Value *</label>
-                <input style={fieldStyle} type="number" min="0" value={couponForm.discount_value} placeholder="e.g. 20"
-                  onChange={e => setCouponForm(f => ({ ...f, discount_value: e.target.value }))} />
-              </div>
-              <div>
-                <label style={labelStyle}>Applies To *</label>
-                <select style={fieldStyle} value={couponForm.applies_to}
-                  onChange={e => setCouponForm(f => ({ ...f, applies_to: e.target.value }))}>
-                  <option value="delivery">Delivery fee only</option>
-                  <option value="service">Service fee only</option>
-                  <option value="both">Delivery + Service fees</option>
-                </select>
-              </div>
-              <div>
-                <label style={labelStyle}>Max Total Uses (blank = unlimited)</label>
-                <input style={fieldStyle} type="number" min="1" value={couponForm.max_uses} placeholder="e.g. 100"
-                  onChange={e => setCouponForm(f => ({ ...f, max_uses: e.target.value }))} />
-              </div>
-              <div>
-                <label style={labelStyle}>Expires At (blank = never)</label>
-                <input style={fieldStyle} type="date" value={couponForm.expires_at ? couponForm.expires_at.split('T')[0] : ''}
-                  onChange={e => setCouponForm(f => ({ ...f, expires_at: e.target.value }))} />
-              </div>
-              {couponForm.id && (
-                <div>
-                  <label style={labelStyle}>Status</label>
-                  <select style={fieldStyle} value={couponForm.is_active ? 'true' : 'false'}
-                    onChange={e => setCouponForm(f => ({ ...f, is_active: e.target.value === 'true' }))}>
-                    <option value="true">Active</option>
-                    <option value="false">Inactive</option>
-                  </select>
-                </div>
-              )}
-            </div>
-            {couponSaveErr && <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'oklch(45% 0.2 20)', marginBottom: 12 }}>{couponSaveErr}</div>}
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={saveCoupon} disabled={couponSaving}
-                style={{ padding: '10px 24px', borderRadius: 10, border: 'none', background: 'var(--accent)', color: 'white', fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
-                {couponSaving ? 'Saving…' : 'Save'}
-              </button>
-              <button onClick={() => setCouponForm(null)}
-                style={{ padding: '10px 20px', borderRadius: 10, border: '1.5px solid var(--border)', background: 'transparent', color: 'var(--text)', fontFamily: 'var(--font-body)', fontSize: 14, cursor: 'pointer' }}>
-                Cancel
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Coupon list */}
-        {couponsLoading ? (
-          <div style={{ textAlign: 'center', padding: 40, fontFamily: 'var(--font-body)', color: 'var(--text-muted)' }}>Loading…</div>
-        ) : coupons.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: 60, fontFamily: 'var(--font-body)', color: 'var(--text-muted)' }}>No coupons yet. Create one above.</div>
-        ) : (
-          <div style={{ background: 'var(--bg)', borderRadius: 14, border: '1px solid var(--border)', overflow: 'hidden' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ background: 'var(--bg-alt)' }}>
-                  {['Code', 'Discount', 'Applies To', 'Uses', 'Expires', 'Status', ''].map(h => (
-                    <th key={h} style={{ padding: '12px 16px', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textAlign: 'left', letterSpacing: '0.04em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {coupons.map((c, i) => {
-                  const discountLabel = c.discount_type === 'fixed' ? `$${Number(c.discount_value).toFixed(2)} off` : `${c.discount_value}% off`;
-                  const appliesToLabel = c.applies_to === 'both' ? 'Delivery + Service' : c.applies_to === 'delivery' ? 'Delivery fee' : 'Service fee';
-                  const expired = c.expires_at && new Date(c.expires_at) < new Date();
-                  const exhausted = c.max_uses !== null && c.used_count >= c.max_uses;
-                  const effectivelyInactive = !c.is_active || expired || exhausted;
-                  return (
-                    <tr key={c.id} style={{ borderTop: i > 0 ? '1px solid var(--border)' : 'none' }}>
-                      <td style={{ padding: '14px 16px' }}>
-                        <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{c.code}</div>
-                        {c.description && <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)' }}>{c.description}</div>}
-                      </td>
-                      <td style={{ padding: '14px 16px', fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600, color: 'var(--accent)' }}>{discountLabel}</td>
-                      <td style={{ padding: '14px 16px', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)' }}>{appliesToLabel}</td>
-                      <td style={{ padding: '14px 16px', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text)' }}>
-                        {c.used_count}{c.max_uses !== null ? ` / ${c.max_uses}` : ''}
-                      </td>
-                      <td style={{ padding: '14px 16px', fontFamily: 'var(--font-body)', fontSize: 13, color: expired ? 'oklch(45% 0.2 20)' : 'var(--text-muted)' }}>
-                        {c.expires_at ? new Date(c.expires_at).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
-                      </td>
-                      <td style={{ padding: '14px 16px' }}>
-                        <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 20, fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600,
-                          background: effectivelyInactive ? 'oklch(94% 0.02 0)' : 'oklch(93% 0.06 145)',
-                          color: effectivelyInactive ? 'oklch(45% 0.08 0)' : 'oklch(35% 0.15 145)' }}>
-                          {expired ? 'Expired' : exhausted ? 'Exhausted' : c.is_active ? 'Active' : 'Inactive'}
-                        </span>
-                      </td>
-                      <td style={{ padding: '14px 16px' }}>
-                        <div style={{ display: 'flex', gap: 8 }}>
-                          <button onClick={() => { setCouponForm({ ...c, expires_at: c.expires_at ? c.expires_at.split('T')[0] : '' }); setCouponSaveErr(''); }}
-                            style={{ padding: '5px 12px', borderRadius: 7, border: '1px solid var(--border)', background: 'transparent', fontFamily: 'var(--font-body)', fontSize: 12, cursor: 'pointer', color: 'var(--text)' }}>Edit</button>
-                          <button onClick={() => toggleActive(c)}
-                            style={{ padding: '5px 12px', borderRadius: 7, border: '1px solid var(--border)', background: 'transparent', fontFamily: 'var(--font-body)', fontSize: 12, cursor: 'pointer', color: 'var(--text-muted)' }}>
-                            {c.is_active ? 'Disable' : 'Enable'}
-                          </button>
-                          <button onClick={() => deleteCoupon(c.id)}
-                            style={{ padding: '5px 12px', borderRadius: 7, border: '1px solid oklch(85% 0.05 20)', background: 'transparent', fontFamily: 'var(--font-body)', fontSize: 12, cursor: 'pointer', color: 'oklch(50% 0.18 20)' }}>Delete</button>
-                        </div>
+          )) : (
+            <div style={{ overflowX:'auto' }}>
+              <table style={{ width:'100%', borderCollapse:'collapse', minWidth:560 }}>
+                <thead><tr style={{ background:'var(--bg-alt)' }}>{['Customer','Phone','Orders','Total Spent','Last Order',''].map(h=><th key={h} style={thS}>{h}</th>)}</tr></thead>
+                <tbody>
+                  {customers.map(c => (
+                    <tr key={c.name} style={{ borderTop:'1px solid var(--border)' }}
+                      onMouseEnter={e => e.currentTarget.style.background='var(--bg-alt)'}
+                      onMouseLeave={e => e.currentTarget.style.background='transparent'}>
+                      <td style={tdS}><div style={{ display:'flex', alignItems:'center', gap:10 }}><CustAvatar name={c.name}/><span style={{ fontWeight:600 }}>{c.name}</span></div></td>
+                      <td style={{ ...tdS, color:'var(--text-muted)', fontSize:12.5, fontFamily:'var(--font-mono,monospace)' }}>{c.phone||'—'}</td>
+                      <td style={tdS}>{c.orders}</td>
+                      <td style={{ ...tdS, fontFamily:'var(--font-num)', fontWeight:700 }}>{fmtN(c.spent)}</td>
+                      <td style={{ ...tdS, color:'var(--text-muted)' }}>{c.last}</td>
+                      <td style={tdS}>
+                        <button onClick={() => setWaCustomer(c)} style={{ ...miniBtn, background:'oklch(93% 0.08 145)', borderColor:'oklch(80% 0.12 145)', color:'oklch(35% 0.15 145)' }}>💬 WhatsApp</button>
                       </td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+                  ))}
+                </tbody>
+              </table>
+              {!customers.length && <Empty label="No customers yet"/>}
+            </div>
+          )}
+        </Panel>
       </div>
-    );
+    </>
+  );
+}
+
+// ─── Nav config ───────────────────────────────────────────────────────────────
+const NAV = [
+  { key:'overview',     label:'Overview',     icon:'grid'   },
+  { key:'orders',       label:'Orders',       icon:'box'    },
+  { key:'products',     label:'Products',     icon:'tag'    },
+  { key:'certificates', label:'Certificates', icon:'cert'   },
+  { key:'messages',     label:'Messages',     icon:'mail'   },
+  { key:'coupons',      label:'Coupons',      icon:'ticket' },
+  { key:'analytics',    label:'Analytics',    icon:'chart'  },
+  { key:'activity',     label:'Activity',     icon:'pulse'  },
+  { key:'forex',        label:'Forex',        icon:'coins'  },
+  { key:'revenue',      label:'Revenue',      icon:'coins'  },
+  { key:'customers',    label:'Customers',    icon:'users'  },
+];
+const MOBILE_PRIMARY = ['overview','orders','products','analytics','messages'];
+
+// ─── Login Screen ─────────────────────────────────────────────────────────────
+function LoginScreen({ onLogin }) {
+  const [pw, setPw]   = useState('');
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!pw.trim()) return;
+    setBusy(true); setErr('');
+    try {
+      const res = await fetch('/api/admin/login', {
+        method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ password: pw }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setErr(json.error||'Invalid password'); setBusy(false); return; }
+      sessionStorage.setItem(TOKEN_KEY, json.token);
+      sessionStorage.setItem(NAME_KEY,  json.name || 'Admin');
+      onLogin();
+    } catch {
+      setErr('Network error — server may be offline');
+      setBusy(false);
+    }
   };
 
-  // ── All hooks have been called above — safe to conditionally return the login screen now ──
-  if (!adminToken) return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-      <div style={{ width: '100%', maxWidth: 400 }}>
-        <div style={{ textAlign: 'center', marginBottom: 36 }}>
-          <div style={{ fontFamily: 'var(--font-head)', fontWeight: 800, fontSize: 28, color: 'var(--text)', letterSpacing: '-0.02em' }}>Certo Admin</div>
-          <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)', marginTop: 6 }}>Sign in to continue</div>
+  return (
+    <div style={{ minHeight:'100vh', background:'var(--bg-alt)', display:'flex', alignItems:'center', justifyContent:'center', padding:20, fontFamily:'var(--font-body)' }}>
+      <div style={{ width:'100%', maxWidth:380, background:'var(--bg)', border:'1px solid var(--border)', borderRadius:20, padding:36, boxShadow:'0 8px 40px rgba(26,23,20,0.08)' }}>
+        <div style={{ textAlign:'center', marginBottom:32 }}>
+          <div style={{ fontFamily:'var(--font-head)', fontWeight:800, fontSize:28, letterSpacing:'-0.04em', color:'var(--text)', marginBottom:6 }}>Certo<span style={{ color:'var(--accent)' }}>.</span></div>
+          <div style={{ fontSize:13.5, color:'var(--text-muted)' }}>Admin access only</div>
         </div>
-        <form onSubmit={handleLogin} style={{ background: 'var(--bg-alt)', border: '1.5px solid var(--border)', borderRadius: 16, padding: 28 }}>
-          <label style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 8 }}>Password</label>
-          <div style={{ position: 'relative', marginBottom: 16 }}>
-            <input
-              type={showPwd ? 'text' : 'password'}
-              value={loginPwd}
-              onChange={e => { setLoginPwd(e.target.value); setLoginErr(''); }}
-              placeholder="Enter admin password"
-              autoFocus
-              style={{ width: '100%', padding: '12px 44px 12px 14px', borderRadius: 10, border: `1.5px solid ${loginErr ? 'oklch(60% 0.2 20)' : 'var(--border)'}`, fontFamily: 'var(--font-body)', fontSize: 15, background: 'var(--bg)', color: 'var(--text)', outline: 'none', boxSizing: 'border-box' }}
-            />
-            <button type="button" onClick={() => setShowPwd(v => !v)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 13, padding: 2 }}>{showPwd ? 'Hide' : 'Show'}</button>
-          </div>
-          {loginErr && <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'oklch(45% 0.2 20)', marginBottom: 14 }}>⚠ {loginErr}</div>}
-          <button type="submit" disabled={loginLoading || !loginPwd.trim()} style={{ width: '100%', padding: '13px', borderRadius: 10, border: 'none', background: loginPwd.trim() ? 'var(--accent)' : 'var(--border)', color: loginPwd.trim() ? 'white' : 'var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 700, cursor: loginPwd.trim() ? 'pointer' : 'not-allowed' }}>
-            {loginLoading ? 'Signing in…' : 'Sign In →'}
-          </button>
+        <form onSubmit={submit}>
+          <label style={{ fontSize:11, fontWeight:700, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:8 }}>Password</label>
+          <input type="password" value={pw} onChange={e => setPw(e.target.value)} placeholder="Enter admin password" autoFocus style={{ ...inputS, width:'100%', boxSizing:'border-box', marginBottom:16, fontSize:15, padding:'13px 16px' }}/>
+          {err && <div style={{ fontSize:12.5, color:'oklch(50% 0.18 25)', marginBottom:14, padding:'10px 14px', background:'oklch(97% 0.03 25)', borderRadius:9, border:'1px solid oklch(85% 0.1 25)' }}>{err}</div>}
+          <button type="submit" disabled={busy} style={{ ...primaryBtn, width:'100%', padding:'13px', fontSize:15, opacity:busy?0.7:1 }}>{busy?'Signing in…':'Sign in'}</button>
         </form>
       </div>
     </div>
   );
+}
 
-  const ActivityTab = () => {
-    // clearConfirm / setClearConfirm and clearing / setClearing live in the parent scope (lifted)
+// ─── Main DashboardPage ───────────────────────────────────────────────────────
+export function DashboardPage({ navigate, subPage, liveRate, rateFetched, onRateChange }) {
+  const [loggedIn, setLoggedIn] = useState(!!getToken());
+  const [tab, setTab]           = useState(subPage || 'overview');
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [search, setSearch]     = useState('');
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
-    const actionIcon = (action = '') => {
-      if (action.startsWith('Sign'))    return '🔐';
-      if (action.startsWith('Updat'))   return '✏️';
-      if (action.startsWith('Creat'))   return '➕';
-      if (action.startsWith('Delet'))   return '🗑️';
-      if (action.startsWith('Enabl'))   return '✅';
-      if (action.startsWith('Disabl'))  return '🔴';
-      if (action.startsWith('Resent'))  return '✉️';
-      if (action.startsWith('Status'))  return '🔄';
-      if (action.startsWith('Flagg'))   return '🚩';
-      if (action.startsWith('Unflag'))  return '✅';
-      if (action.startsWith('Note'))    return '📝';
-      if (action.startsWith('Cleared')) return '🧹';
-      return '•';
-    };
+  // Data state
+  const [orders,       setOrders]       = useState([]);
+  const [products,     setProducts]     = useState([]);
+  const [certificates, setCertificates] = useState([]);
+  const [messages,     setMessages]     = useState([]);
+  const [coupons,      setCoupons]      = useState([]);
+  const [logs,         setLogs]         = useState([]);
+  const [analytics,    setAnalytics]    = useState(null);
+  const [revenueSeries,setRevenueSeries]= useState([]);
+  const [dataLoading,  setDataLoading]  = useState(false);
+  const [dataError,    setDataError]    = useState(null);
+  const [refreshKey,   setRefreshKey]   = useState(0);
+  const [spinning,     setSpinning]     = useState(false);
 
-    const doClear = async () => {
-      setClearing(true);
+  const doRefresh = () => { setRefreshKey(k => k+1); setSpinning(true); setTimeout(() => setSpinning(false), 800); };
+
+  // Sync tab from subPage prop
+  useEffect(() => { if (subPage) setTab(subPage); }, [subPage]);
+
+  // Responsive
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  // Load data after login (or on manual refresh)
+  useEffect(() => {
+    if (!loggedIn) return;
+    let cancelled = false;
+    async function load() {
+      setDataLoading(true); setDataError(null);
       try {
-        await authFetch('/api/admin/logs', { method: 'DELETE' });
-        fetchLogs();
-        setClearConfirm(false);
-      } catch(e) {}
-      setClearing(false);
-    };
+        const [oRes, pRes, cRes, mRes, cpRes, lRes, aRes] = await Promise.all([
+          authFetch('/api/orders'),
+          authFetch('/api/products?admin=true&limit=1000'),
+          authFetch('/api/certificates'),
+          authFetch('/api/contact'),
+          authFetch('/api/coupons'),
+          authFetch('/api/admin/logs'),
+          authFetch('/api/analytics'),
+        ]);
+        const [rawOrders, rawProducts, rawCerts, rawMsgs, rawCoupons, rawLogs, analyticsData] = await Promise.all([
+          oRes.json(), pRes.json(), cRes.json(), mRes.json(), cpRes.json(), lRes.json(), aRes.json(),
+        ]);
+        if (cancelled) return;
+        setOrders(rawOrders.map(mapOrder));
+        setProducts(rawProducts.map(mapProduct));
+        setCertificates(rawCerts.map(mapCert));
+        setMessages(rawMsgs.map(mapMessage));
+        setCoupons(rawCoupons.map(mapCoupon));
+        setLogs(rawLogs.map(mapLog));
+        setAnalytics(analyticsData);
+        setRevenueSeries(buildRevenueSeries(rawOrders));
+      } catch(err) {
+        if (!cancelled) setDataError(err.message);
+      }
+      if (!cancelled) setDataLoading(false);
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [loggedIn, refreshKey]);
 
-    const fmt = (ts) => {
-      const d = new Date(ts);
-      return d.toLocaleString('en-NG', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-    };
+  const handleTabChange = (key) => {
+    setTab(key);
+    setMoreOpen(false);
+    if (navigate) navigate(key === 'overview' ? 'dashboard' : `dashboard-${key}`);
+  };
 
-    return (
-      <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <div>
-            <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 18, color: 'var(--text)' }}>Activity Log</div>
-            <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>{logs.length} entries</div>
+  const handleLogout = () => {
+    sessionStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(NAME_KEY);
+    setLoggedIn(false);
+    if (navigate) navigate('/');
+  };
+
+  const handleOrderUpdate = (updated, isNew = false) => {
+    if (isNew) setOrders(prev => [updated, ...prev]);
+    else       setOrders(prev => prev.map(o => o.id===updated.id ? updated : o));
+  };
+
+  const handleProductUpdate = (updated) => {
+    setProducts(prev => prev.map(p => p.id===updated.id ? updated : p));
+  };
+
+  if (!loggedIn) return <LoginScreen onLogin={() => setLoggedIn(true)}/>;
+
+  const adminName  = getName();
+  const unread     = messages.filter(m => !m.read).length;
+  const activeOrds = orders.filter(o => !o.admin_hidden && !['Delivered','Cancelled','Payment Pending'].includes(o.status)).length;
+  const counts     = { orders: activeOrds, messages: unread };
+  const rate       = liveRate || 1590;
+
+  const tabTitle = NAV.find(n => n.key===tab)?.label || 'Overview';
+  const greeting = (() => {
+    const h = new Date().getHours();
+    return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+  })();
+
+  const tabContent = (
+    <>
+      {tab==='overview'     && <OverviewTab isMobile={isMobile} setTab={handleTabChange} orders={orders} revenueSeries={revenueSeries} messages={messages} products={products}/>}
+      {tab==='orders'       && <OrdersTab isMobile={isMobile} orders={orders} onOrdersChange={handleOrderUpdate} certificates={certificates} products={products} rate={rate}/>}
+      {tab==='products'     && <ProductsTab isMobile={isMobile} products={products} onProductUpdate={handleProductUpdate}/>}
+      {tab==='certificates' && <CertificatesTab isMobile={isMobile} certificates={certificates}/>}
+      {tab==='messages'     && <MessagesTab isMobile={isMobile} messages={messages}/>}
+      {tab==='coupons'      && <CouponsTab isMobile={isMobile} coupons={coupons}/>}
+      {tab==='analytics'    && <AnalyticsTab isMobile={isMobile} analytics={analytics}/>}
+      {tab==='activity'     && <ActivityTab isMobile={isMobile} logs={logs} onLogsCleared={() => setLogs([])}/>}
+      {tab==='forex'        && <ForexTab isMobile={isMobile} liveRate={rate} rateFetched={rateFetched} onRateChange={onRateChange} products={products}/>}
+      {tab==='revenue'      && <RevenueTab isMobile={isMobile} orders={orders} revenueSeries={revenueSeries}/>}
+      {tab==='customers'    && <CustomersTab isMobile={isMobile} orders={orders}/>}
+    </>
+  );
+
+  return (
+    <div style={{ display:'flex', minHeight:'100vh', background:'var(--bg-alt)', fontFamily:'var(--font-body)', color:'var(--text)' }}>
+      {/* Sidebar */}
+      {!isMobile && (
+        <aside style={{ width:232, flexShrink:0, background:'var(--bg)', borderRight:'1px solid var(--border)', display:'flex', flexDirection:'column', position:'sticky', top:0, height:'100vh' }}>
+          <div style={{ padding:'22px 22px 18px', display:'flex', alignItems:'center', gap:10 }}>
+            <span style={{ fontFamily:'var(--font-head)', fontWeight:800, fontSize:22, letterSpacing:'-0.04em', color:'var(--text)' }}>Certo</span>
+            <span style={{ width:5, height:5, borderRadius:'50%', background:'var(--accent)' }}/>
+            <span style={{ marginLeft:'auto', fontFamily:'var(--font-body)', fontSize:9.5, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--text-muted)', background:'var(--bg-alt)', border:'1px solid var(--border)', borderRadius:5, padding:'3px 7px' }}>Admin</span>
           </div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <button onClick={fetchLogs} style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 14px', cursor: 'pointer' }}>
-              ↻ Refresh
-            </button>
-            {clearConfirm ? (
-              <>
-                <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'oklch(45% 0.18 25)' }}>Clear all logs?</span>
-                <button onClick={doClear} disabled={clearing} style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 700, color: 'white', background: 'oklch(50% 0.2 25)', border: 'none', borderRadius: 8, padding: '7px 14px', cursor: 'pointer' }}>
-                  {clearing ? 'Clearing…' : 'Yes, clear'}
+
+          <nav style={{ flex:1, overflowY:'auto', padding:'6px 12px' }}>
+            {NAV.map(n => {
+              const active = tab===n.key;
+              const badge  = counts[n.key];
+              return (
+                <button key={n.key} onClick={() => handleTabChange(n.key)} style={{ display:'flex', alignItems:'center', gap:11, width:'100%', padding:'9px 12px', marginBottom:2, borderRadius:9, border:'none', cursor:'pointer', textAlign:'left', background:active?'var(--accent-tint,#f7e9df)':'transparent', color:active?'var(--accent)':'var(--text-muted)', fontFamily:'var(--font-body)', fontSize:13.5, fontWeight:active?700:500, transition:'background 0.15s, color 0.15s' }}
+                  onMouseEnter={e => { if (!active) e.currentTarget.style.background='var(--bg-alt)'; }}
+                  onMouseLeave={e => { if (!active) e.currentTarget.style.background='transparent'; }}>
+                  <Icon name={n.icon} size={18} c={active?'var(--accent)':'var(--text-muted)'}/>
+                  <span style={{ flex:1 }}>{n.label}</span>
+                  {badge>0 && <span style={{ background:active?'var(--accent)':'var(--text-muted)', color:'white', borderRadius:100, fontSize:10.5, fontWeight:700, padding:'1px 7px', minWidth:18, textAlign:'center' }}>{badge}</span>}
                 </button>
-                <button onClick={() => setClearConfirm(false)} style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 14px', cursor: 'pointer' }}>
-                  Cancel
-                </button>
-              </>
-            ) : (
-              <button onClick={() => setClearConfirm(true)} style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'oklch(45% 0.18 25)', background: 'oklch(96% 0.04 25)', border: '1px solid oklch(85% 0.08 25)', borderRadius: 8, padding: '7px 14px', cursor: 'pointer' }}>
-                🗑 Clear logs
+              );
+            })}
+          </nav>
+
+          <div style={{ padding:14, borderTop:'1px solid var(--border)' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 10px', borderRadius:10 }}>
+              <div style={{ width:32, height:32, borderRadius:'50%', background:'var(--ink,#1a1714)', color:'white', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'var(--font-head)', fontWeight:700, fontSize:13, flexShrink:0 }}>{adminName[0]?.toUpperCase()||'A'}</div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:13, fontWeight:700, color:'var(--text)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{adminName}</div>
+                <div style={{ fontSize:11, color:'var(--text-muted)' }}>Admin</div>
+              </div>
+              <button title="Log out" onClick={handleLogout} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--text-muted)', padding:4, display:'flex' }}>
+                <Icon name="logout" size={16}/>
               </button>
+            </div>
+          </div>
+        </aside>
+      )}
+
+      {/* Main column */}
+      <div style={{ flex:1, minWidth:0, display:'flex', flexDirection:'column' }}>
+        {/* Top bar */}
+        <header style={{ position:'sticky', top:0, zIndex:20, background:'rgba(250,249,247,0.85)', backdropFilter:'blur(16px)', borderBottom:'1px solid var(--border)', padding:isMobile?'14px 18px':'16px 28px', display:'flex', alignItems:'center', gap:16 }}>
+          <div style={{ flex:1, minWidth:0 }}>
+            {isMobile ? (
+              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                <span style={{ fontFamily:'var(--font-head)', fontWeight:800, fontSize:19, letterSpacing:'-0.04em' }}>Certo</span>
+                <span style={{ width:4, height:4, borderRadius:'50%', background:'var(--accent)' }}/>
+                <span style={{ fontSize:9, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--text-muted)', background:'var(--bg-alt)', border:'1px solid var(--border)', borderRadius:5, padding:'2px 6px' }}>Admin</span>
+              </div>
+            ) : (
+              <>
+                <div style={{ fontFamily:'var(--font-head)', fontWeight:800, fontSize:22, letterSpacing:'-0.025em', color:'var(--text)', textTransform:'capitalize', lineHeight:1 }}>{tabTitle}</div>
+                <div style={{ fontSize:12.5, color:'var(--text-muted)', marginTop:3 }}>{greeting}, {adminName} — here's where things stand today.</div>
+              </>
             )}
           </div>
-        </div>
 
-        {logsLoading ? (
-          <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)', padding: '48px 0', textAlign: 'center' }}>Loading…</div>
-        ) : logs.length === 0 ? (
-          <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)', padding: '48px 0', textAlign: 'center' }}>No activity yet.</div>
-        ) : (
-          <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden' }}>
-            {logs.map((log, i) => (
-              <div key={log.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 14, padding: '14px 20px', borderBottom: i < logs.length - 1 ? '1px solid var(--border)' : 'none' }}>
-                <div style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>{actionIcon(log.action)}</div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{log.action}</span>
-                    <span style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700, color: 'var(--accent)', background: 'var(--accent-tint)', border: '1px solid var(--accent-tint2)', borderRadius: 5, padding: '2px 8px' }}>{log.admin_name}</span>
-                  </div>
-                  {log.details && (
-                    <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginTop: 3 }}>{log.details}</div>
-                  )}
-                </div>
-                <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--text-muted)', flexShrink: 0, textAlign: 'right', marginTop: 2 }}>{fmt(log.created_at)}</div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  // ── Certificates Tab ──────────────────────────────────────────────────────
-  const CertificatesTab = () => {
-    const fld = { ...MODAL_FLD };
-    const lbl = { ...MODAL_LBL };
-
-    const filtered = React.useMemo(() => {
-      if (!certSearch.trim()) return certificates;
-      const q = certSearch.trim().toLowerCase();
-      return certificates.filter(c =>
-        c.id.toLowerCase().includes(q) ||
-        c.order_id.toLowerCase().includes(q) ||
-        (c.product_name || '').toLowerCase().includes(q) ||
-        (c.serial_number || '').toLowerCase().includes(q) ||
-        (c.recipient_name || '').toLowerCase().includes(q)
-      );
-    }, [certificates, certSearch]);
-
-    const [createOrderId, setCreateOrderId] = React.useState('');
-    const [createError,   setCreateError]   = React.useState('');
-
-    const statusBadge = (s) => {
-      const styles = {
-        published: { bg: 'oklch(93% 0.06 155)', color: 'oklch(35% 0.15 155)', label: 'Published' },
-        draft:     { bg: 'oklch(95% 0.08 70)',  color: 'oklch(42% 0.18 55)',  label: 'Pending / Draft' },
-      };
-      const st = styles[s] || styles.draft;
-      return <span style={{ padding: '3px 10px', borderRadius: 20, background: st.bg, color: st.color, fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}>{st.label}</span>;
-    };
-
-    const handleCreateByOrderId = async () => {
-      const id = createOrderId.trim().toUpperCase();
-      if (!id) return;
-      // Fetch order to pre-fill
-      setCreateError('');
-      try {
-        const r = await authFetch(`/api/orders/${id}`);
-        const order = await r.json();
-        if (!r.ok) { setCreateError(order.error || 'Order not found'); return; }
-        const normOrder = normaliseOrder(order);
-        // Determine products
-        const items = Array.isArray(order.items) && order.items.length > 0 ? order.items : null;
-        const productName = items ? items[0].name : (order.product_name || '');
-        const productSub  = items ? (items[0].subtitle || '') : (order.product_subtitle || '');
-        const vColor   = items ? (items[0].variant_color || null) : (order.variant_color || null);
-        const vStorage = items ? (items[0].variant_storage || null) : (order.variant_storage || null);
-        setPublishModal({ order: normOrder, productIndex: 0, productName, productSubtitle: productSub, variantColor: vColor, variantStorage: vStorage, existingCertId: null });
-        setPublishDraft({ serial_number: '', apple_order_ref: '', chain_of_custody: [] });
-        setPublishError('');
-        setCreateOrderId('');
-      } catch(e) {
-        setCreateError('Could not fetch order. Check the ID and try again.');
-      }
-    };
-
-    const deleteCert = async (certId) => {
-      if (!confirm('Delete this certificate? This cannot be undone.')) return;
-      try {
-        const r = await authFetch(`/api/certificates/${certId}`, { method: 'DELETE' });
-        if (r.ok) fetchCertificates();
-      } catch(e) {}
-    };
-
-    return (
-      <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
-          <div>
-            <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 22, color: 'var(--text)', margin: '0 0 4px' }}>Certificates</h2>
-            <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>Published and draft verification certificates for customer orders.</p>
-          </div>
-          <RefreshBtn onClick={fetchCertificates} loading={certsLoading} />
-        </div>
-
-        {/* Create by order ID */}
-        <div style={{ background: 'var(--bg)', border: '1.5px dashed var(--border)', borderRadius: 12, padding: 16, marginBottom: 20 }}>
-          <div style={{ ...lbl, marginBottom: 10 }}>Create certificate for order</div>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-            <input
-              value={createOrderId}
-              onChange={e => { setCreateOrderId(e.target.value.toUpperCase()); setCreateError(''); }}
-              onKeyDown={e => e.key === 'Enter' && handleCreateByOrderId()}
-              placeholder="CRT-220426-8841"
-              style={{ ...fld, width: 220, flexShrink: 0 }}
-              onFocus={e => e.target.style.borderColor = 'var(--accent)'}
-              onBlur={e => e.target.style.borderColor = 'var(--border)'}
-            />
-            <button onClick={handleCreateByOrderId} disabled={!createOrderId.trim()}
-              style={{ padding: '9px 20px', borderRadius: 9, border: 'none', background: createOrderId.trim() ? 'var(--accent)' : 'var(--border)', color: 'white', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 700, cursor: createOrderId.trim() ? 'pointer' : 'not-allowed' }}>
-              Open Certificate Form →
-            </button>
-          </div>
-          {createError && <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'oklch(45% 0.2 20)', marginTop: 8 }}>{createError}</div>}
-        </div>
-
-        {/* Search */}
-        <div style={{ position: 'relative', marginBottom: 16 }}>
-          <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontSize: 14, pointerEvents: 'none' }}>🔍</span>
-          <input
-            type="text"
-            placeholder="Search by cert ID, order ID, product, serial, recipient…"
-            value={certSearch}
-            onChange={e => setCertSearch(e.target.value)}
-            style={{ ...inputStyle, paddingLeft: 32, width: '100%', boxSizing: 'border-box' }}
-          />
-        </div>
-
-        {/* Table */}
-        {certsLoading ? (
-          <div style={{ textAlign: 'center', padding: 60, fontFamily: 'var(--font-body)', color: 'var(--text-muted)' }}>Loading…</div>
-        ) : filtered.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: 60, fontFamily: 'var(--font-body)', color: 'var(--text-muted)' }}>
-            {certificates.length === 0 ? 'No certificates yet. Create one using the order ID form above.' : 'No certificates match your search.'}
-          </div>
-        ) : (
-          <div style={{ background: 'var(--bg)', borderRadius: 14, border: '1px solid var(--border)', overflow: 'hidden' }}>
-            <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
-              <thead>
-                <tr style={{ background: 'var(--bg-alt)' }}>
-                  {['Certificate ID', 'Order', 'Product', 'Serial', 'Status', 'Issued', ''].map(h => (
-                    <th key={h} style={{ padding: '12px 16px', fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((c, i) => (
-                  <tr key={c.id} style={{ borderTop: '1px solid var(--border)' }}
-                    onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-alt)'}
-                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                    <td style={{ padding: '12px 16px' }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)', letterSpacing: '0.02em', fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>{c.id}</div>
-                    </td>
-                    <td style={{ padding: '12px 16px', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{c.order_id}</td>
-                    <td style={{ padding: '12px 16px', maxWidth: 200 }}>
-                      <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.product_name}</div>
-                      {c.product_subtitle && <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--text-muted)' }}>{c.product_subtitle}</div>}
-                    </td>
-                    <td style={{ padding: '12px 16px', fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 12, color: 'var(--text-muted)', letterSpacing: '0.04em' }}>{c.serial_number || '—'}</td>
-                    <td style={{ padding: '12px 16px' }}>{statusBadge(c.status)}</td>
-                    <td style={{ padding: '12px 16px', fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                      {c.published_at ? new Date(c.published_at).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
-                    </td>
-                    <td style={{ padding: '12px 16px' }}>
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'nowrap' }}>
-                        {c.status !== 'published' && (
-                          <button
-                            onClick={() => {
-                              // Find the matching order from the orders list or just pass order_id
-                              const order = orders.find(o => o.id === c.order_id) || { id: c.order_id };
-                              setPublishModal({ order, productIndex: c.product_index, productName: c.product_name, productSubtitle: c.product_subtitle || '', variantColor: c.variant_color || null, variantStorage: c.variant_storage || null, existingCertId: c.id });
-                              setPublishDraft({ serial_number: c.serial_number || '', apple_order_ref: c.apple_order_ref || '', chain_of_custody: Array.isArray(c.chain_of_custody) ? c.chain_of_custody : [] });
-                              setPublishError('');
-                            }}
-                            style={{ padding: '5px 12px', borderRadius: 7, border: '1.5px solid var(--accent)', background: 'var(--accent-tint)', color: 'var(--accent)', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
-                            Edit / Publish
-                          </button>
-                        )}
-                        {c.status === 'published' && (
-                          <a href={`/verify/${c.order_id}`} target="_blank" rel="noreferrer"
-                            style={{ padding: '5px 12px', borderRadius: 7, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, textDecoration: 'none', cursor: 'pointer' }}>
-                            View
-                          </a>
-                        )}
-                        <button onClick={() => deleteCert(c.id)}
-                          style={{ padding: '5px 12px', borderRadius: 7, border: '1px solid oklch(85% 0.05 20)', background: 'transparent', color: 'oklch(50% 0.18 20)', fontFamily: 'var(--font-body)', fontSize: 12, cursor: 'pointer' }}>
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  // ── Publish-certificate modal ──────────────────────────────────────────────
-  const renderPublishModal = () => {
-    if (!publishModal) return null;
-    const { order, productIndex, productName, productSubtitle, variantColor, variantStorage, existingCertId } = publishModal;
-    const fld = { ...MODAL_FLD };
-    const lbl = { ...MODAL_LBL };
-
-    const custody = Array.isArray(publishDraft.chain_of_custody) ? publishDraft.chain_of_custody : [];
-
-    const setCustodyItem = (i, key, val) => setPublishDraft(d => ({
-      ...d, chain_of_custody: d.chain_of_custody.map((s, j) => j === i ? { ...s, [key]: val } : s),
-    }));
-    const addCustodyStep = () => setPublishDraft(d => ({ ...d, chain_of_custody: [...d.chain_of_custody, { title: '', subtitle: '', date: '' }] }));
-    const removeCustodyStep = (i) => setPublishDraft(d => ({ ...d, chain_of_custody: d.chain_of_custody.filter((_, j) => j !== i) }));
-
-    const canPublish = publishDraft.serial_number.trim() && publishDraft.apple_order_ref.trim() && custody.length > 0;
-
-    const handleSave = async (publish) => {
-      if (publish && !canPublish) {
-        setPublishError('Serial number, Apple order ref, and at least one chain-of-custody step are required to publish.');
-        return;
-      }
-      setPublishSaving(true);
-      setPublishError('');
-      try {
-        const rawOrder = order.raw || {};
-        const body = {
-          order_id:          order.id,
-          product_index:     productIndex,
-          product_name:      productName,
-          product_subtitle:  productSubtitle || '',
-          variant_color:     variantColor  || null,
-          variant_storage:   variantStorage || null,
-          serial_number:     publishDraft.serial_number.trim(),
-          apple_order_ref:   publishDraft.apple_order_ref.trim(),
-          chain_of_custody:  custody,
-          status:            publish ? 'published' : 'draft',
-          recipient_name:    rawOrder.customer_name || order.customer || '',
-          recipient_address: rawOrder.address || '',
-          recipient_state:   rawOrder.state   || '',
-          usd_price:         rawOrder.usd_price || order.usd || 0,
-          ngn_price:         rawOrder.ngn_price || order.ngn || 0,
-          forex_rate:        rawOrder.forex_rate || 0,
-        };
-        const url    = existingCertId ? `/api/certificates/${existingCertId}` : '/api/certificates';
-        const method = existingCertId ? 'PATCH' : 'POST';
-        const r = await authFetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-        const data = await r.json();
-        if (!r.ok) throw new Error(data.error || 'Save failed');
-        fetchCertificates();
-        setPublishModal(null);
-      } catch(e) {
-        setPublishError(e.message || 'Failed to save certificate');
-      } finally {
-        setPublishSaving(false);
-      }
-    };
-
-    return (
-      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 9999, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '40px 20px 40px', overflowY: 'auto' }}
-        onClick={e => { if (e.target === e.currentTarget) setPublishModal(null); }}>
-        <div style={{ background: 'var(--bg)', borderRadius: 20, width: '100%', maxWidth: 680, padding: 32, boxShadow: '0 32px 80px -16px rgba(0,0,0,0.35)', flexShrink: 0 }}
-          onClick={e => e.stopPropagation()}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
-            <div>
-              <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 20, color: 'var(--text)', margin: '0 0 4px' }}>
-                {existingCertId ? 'Edit Certificate' : 'Publish Certificate'}
-              </h2>
-              <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)' }}>
-                {productName}{productSubtitle ? ` · ${productSubtitle}` : ''} — Order <strong>{order.id}</strong>
-              </div>
-            </div>
-            <button onClick={() => setPublishModal(null)} aria-label="Close"
-              style={{ background: 'none', border: '1.5px solid var(--border)', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', fontSize: 14, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>✕</button>
-          </div>
-
-          {/* Serial + Apple order ref */}
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16, marginBottom: 20 }}>
-            <div>
-              <label style={lbl}>Serial Number *</label>
-              <input value={publishDraft.serial_number} onChange={e => setPublishDraft(d => ({ ...d, serial_number: e.target.value }))}
-                placeholder="e.g. M82FX19JH3RQ"
-                style={{ ...fld, fontFamily: "'JetBrains Mono', ui-monospace, monospace", letterSpacing: '0.04em' }}
-                onFocus={e => e.target.style.borderColor = 'var(--accent)'}
-                onBlur={e => e.target.style.borderColor = 'var(--border)'} />
-            </div>
-            <div>
-              <label style={lbl}>Apple Order Reference *</label>
-              <input value={publishDraft.apple_order_ref} onChange={e => setPublishDraft(d => ({ ...d, apple_order_ref: e.target.value }))}
-                placeholder="e.g. W1234567890"
-                style={{ ...fld, fontFamily: "'JetBrains Mono', ui-monospace, monospace", letterSpacing: '0.04em' }}
-                onFocus={e => e.target.style.borderColor = 'var(--accent)'}
-                onBlur={e => e.target.style.borderColor = 'var(--border)'} />
-            </div>
-          </div>
-
-          {/* Chain of custody */}
-          <div style={{ marginBottom: 24 }}>
-            <label style={{ ...lbl, marginBottom: 10 }}>Chain of Custody * <span style={{ color: 'var(--text-muted)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(at least one step required)</span></label>
-            {custody.map((step, i) => (
-              <div key={i} style={{ background: 'var(--bg-alt)', borderRadius: 10, padding: 14, marginBottom: 10, border: '1px solid var(--border)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                  <span style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700, color: 'var(--text-muted)' }}>Step {i + 1}</span>
-                  <button onClick={() => removeCustodyStep(i)} aria-label="Remove"
-                    style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 14 }}>×</button>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px', gap: 10, marginBottom: 8 }}>
-                  <div>
-                    <label style={{ ...lbl, marginBottom: 4 }}>Title</label>
-                    <input value={step.title} onChange={e => setCustodyItem(i, 'title', e.target.value)}
-                      placeholder="e.g. Apple Inc." style={fld}
-                      onFocus={e => e.target.style.borderColor = 'var(--accent)'}
-                      onBlur={e => e.target.style.borderColor = 'var(--border)'} />
-                  </div>
-                  <div>
-                    <label style={{ ...lbl, marginBottom: 4 }}>Date</label>
-                    <input value={step.date} onChange={e => setCustodyItem(i, 'date', e.target.value)}
-                      placeholder="MAY 03" style={fld}
-                      onFocus={e => e.target.style.borderColor = 'var(--accent)'}
-                      onBlur={e => e.target.style.borderColor = 'var(--border)'} />
-                  </div>
-                </div>
-                <div>
-                  <label style={{ ...lbl, marginBottom: 4 }}>Subtitle / Detail</label>
-                  <input value={step.subtitle} onChange={e => setCustodyItem(i, 'subtitle', e.target.value)}
-                    placeholder="e.g. Cupertino, CA · United States" style={fld}
-                    onFocus={e => e.target.style.borderColor = 'var(--accent)'}
-                    onBlur={e => e.target.style.borderColor = 'var(--border)'} />
-                </div>
-              </div>
-            ))}
-            <button onClick={addCustodyStep}
-              style={{ fontSize: 13, color: 'var(--accent)', background: 'var(--accent-tint)', border: '1px dashed var(--accent-tint2)', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontWeight: 600 }}>
-              + Add Custody Step
-            </button>
-          </div>
-
-          {/* Error */}
-          {publishError && (
-            <div style={{ marginBottom: 16, padding: '10px 14px', borderRadius: 10, background: 'oklch(97% 0.02 20)', border: '1px solid oklch(85% 0.05 20)', fontFamily: 'var(--font-body)', fontSize: 13, color: 'oklch(40% 0.15 20)' }}>
-              ⚠ {publishError}
+          {!isMobile && (
+            <div style={{ position:'relative', width:240 }}>
+              <span style={{ position:'absolute', left:11, top:'50%', transform:'translateY(-50%)', color:'var(--text-muted)', display:'flex' }}><Icon name="search" size={15}/></span>
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search orders, products…" style={{ width:'100%', boxSizing:'border-box', padding:'9px 12px 9px 34px', borderRadius:10, border:'1px solid var(--border)', background:'var(--bg)', fontFamily:'var(--font-body)', fontSize:13, color:'var(--text)', outline:'none' }}/>
             </div>
           )}
 
-          {/* Action buttons */}
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-            <button onClick={() => setPublishModal(null)}
-              style={{ padding: '11px 22px', borderRadius: 10, border: '1.5px solid var(--border)', background: 'transparent', color: 'var(--text)', fontFamily: 'var(--font-body)', fontSize: 14, cursor: 'pointer' }}>
-              Cancel
-            </button>
-            <button onClick={() => handleSave(false)} disabled={publishSaving}
-              style={{ padding: '11px 22px', borderRadius: 10, border: '1.5px solid var(--border)', background: 'var(--bg-alt)', color: 'var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600, cursor: publishSaving ? 'not-allowed' : 'pointer' }}>
-              {publishSaving ? 'Saving…' : 'Save as Draft'}
-            </button>
-            <button onClick={() => handleSave(true)} disabled={publishSaving || !canPublish}
-              style={{ padding: '11px 22px', borderRadius: 10, border: 'none', background: canPublish ? 'var(--accent)' : 'var(--border)', color: 'white', fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 700, cursor: publishSaving || !canPublish ? 'not-allowed' : 'pointer', opacity: !canPublish ? 0.65 : 1 }}>
-              {publishSaving ? 'Publishing…' : '✓ Publish Certificate'}
-            </button>
+          <div style={{ display:'inline-flex', alignItems:'center', gap:7, padding:'8px 12px', borderRadius:10, background:'var(--bg)', border:'1px solid var(--border)', whiteSpace:'nowrap' }}>
+            <span style={{ width:6, height:6, borderRadius:'50%', background:'var(--accent)' }}/>
+            <span style={{ fontSize:12.5, color:'var(--text-muted)' }}>
+              <strong style={{ color:'var(--text)', fontWeight:700 }}>₦{rate.toLocaleString()}</strong> / $1
+            </span>
           </div>
-        </div>
-      </div>
-    );
-  };
 
-  const tabContent = {
-    orders:       OrdersTab(),
-    products:     ProductsTab(),
-    certificates: CertificatesTab(),
-    messages:     MessagesTab(),
-    coupons:      CouponsTab(),
-    activity:     ActivityTab(),
-    forex:        ForexTab(),
-    revenue:      RevenueTab(),
-    customers:    CustomersTab(),
-  };
+          {!isMobile && (
+            <>
+              <button onClick={doRefresh} title="Refresh all data" style={{ background:'var(--bg)', border:'1px solid var(--border)', borderRadius:10, padding:9, cursor:'pointer', color:'var(--text-muted)', display:'flex', transition:'opacity 0.2s' }}>
+                <span style={{ display:'flex', animation:spinning?'spin 0.8s linear':'none' }}>
+                  <Icon name="refresh" size={17}/>
+                </span>
+              </button>
+              <button style={{ position:'relative', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:10, padding:9, cursor:'pointer', color:'var(--text-muted)', display:'flex' }}>
+                <Icon name="bell" size={17}/>
+                {unread>0 && <span style={{ position:'absolute', top:6, right:6, width:7, height:7, borderRadius:'50%', background:'var(--accent)', boxShadow:'0 0 0 2px var(--bg)' }}/>}
+              </button>
+            </>
+          )}
+          <style>{`@keyframes spin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }`}</style>
+        </header>
 
-  return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-alt)', paddingTop: 64 }}>
-      {renderEditModal()}
-      {renderPublishModal()}
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? '24px 16px 80px' : '40px 24px 80px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-          <div>
-            <h1 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: isMobile ? 22 : 28, color: 'var(--text)', marginBottom: 4 }}>Dashboard</h1>
-            {!isMobile && <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)' }}>Internal order & product management</p>}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            {adminName && (
-              <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, color: 'var(--accent)', background: 'var(--accent-tint)', border: '1px solid var(--accent-tint2)', borderRadius: 8, padding: '5px 12px' }}>
-                👋 {adminName}
-              </div>
-            )}
-            <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '5px 10px' }}>
-              ₦{CERTO_RATE.toLocaleString()}/USD
+        {/* Content */}
+        <main style={{ flex:1, padding:isMobile?'18px 16px 96px':'24px 28px 40px', maxWidth:1280, width:'100%', margin:'0 auto' }}>
+          {dataLoading ? (
+            <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:300, gap:14, color:'var(--text-muted)' }}>
+              <span style={{ display:'flex', animation:'spin 0.75s linear infinite' }}>
+                <Icon name="refresh" size={28} c="var(--accent)"/>
+              </span>
+              <span style={{ fontSize:14, letterSpacing:'0.02em' }}>Loading dashboard…</span>
             </div>
-            <button onClick={handleLogout} title="Sign out" style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '5px 10px', cursor: 'pointer' }}>
-              Sign out
-            </button>
-          </div>
-        </div>
-
-        <div style={{ overflowX: 'auto', marginBottom: 24, paddingBottom: 4 }}>
-        <div style={{ display: 'flex', gap: 2, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 14, padding: 6, width: 'fit-content' }}>
-          {tabs.map(t => (
-            <button key={t.key} onClick={() => setActiveTab(t.key)} style={{
-              padding: '9px 20px', borderRadius: 10, border: 'none', cursor: 'pointer',
-              background: activeTab === t.key ? 'var(--accent)' : 'transparent',
-              color: activeTab === t.key ? 'white' : 'var(--text-muted)',
-              fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: activeTab === t.key ? 700 : 500,
-              transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: 6,
-            }}>
-              {t.label}
-              {t.count > 0 && (
-                <span style={{ background: activeTab === t.key ? 'rgba(255,255,255,0.25)' : 'var(--accent)', color: 'white', borderRadius: 10, padding: '1px 7px', fontSize: 11, fontWeight: 700 }}>{t.count}</span>
-              )}
-            </button>
-          ))}
-        </div>
-        </div>
-
-        {tabContent[activeTab]}
+          ) : dataError ? (
+            <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:300, gap:12, color:'var(--text-muted)' }}>
+              <div style={{ fontSize:15, fontWeight:600 }}>Failed to load data</div>
+              <div style={{ fontSize:13 }}>{dataError}</div>
+              <button onClick={() => setLoggedIn(l => !l || (setLoggedIn(true), true))} style={primaryBtn}>Retry</button>
+            </div>
+          ) : tabContent}
+        </main>
       </div>
+
+      {/* Mobile bottom nav */}
+      {isMobile && (
+        <>
+          <nav style={{ position:'fixed', bottom:0, left:0, right:0, zIndex:30, background:'rgba(250,249,247,0.94)', backdropFilter:'blur(16px)', borderTop:'1px solid var(--border)', display:'flex', padding:'8px 6px 10px' }}>
+            {MOBILE_PRIMARY.map(key => {
+              const n = NAV.find(x => x.key===key);
+              const active = tab===key;
+              const badge  = counts[key];
+              return (
+                <button key={key} onClick={() => handleTabChange(key)} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:3, background:'none', border:'none', cursor:'pointer', position:'relative', color:active?'var(--accent)':'var(--text-muted)', padding:'4px 0' }}>
+                  <span style={{ position:'relative' }}>
+                    <Icon name={n.icon} size={21} c={active?'var(--accent)':'var(--text-muted)'}/>
+                    {badge>0 && <span style={{ position:'absolute', top:-4, right:-7, background:'var(--accent)', color:'white', borderRadius:100, fontSize:9, fontWeight:700, padding:'0px 4px', minWidth:14, textAlign:'center' }}>{badge}</span>}
+                  </span>
+                  <span style={{ fontSize:10, fontWeight:active?700:500 }}>{n.label}</span>
+                </button>
+              );
+            })}
+            <button onClick={() => setMoreOpen(v => !v)} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:3, background:'none', border:'none', cursor:'pointer', color:moreOpen?'var(--accent)':'var(--text-muted)', padding:'4px 0' }}>
+              <Icon name="grid" size={21} c={moreOpen?'var(--accent)':'var(--text-muted)'}/>
+              <span style={{ fontSize:10, fontWeight:moreOpen?700:500 }}>More</span>
+            </button>
+          </nav>
+
+          {moreOpen && (
+            <div onClick={() => setMoreOpen(false)} style={{ position:'fixed', inset:0, zIndex:29, background:'rgba(26,23,20,0.3)' }}>
+              <div onClick={e => e.stopPropagation()} style={{ position:'absolute', bottom:78, left:12, right:12, background:'var(--bg)', borderRadius:18, border:'1px solid var(--border)', padding:12, boxShadow:'0 -8px 40px rgba(26,23,20,0.2)', display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:8 }}>
+                {NAV.filter(n => !MOBILE_PRIMARY.includes(n.key)).map(n => {
+                  const active = tab===n.key;
+                  return (
+                    <button key={n.key} onClick={() => handleTabChange(n.key)} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:8, padding:'16px 8px', borderRadius:12, border:'1px solid var(--border)', cursor:'pointer', background:active?'var(--accent-tint,#f7e9df)':'var(--bg-alt)', color:active?'var(--accent)':'var(--text)' }}>
+                      <Icon name={n.icon} size={20} c={active?'var(--accent)':'var(--text-muted)'}/>
+                      <span style={{ fontSize:11.5, fontWeight:active?700:500 }}>{n.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
-};
+}
 
-export { DashboardPage };
+export default DashboardPage;

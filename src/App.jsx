@@ -9,6 +9,7 @@ import { HowItWorksPage, TrackOrderPage, AboutPage, FAQPage, ContactPage, Privac
 import { VerifyPage } from './pages/VerifyPage.jsx';
 import { CheckoutFlow } from './pages/Checkout.jsx';
 import { DashboardPage } from './pages/dashboard/DashboardPage.jsx';
+import { NotFoundPage } from './pages/NotFoundPage.jsx';
 
 const FooterComponent = ({ navigate }) => {
   const { isMobile } = useResponsive();
@@ -138,7 +139,7 @@ const parsePath = () => {
   if (route === 'dashboard') return { page: param ? `dashboard-${param}` : 'dashboard', param: null };
   const known = ['home', 'how-it-works', 'about', 'faq', 'contact', 'cart', 'checkout', 'privacy', 'terms', 'refund', 'verify'];
   if (known.includes(route)) return { page: route, param: null };
-  return { page: 'home', param: null };
+  return { page: 'not-found', param: null };
 };
 
 const toPath = (page, param) => {
@@ -218,6 +219,34 @@ const App = () => {
     window.scrollTo({ top: 0, behavior: 'instant' });
   }, [page]);
 
+  // ── Anonymous analytics ────────────────────────────────────────────────────
+  // Session ID persists for the browser tab — no cookies, no PII stored
+  const sessionId = React.useMemo(() => {
+    try {
+      let id = sessionStorage.getItem('certo_sid');
+      if (!id) { id = Math.random().toString(36).slice(2) + Date.now().toString(36); sessionStorage.setItem('certo_sid', id); }
+      return id;
+    } catch(_) { return Math.random().toString(36).slice(2); }
+  }, []);
+
+  const trackEvent = React.useCallback((eventType, extra = {}) => {
+    // Don't track admin dashboard activity
+    if (page && page.startsWith('dashboard')) return;
+    fetch('/api/analytics', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event_type: eventType, session_id: sessionId, referrer: document.referrer || null, ...extra }),
+    }).catch(() => {});
+  }, [sessionId, page]);
+
+  // Fire pageview on every route change
+  React.useEffect(() => {
+    if (!page.startsWith('dashboard')) {
+      trackEvent('pageview', { page: window.location.pathname });
+    }
+  }, [page]); // eslint-disable-line react-hooks/exhaustive-deps
+  // ──────────────────────────────────────────────────────────────────────────
+
   const navigate = (target, param = null) => {
     const path = toPath(target, param);
     if (window.location.pathname !== path) {
@@ -243,6 +272,7 @@ const App = () => {
       return [...prev, { ...item, qty: 1 }];
     });
     setLastAdded({ ...item, _ts: Date.now() });
+    trackEvent('add_to_cart', { product_id: item.product?.id, product_name: item.product?.name, page: window.location.pathname });
   };
 
   const updateCartItemQty = (productId, variantId, applecareid, delta) => {
@@ -271,7 +301,7 @@ const App = () => {
         return <ShopPage navigate={navigate} addToCart={addToCart} initialType={pageParam} />;
 
       case 'product':
-        return <ProductDetailPage productId={pageParam} navigate={navigate} addToCart={addToCart} />;
+        return <ProductDetailPage productId={pageParam} navigate={navigate} addToCart={addToCart} trackEvent={trackEvent} />;
 
       case 'how-it-works':
         return <HowItWorksPage navigate={navigate} />;
@@ -305,24 +335,41 @@ const App = () => {
         return <CheckoutFlow cart={cart} navigate={navigate} clearCart={clearCart} updateCartItemQty={updateCartItemQty} />;
 
       case 'dashboard':
+      case 'dashboard-overview':
+      case 'dashboard-orders':
       case 'dashboard-products':
       case 'dashboard-forex':
       case 'dashboard-revenue':
       case 'dashboard-customers':
       case 'dashboard-certificates':
+      case 'dashboard-messages':
+      case 'dashboard-coupons':
+      case 'dashboard-analytics':
+      case 'dashboard-activity':
       case 'dashboard-refunds': {
-        const subPage = page.startsWith('dashboard-') ? page.replace('dashboard-', '') : 'orders';
-        return <DashboardPage navigate={navigate} subPage={subPage} liveRate={liveRate} rateFetched={rateFetched} />;
+        const subPage = page.startsWith('dashboard-') ? page.replace('dashboard-', '') : 'overview';
+        const handleRateChange = (newRate) => {
+          const r = Number(newRate);
+          if (!r || r < 100) return;
+          setCERTO_RATE(r);
+          setLiveRate(r);
+          setRateFetched(new Date());
+          try {
+            localStorage.setItem('certo_rate', String(r));
+            localStorage.setItem('certo_rate_ts', String(Date.now()));
+          } catch(_) {}
+        };
+        return <DashboardPage navigate={navigate} subPage={subPage} liveRate={liveRate} rateFetched={rateFetched} onRateChange={handleRateChange} />;
       }
 
       default:
-        return <HomePage navigate={navigate} />;
+        return <NotFoundPage navigate={navigate} />;
     }
   };
 
   return (
     <div>
-      <NavComponent page={page} navigate={navigate} cartCount={cartCount} lastAdded={lastAdded} cart={cart} />
+      {!isDashboard && <NavComponent page={page} navigate={navigate} cartCount={cartCount} lastAdded={lastAdded} cart={cart} />}
       <main>{renderPage()}</main>
       {!isDashboard && <FooterComponent navigate={navigate} />}
     </div>

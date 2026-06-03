@@ -56,4 +56,7 @@ pool.queryR(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS variant_color TEXT`).ca
 pool.queryR(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS variant_storage TEXT`).catch(() => {});
 pool.queryR(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS variant_color_hex TEXT`).catch(() => {});
 
+// Auto-migrate: admin soft-delete (hide) for orders
+pool.queryR(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS admin_hidden BOOLEAN DEFAULT false`).catch(() => {});
+
 module.exports = pool;

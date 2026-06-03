@@ -17,8 +17,8 @@ router.post('/', async (req, res) => {
        VALUES ($1, $2, $3) RETURNING id, created_at`,
       [name.trim(), email.trim(), message.trim()],
     );
-    // Internal notification — fire-and-forget, non-fatal
-    sendContactNotification({ name, email, message, created_at: rows[0].created_at })
+    // Internal notifications — both awaited so Vercel doesn't kill the function before they complete
+    await sendContactNotification({ name, email, message, created_at: rows[0].created_at })
       .catch(err => console.error('[notify] contact email failed:', err.message));
 
     const waText = `💬 New contact message!\n\nFrom: ${name} <${email}>\n\n${message}`;
@@ -54,7 +54,7 @@ router.patch('/:id', adminAuth, async (req, res) => {
     );
     if (!rows.length) return res.status(404).json({ error: 'Message not found' });
     const action = read ? 'Marked message as read' : 'Marked message as unread';
-    logAdminAction(req.adminName, action, `From: ${rows[0].name} <${rows[0].email}>`).catch(() => {});
+    await logAdminAction(req.adminName, action, `From: ${rows[0].name} <${rows[0].email}>`);
     res.json(rows[0]);
   } catch (err) {
     res.status(500).json({ error: 'Failed to update message' });
@@ -66,7 +66,7 @@ router.delete('/:id', adminAuth, async (req, res) => {
   try {
     const { rows: pre } = await pool.queryR('SELECT name, email FROM contact_messages WHERE id = $1', [req.params.id]);
     await pool.queryR('DELETE FROM contact_messages WHERE id = $1', [req.params.id]);
-    logAdminAction(req.adminName, 'Deleted contact message', `From: ${pre[0]?.name || '?'} <${pre[0]?.email || '?'}>`).catch(() => {});
+    await logAdminAction(req.adminName, 'Deleted contact message', `From: ${pre[0]?.name || '?'} <${pre[0]?.email || '?'}>`);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: 'Failed to delete message' });

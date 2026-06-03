@@ -172,7 +172,7 @@ function Certificate({ isMobile }) {
           </div>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--subtle)', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 4 }}>Total paid</div>
-            <div style={{ fontFamily: 'var(--font-head)', fontWeight: 800, fontSize: 20, color: 'var(--accent)', letterSpacing: '-0.02em' }}>₦1,745,820</div>
+            <div style={{ fontFamily: 'var(--font-num)', fontWeight: 800, fontSize: 20, color: 'var(--accent)', letterSpacing: '-0.02em' }}>₦1,745,820</div>
           </div>
         </div>
       </div>
@@ -239,6 +239,32 @@ function SectionHero({ navigate }) {
           </span>{' '}
           To you.
         </h1>
+
+        {/* Hero CTAs */}
+        <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 48 }}>
+          <button onClick={() => navigate('shop')} style={{
+            display: 'inline-flex', alignItems: 'center', gap: 10,
+            background: 'var(--accent)', color: 'white',
+            border: 'none', borderRadius: 14,
+            padding: isMobile ? '14px 28px' : '16px 36px',
+            fontFamily: 'var(--font-body)', fontWeight: 700,
+            fontSize: isMobile ? 15 : 16, cursor: 'pointer',
+            letterSpacing: '-0.01em',
+          }}>
+            Shop Apple →
+          </button>
+          <button onClick={() => navigate('track')} style={{
+            display: 'inline-flex', alignItems: 'center', gap: 10,
+            background: 'transparent', color: 'var(--ink)',
+            border: '1.5px solid var(--border)', borderRadius: 14,
+            padding: isMobile ? '14px 28px' : '16px 36px',
+            fontFamily: 'var(--font-body)', fontWeight: 600,
+            fontSize: isMobile ? 15 : 16, cursor: 'pointer',
+            letterSpacing: '-0.01em',
+          }}>
+            Track your order
+          </button>
+        </div>
 
         <div style={{
           borderTop: '1px solid var(--hairline)', paddingTop: 32,
@@ -695,7 +721,7 @@ function SectionCatalog({ navigate }) {
                 }}>
                   <div style={{
                     height: isMobile ? 160 : 220,
-                    background: 'var(--cream)',
+                    background: '#ffffff',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     borderBottom: '1px solid var(--hairline)', position: 'relative',
                   }}>
@@ -735,7 +761,7 @@ function SectionCatalog({ navigate }) {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: isMobile ? 8 : 0 }}>
                       <div>
                         <div style={{
-                          fontFamily: 'var(--font-head)', fontWeight: 800,
+                          fontFamily: 'var(--font-num)', fontWeight: 800,
                           fontSize: isMobile ? 16 : 22, color: 'var(--ink)',
                           letterSpacing: '-0.02em', lineHeight: 1,
                         }}>₦{ngn.toLocaleString()}</div>
@@ -852,7 +878,7 @@ function SectionForex() {
 
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 8, flexWrap: 'wrap' }}>
             <span style={{
-              fontFamily: 'var(--font-head)', fontWeight: 800,
+              fontFamily: 'var(--font-num)', fontWeight: 800,
               fontSize: isMobile ? 60 : 92,
               color: 'white', letterSpacing: '-0.04em', lineHeight: 1,
             }}>₦{rate.toLocaleString()}</span>

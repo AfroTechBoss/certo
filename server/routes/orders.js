@@ -1,7 +1,7 @@
 const express = require('express');
 const router  = express.Router();
 const pool    = require('../db');
-const { sendOrderConfirmation, sendStatusUpdate, sendCancellationEmail, sendPaymentPendingEmail, sendPaymentPendingNairaEmail, sendNewOrderNotification, sendWhatsAppNotification } = require('../email');
+const { sendOrderConfirmation, sendStatusUpdate, sendCancellationEmail, sendPaymentPendingEmail, sendPaymentPendingNairaEmail, sendWhatsAppNotification } = require('../email');
 const { adminAuth } = require('../adminAuth');
 const logAdminAction = require('../logAdminAction');
 const logOrderEvent  = require('../logAdminAction'); // same helper, aliased for clarity
@@ -100,14 +100,12 @@ router.post('/', async (req, res) => {
       }
     }
 
-    // Internal notifications — Telegram must be awaited so Vercel doesn't kill the fetch before it completes
-    sendNewOrderNotification(order).catch(err => console.error('[notify] new order email failed:', err.message));
-
+    // Internal notification — Telegram only (email alert removed, Telegram is sufficient)
     const waText = `🛍️ New Certo order!\n\nOrder: ${order.id}\nCustomer: ${order.customer_name}\nPhone: ${order.customer_phone}\nProduct: ${order.product_name}${order.product_subtitle ? ' ' + order.product_subtitle : ''}\nAmount: $${Number(order.usd_price).toLocaleString('en-US', { minimumFractionDigits: 2 })} USD\nPayment: ${order.payment_method}\nStatus: ${order.status}`;
     await sendWhatsAppNotification(waText).catch(err => console.error('[notify] Telegram notification failed:', err.message));
 
     // Log new order (System actor so it stands out from admin actions)
-    logOrderEvent('System', 'New order placed', `${id} — ${customer_name} — ${product_name}${product_subtitle ? ' ' + product_subtitle : ''} — $${usd_price}`).catch(() => {});
+    await logOrderEvent('System', 'New order placed', `${id} — ${customer_name} — ${product_name}${product_subtitle ? ' ' + product_subtitle : ''} — $${usd_price}`);
 
     res.status(201).json({ id: order.id, order });
   } catch (err) {
@@ -216,20 +214,28 @@ router.post('/:id/resend-email', adminAuth, async (req, res) => {
     const { rows } = await pool.queryR('SELECT * FROM orders WHERE id = $1', [req.params.id]);
     if (!rows.length) return res.status(404).json({ error: 'Order not found' });
     const order = rows[0];
+
+    // Defensively parse `items` — Neon returns JSONB as objects, but TEXT columns
+    // return raw strings; normalise both so the email template never throws
+    if (typeof order.items === 'string') {
+      try { order.items = JSON.parse(order.items); } catch(_) { order.items = []; }
+    }
+    if (!Array.isArray(order.items)) order.items = [];
+
     await sendOrderConfirmation(order);
     await pool.queryR('UPDATE orders SET email_sent = true, updated_at = NOW() WHERE id = $1', [req.params.id]);
-    logAdminAction(req.adminName, 'Resent confirmation email', `Order ${req.params.id} → ${order.customer_email}`).catch(() => {});
+    await logAdminAction(req.adminName, 'Resent confirmation email', `Order ${req.params.id} → ${order.customer_email}`);
     res.json({ ok: true, message: `Confirmation email sent to ${order.customer_email}` });
   } catch (err) {
-    console.error('Resend email failed for', req.params.id, ':', err.message);
-    res.status(500).json({ error: err.message });
+    console.error('Resend email failed for', req.params.id, ':', err.message, err.stack);
+    res.status(500).json({ error: err.message || 'Failed to send email' });
   }
 });
 
 // PATCH /api/orders/:id  (admin — update status, flag, notes)
 router.patch('/:id', adminAuth, async (req, res) => {
   try {
-    const allowed = ['status', 'flagged', 'flag_reason', 'notes'];
+    const allowed = ['status', 'flagged', 'flag_reason', 'notes', 'admin_hidden'];
     const fields  = Object.keys(req.body).filter(k => allowed.includes(k));
     if (!fields.length) return res.status(400).json({ error: 'Nothing to update' });
 
@@ -256,14 +262,17 @@ router.patch('/:id', adminAuth, async (req, res) => {
 
     const updated = rows[0];
 
-    // Log the admin action
+    // Log the admin action (awaited before responding so Vercel doesn't kill it)
     if (req.body.status && req.body.status !== prevStatus) {
-      logAdminAction(req.adminName, 'Updated order status', `Order ${updated.id}: ${prevStatus} → ${req.body.status}`).catch(() => {});
+      await logAdminAction(req.adminName, 'Updated order status', `Order ${updated.id}: ${prevStatus} → ${req.body.status}`);
     } else if (req.body.flagged !== undefined) {
       const action = req.body.flagged ? 'Flagged order' : 'Unflagged order';
-      logAdminAction(req.adminName, action, `Order ${updated.id}${req.body.flag_reason ? ': ' + req.body.flag_reason : ''}`).catch(() => {});
+      await logAdminAction(req.adminName, action, `Order ${updated.id}${req.body.flag_reason ? ': ' + req.body.flag_reason : ''}`);
     } else if (req.body.notes !== undefined) {
-      logAdminAction(req.adminName, 'Updated order notes', `Order ${updated.id}`).catch(() => {});
+      await logAdminAction(req.adminName, 'Updated order notes', `Order ${updated.id}`);
+    } else if (req.body.admin_hidden !== undefined) {
+      const action = req.body.admin_hidden ? 'Deleted order' : 'Restored hidden order';
+      await logAdminAction(req.adminName, action, `Order ${updated.id}`);
     }
 
     // Await emails before responding — on Vercel serverless, fire-and-forget is killed when

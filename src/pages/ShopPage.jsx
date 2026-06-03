@@ -64,7 +64,7 @@ const ProductCard = ({ product, navigate, compact }) => {
       }}
     >
       <div style={{
-        height: compact ? 120 : 200, background: 'var(--bg-alt)',
+        height: compact ? 120 : 200, background: '#ffffff',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         borderBottom: '1px solid var(--border)', position: 'relative', overflow: 'hidden',
       }}>
@@ -119,7 +119,7 @@ const ProductCard = ({ product, navigate, compact }) => {
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4 }}>
           <div>
-            <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: compact ? 15 : 22, color: 'var(--text)' }}>
+            <div style={{ fontFamily: 'var(--font-num)', fontWeight: 700, fontSize: compact ? 15 : 22, color: 'var(--text)' }}>
               {fmt(product.usdPrice)}
             </div>
             {!compact && <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)' }}>US: ${product.usdPrice.toLocaleString()}</div>}
@@ -165,6 +165,18 @@ const ShopPage = ({ navigate, addToCart, initialType }) => {
     return () => clearTimeout(t);
   }, [searchInput]);
 
+  // Track search queries for analytics (fires after debounce settles, min 2 chars)
+  React.useEffect(() => {
+    if (!search || search.trim().length < 2) return;
+    let sid = '';
+    try { sid = sessionStorage.getItem('certo_sid') || ''; } catch(_) {}
+    fetch('/api/analytics', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event_type: 'product_search', product_name: search.trim().toLowerCase(), page: '/shop', session_id: sid }),
+    }).catch(() => {});
+  }, [search]);
+
   // Close filter panel on outside click
   React.useEffect(() => {
     if (!filterOpen) return;
@@ -180,10 +192,20 @@ const ShopPage = ({ navigate, addToCart, initialType }) => {
     if (typeFilter !== 'All') params.set('category', typeFilter === 'MacBook' ? 'Mac' : typeFilter);
     if (condFilter !== 'All') params.set('condition', condFilter === 'Refurbished' ? 'refurb' : condFilter.toLowerCase());
     if (search)               params.set('search', search);
-    if (sort !== 'featured')  params.set('sort', sort === 'price-asc' ? 'price_asc' : 'price_desc');
+    if (sort === 'price-asc')      params.set('sort', 'price_asc');
+    else if (sort === 'price-desc') params.set('sort', 'price_desc');
+    else if (sort === 'best')       params.set('sort', 'best_sellers');
     fetch(`/api/products?${params}`)
       .then(r => { setTotalCount(parseInt(r.headers.get('X-Total-Count') || '0', 10)); return r.json(); })
-      .then(data => { setProducts((Array.isArray(data) ? data : []).map(normaliseProduct)); setLoading(false); })
+      .then(data => {
+        const mapped = (Array.isArray(data) ? data : []).map(normaliseProduct);
+        setProducts(mapped);
+        setLoading(false);
+        // If exactly one result and search was a 5-digit code → jump straight to it
+        if (/^\d{5}$/.test((search || '').trim()) && mapped.length === 1) {
+          navigate && navigate('product', mapped[0].id);
+        }
+      })
       .catch(() => setLoading(false));
   }, [typeFilter, condFilter, search, sort, page]);
 
@@ -298,7 +320,8 @@ const ShopPage = ({ navigate, addToCart, initialType }) => {
               background: 'var(--bg)', fontFamily: 'var(--font-body)', fontSize: 14,
               color: 'var(--text)', cursor: 'pointer', outline: 'none',
             }}>
-              <option value="featured">Sort: Featured</option>
+              <option value="featured">Sort: Default</option>
+              <option value="best">Best sellers</option>
               <option value="price-asc">Price: Low → High</option>
               <option value="price-desc">Price: High → Low</option>
             </select>
@@ -405,7 +428,7 @@ const ShopPage = ({ navigate, addToCart, initialType }) => {
 
 // ─── Product Detail ────────────────────────────────────────────────────────────
 
-const ProductDetailPage = ({ productId, navigate, addToCart }) => {
+const ProductDetailPage = ({ productId, navigate, addToCart, trackEvent }) => {
   const { isMobile } = useResponsive();
   const [product, setProduct] = React.useState(null);
   const [related, setRelated] = React.useState([]);
@@ -423,6 +446,8 @@ const ProductDetailPage = ({ productId, navigate, addToCart }) => {
       .then(data => {
         const p = normaliseProduct(data);
         setProduct(p);
+        // Track product view
+        if (trackEvent) trackEvent('product_view', { product_id: p.id, product_name: p.name, page: window.location.pathname });
         // Auto-select first color and first storage independently
         setSelectedColor(p.variants?.colors?.[0]?.id || null);
         setSelectedStorage(p.variants?.storages?.[0]?.id || null);
@@ -525,7 +550,7 @@ const ProductDetailPage = ({ productId, navigate, addToCart }) => {
         {/* Left: product display */}
         <div>
           <div style={{
-            height: isMobile ? 260 : 440, background: 'var(--bg-alt)', borderRadius: 24,
+            height: isMobile ? 260 : 440, background: '#ffffff', borderRadius: 24,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             border: '1px solid var(--border)', marginBottom: displayImages.length > 1 ? 12 : 20,
             overflow: 'hidden',
@@ -550,7 +575,7 @@ const ProductDetailPage = ({ productId, navigate, addToCart }) => {
                 <button key={i} onClick={() => setSelectedImg(i)} style={{
                   width: 72, height: 72, flexShrink: 0, borderRadius: 12,
                   border: `2px solid ${selectedImg === i ? 'var(--accent)' : 'var(--border)'}`,
-                  background: 'var(--bg-alt)', overflow: 'hidden', cursor: 'pointer', padding: 4,
+                  background: '#ffffff', overflow: 'hidden', cursor: 'pointer', padding: 4,
                 }}>
                   <img src={url} alt={`${product.name} – view ${i + 1}`} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                 </button>
@@ -589,7 +614,7 @@ const ProductDetailPage = ({ productId, navigate, addToCart }) => {
           <div style={{ display: 'flex', gap: 32, alignItems: 'flex-end', marginBottom: 8 }}>
             <div>
               <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Certo price</div>
-              <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: isMobile ? 30 : 38, color: 'var(--text)', letterSpacing: '-0.02em' }}>
+              <div style={{ fontFamily: 'var(--font-num)', fontWeight: 700, fontSize: isMobile ? 30 : 38, color: 'var(--text)', letterSpacing: '-0.02em' }}>
                 {fmt(displayPrice)}
               </div>
             </div>
@@ -707,7 +732,7 @@ const ProductDetailPage = ({ productId, navigate, addToCart }) => {
             )}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
               <span style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 18, color: 'var(--text)' }}>Total</span>
-              <span style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 24, color: 'var(--text)' }}>{fmt(totalUsd)}</span>
+              <span style={{ fontFamily: 'var(--font-num)', fontWeight: 700, fontSize: 24, color: 'var(--text)' }}>{fmt(totalUsd)}</span>
             </div>
           </div>
 

@@ -12,29 +12,86 @@
 
 require('dotenv').config();
 const nodemailer = require('nodemailer');
+const dnsPromises = require('dns').promises;
 
-const transporter = nodemailer.createTransport({
-  host:   process.env.SMTP_HOST,
-  port:   parseInt(process.env.SMTP_PORT || '465'),
-  secure: process.env.SMTP_SECURE !== 'false',
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-  tls: { rejectUnauthorized: false },
-});
+// ── SMTP host resolution ────────────────────────────────────────────────────
+// Node's system DNS can drop EDNS queries, causing every sendMail to time out.
+// We resolve the hostname once (with Google DNS as fallback) and cache the IP.
+// A new transporter is built with the resolved IP for every send so nodemailer
+// never has to do its own DNS lookup.
 
-transporter.verify((err) => {
-  if (err) console.error('[email] SMTP connection failed:', err.message);
-  else console.log('[email] SMTP ready on', process.env.SMTP_HOST);
-});
+const _SMTP_HOSTNAME = process.env.SMTP_HOST || '';
+let   _smtpIp        = null;   // set once after first successful resolution
+let   _resolvePromise = null;  // deduplicate concurrent resolve attempts
+
+async function _resolveSmtpHost() {
+  if (_smtpIp) return _smtpIp;
+  if (_resolvePromise) return _resolvePromise;
+
+  _resolvePromise = (async () => {
+    // Already an IP — use as-is
+    if (!_SMTP_HOSTNAME || /^\d{1,3}(\.\d{1,3}){3}$/.test(_SMTP_HOSTNAME)) {
+      _smtpIp = _SMTP_HOSTNAME;
+      return _smtpIp;
+    }
+    try {
+      const resolver = new dnsPromises.Resolver();
+      resolver.setServers(['8.8.8.8', '8.8.4.4', '1.1.1.1']);
+      const [ip] = await resolver.resolve4(_SMTP_HOSTNAME);
+      _smtpIp = ip;
+      console.log(`[email] SMTP resolved: ${_SMTP_HOSTNAME} → ${ip}`);
+    } catch (e) {
+      console.warn('[email] DNS resolve failed, falling back to hostname:', e.message);
+      _smtpIp = _SMTP_HOSTNAME; // best-effort fallback
+    }
+    return _smtpIp;
+  })();
+
+  return _resolvePromise;
+}
+
+// Resolve at startup so it's ready before the first request
+_resolveSmtpHost().catch(() => {});
+
+function _makeTransporter(host) {
+  return nodemailer.createTransport({
+    host,
+    port:   parseInt(process.env.SMTP_PORT || '465'),
+    secure: process.env.SMTP_SECURE !== 'false',
+    auth:   { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+    tls:    { rejectUnauthorized: false, servername: _SMTP_HOSTNAME },
+    connectionTimeout: 10000,
+    greetingTimeout:   10000,
+    socketTimeout:     20000,
+  });
+}
+
+// sendMail — always uses the resolved IP, falls back to hostname if resolution
+// hasn't completed yet. This is the single send path used everywhere.
+async function sendMail(opts) {
+  const host = await _resolveSmtpHost();
+  return _makeTransporter(host).sendMail(opts);
+}
+
+// transporter shim — lets adminLog.js keep its `transporter.sendMail(...)` call
+const transporter = {
+  sendMail: (opts) => sendMail(opts),
+};
+
+// Startup connectivity log (non-fatal)
+_resolveSmtpHost().then(host => {
+  _makeTransporter(host).verify((err) => {
+    if (err) console.error('[email] SMTP verify failed:', err.message);
+    else     console.log('[email] SMTP ready —', _SMTP_HOSTNAME, '(' + host + ')');
+  });
+}).catch(() => {});
 
 const WA_NUM = process.env.WHATSAPP_NUMBER || '2348057575906';
 const SITE   = process.env.FRONTEND_URL    || 'https://certo.ng';
 
 // Internal notification recipients — comma-separated list in env var
 // Falls back to the hardcoded defaults so it works without any env change
-const NOTIFY_EMAILS = (process.env.NOTIFY_EMAILS || 'chidile@leak.ng,chidileozoemena@gmail.com,afrotechboss@yahoo.com')
+const NOTIFY_EMAILS = (process.env.NOTIFY_EMAILS || 'chidile@certo.ng,chidileozoemena@gmail.com')
   .split(',').map(e => e.trim()).filter(Boolean);
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -53,8 +110,8 @@ const fmtUsd = (n) => `$${Number(n).toLocaleString('en-US', { minimumFractionDig
 
 // Tokens
 const C = {
-  cream:      '#f2f0ec',
-  card:       '#faf9f7',
+  cream:      '#f6f6f6',
+  card:       '#ffffff',
   ink:        '#1a1714',
   muted:      '#706b60',
   subtle:     '#9a9387',

@@ -11,19 +11,19 @@ const { generateToken, parseAccounts } = require('./adminAuth');
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
-// CORS — only accept requests from the live site, preview domain, and local dev
+// CORS — allow the live site, any *.certo.ng subdomain (covers preview/beta/oma/etc.), and local dev
 const allowedOrigins = [
   'https://certo.ng',
   'https://www.certo.ng',
-  'https://preview.certo.ng',
-  'https://beta.certo.ng',
   'http://localhost:3000',
   'http://localhost:5173',
 ];
 app.use(cors({
   origin: (origin, cb) => {
-    // Allow server-to-server (no origin) and known origins
-    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    // Allow server-to-server (no origin), known exact origins, and any *.certo.ng subdomain
+    if (!origin) return cb(null, true);
+    if (allowedOrigins.includes(origin)) return cb(null, true);
+    if (/^https:\/\/[a-z0-9-]+\.certo\.ng$/.test(origin)) return cb(null, true);
     cb(new Error('CORS: origin not allowed'));
   },
 }));
@@ -50,7 +50,7 @@ const publicLimiter = rateLimit({
 
 // Admin login — validates password against ADMIN_ACCOUNTS (format: "Name:pass,Name2:pass2")
 // Returns a signed 30-day token (name embedded) + the admin's display name
-app.post('/api/admin/login', loginLimiter, (req, res) => {
+app.post('/api/admin/login', loginLimiter, async (req, res) => {
   const { password } = req.body;
   if (!password) return res.status(400).json({ error: 'Password required' });
 
@@ -73,10 +73,10 @@ app.post('/api/admin/login', loginLimiter, (req, res) => {
 
   if (!matchedName) return res.status(401).json({ error: 'Incorrect password' });
 
-  // Fire-and-forget login log
+  // Log sign-in before responding so Vercel doesn't kill it
   try {
     const logAdminAction = require('./logAdminAction');
-    logAdminAction(matchedName, 'Signed in', '').catch(() => {});
+    await logAdminAction(matchedName, 'Signed in', '');
   } catch(_) {}
 
   res.json({ token: generateToken(matchedName), name: matchedName });
@@ -92,6 +92,7 @@ app.use('/api/orders',        publicLimiter, require('./routes/orders'));
 app.use('/api/coupons',       publicLimiter, require('./routes/coupons'));
 app.use('/api/contact',       publicLimiter, require('./routes/contact'));
 app.use('/api/certificates',  publicLimiter, require('./routes/certificates'));
+app.use('/api/analytics',     publicLimiter, require('./routes/analytics'));
 app.use('/api/admin/logs',    require('./routes/adminLog'));
 
 // POST /api/admin/event  — lightweight client-side event logger
@@ -99,11 +100,16 @@ app.use('/api/admin/logs',    require('./routes/adminLog'));
 // (e.g. opening an order detail, overriding the forex rate)
 const { adminAuth: _adminAuth } = require('./adminAuth');
 const _logEvent = require('./logAdminAction');
-app.post('/api/admin/event', _adminAuth, (req, res) => {
+app.post('/api/admin/event', _adminAuth, async (req, res) => {
   const { action, details } = req.body;
   if (!action) return res.status(400).json({ error: 'action required' });
-  _logEvent(req.adminName, action, details || '').catch(() => {});
+  await _logEvent(req.adminName, action, details || '');
   res.json({ ok: true });
+});
+
+// Health check — used by dashboard uptime monitor
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', ts: Date.now() });
 });
 
 // Public config — exposes non-secret keys needed by the frontend
@@ -122,8 +128,44 @@ app.get('/api/config', (req, res) => {
 // Idempotent — safe to run on every cold start; uses IF NOT EXISTS / IF NOT EXISTS column
 async function runMigrations() {
   try {
+    // Migration tracking table — records one-time data migrations so they never re-run
+    await pool.queryR(`
+      CREATE TABLE IF NOT EXISTS schema_migrations (
+        key        TEXT PRIMARY KEY,
+        applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
     // Add status_timeline JSONB column to orders (tracks a timestamped log of every status change)
     await pool.queryR(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS status_timeline JSONB DEFAULT '[]'`);
+
+    // Add sort_order to products for manual drag-to-reorder
+    await pool.queryR(`ALTER TABLE products ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0`);
+
+    // Add unique 5-digit marketing code to each product
+    await pool.queryR(`ALTER TABLE products ADD COLUMN IF NOT EXISTS code INTEGER UNIQUE`);
+    // Assign codes to existing products that don't have one yet
+    const { rows: uncodedProds } = await pool.queryR(
+      `SELECT id FROM products WHERE code IS NULL ORDER BY created_at ASC`
+    );
+    if (uncodedProds.length > 0) {
+      const { rows: usedCodes } = await pool.queryR(`SELECT code FROM products WHERE code IS NOT NULL`);
+      const used = new Set(usedCodes.map(r => Number(r.code)));
+      let next = 10000;
+      for (const { id } of uncodedProds) {
+        while (used.has(next)) next++;
+        await pool.queryR(`UPDATE products SET code = $1 WHERE id = $2`, [next, id]);
+        used.add(next);
+        next++;
+      }
+      console.log(`[migrations] ✓ assigned 5-digit codes to ${uncodedProds.length} products`);
+    }
+    // Initialise sort_order from creation order (only for rows still at 0)
+    await pool.queryR(`
+      UPDATE products SET sort_order = sub.rn
+      FROM (SELECT id, ROW_NUMBER() OVER (ORDER BY created_at ASC) AS rn FROM products WHERE sort_order = 0) sub
+      WHERE products.id = sub.id
+    `);
 
     // Certificates table
     await pool.queryR(`
@@ -150,6 +192,53 @@ async function runMigrations() {
         forex_rate        NUMERIC NOT NULL DEFAULT 0
       )
     `);
+
+    // Admin activity log table
+    await pool.queryR(`
+      CREATE TABLE IF NOT EXISTS admin_logs (
+        id         SERIAL PRIMARY KEY,
+        admin_name TEXT        NOT NULL,
+        action     TEXT        NOT NULL,
+        details    TEXT        NOT NULL DEFAULT '',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await pool.queryR(`CREATE INDEX IF NOT EXISTS admin_logs_created_idx ON admin_logs (created_at DESC)`);
+
+    // Analytics events table
+    await pool.queryR(`
+      CREATE TABLE IF NOT EXISTS analytics_events (
+        id           BIGSERIAL PRIMARY KEY,
+        event_type   VARCHAR(50)  NOT NULL,
+        page         VARCHAR(500),
+        product_id   VARCHAR(100),
+        product_name VARCHAR(255),
+        session_id   VARCHAR(100),
+        country      VARCHAR(10),
+        region       VARCHAR(100),
+        city         VARCHAR(150),
+        referrer     VARCHAR(500),
+        created_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+      )
+    `);
+    await pool.queryR(`CREATE INDEX IF NOT EXISTS ae_created_idx  ON analytics_events (created_at DESC)`);
+    await pool.queryR(`CREATE INDEX IF NOT EXISTS ae_type_idx     ON analytics_events (event_type)`);
+    await pool.queryR(`CREATE INDEX IF NOT EXISTS ae_session_idx  ON analytics_events (session_id)`);
+    await pool.queryR(`CREATE INDEX IF NOT EXISTS ae_page_idx     ON analytics_events (page)`);
+
+    // One-time: apply 7% selling-price margin to all products
+    // Each product's usd_price is multiplied by 1.07 so the 7% markup is baked into what customers pay.
+    // Tracked in schema_migrations so it never runs a second time.
+    const { rows: pmCheck } = await pool.queryR(
+      `SELECT 1 FROM schema_migrations WHERE key = 'price_margin_v1'`
+    );
+    if (!pmCheck.length) {
+      const { rowCount } = await pool.queryR(
+        `UPDATE products SET usd_price = ROUND(usd_price * 1.07, 2) WHERE usd_price > 0`
+      );
+      await pool.queryR(`INSERT INTO schema_migrations (key) VALUES ('price_margin_v1')`);
+      console.log(`[migrations] ✓ price_margin_v1: raised usd_price +7% on ${rowCount} products`);
+    }
 
     console.log('[migrations] ✓ schema up to date');
   } catch (err) {

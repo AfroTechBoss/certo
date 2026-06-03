@@ -153,11 +153,11 @@ router.post('/', adminAuth, async (req, res) => {
       finalUsd, finalNgn, finalRate,
     ]);
 
-    logAdminAction(
+    await logAdminAction(
       req.adminName,
       status === 'published' ? 'Published certificate' : 'Created draft certificate',
       `${id} — order ${orderId} — ${product_name}`,
-    ).catch(() => {});
+    );
 
     res.status(201).json(rows[0]);
   } catch (err) {
@@ -222,11 +222,11 @@ router.patch('/:id', adminAuth, async (req, res) => {
       values,
     );
 
-    logAdminAction(
+    await logAdminAction(
       req.adminName,
       publishing ? 'Published certificate' : 'Updated certificate',
       `${req.params.id} — order ${cert.order_id}`,
-    ).catch(() => {});
+    );
 
     res.json(rows[0]);
   } catch (err) {
@@ -243,7 +243,7 @@ router.delete('/:id', adminAuth, async (req, res) => {
       [req.params.id],
     );
     if (!rows.length) return res.status(404).json({ error: 'Certificate not found' });
-    logAdminAction(req.adminName, 'Deleted certificate', `${rows[0].id} — order ${rows[0].order_id}`).catch(() => {});
+    await logAdminAction(req.adminName, 'Deleted certificate', `${rows[0].id} — order ${rows[0].order_id}`);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: 'Failed to delete certificate' });
