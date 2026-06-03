@@ -2034,6 +2034,14 @@ function ProductsTab({ isMobile, products, onProductUpdate }) {
     onProductUpdate && onProductUpdate(mapped);
   };
 
+  const deleteProduct = async (p) => {
+    if (!window.confirm(`Delete "${p.name}"? This cannot be undone.`)) return;
+    try {
+      const res = await authFetch(`/api/products/${p.id}`, { method: 'DELETE' });
+      if (res.ok) setLocalProds(prev => prev.filter(x => x.id !== p.id));
+    } catch(e) { console.error(e); }
+  };
+
   return (
     <>
       {editId && <ProductEditModal productId={editId} onClose={() => setEditId(null)} onDone={handleEditDone}/>}
@@ -2063,7 +2071,11 @@ function ProductsTab({ isMobile, products, onProductUpdate }) {
                     <div style={{ textAlign:'right', flexShrink:0 }}>
                       <div style={{ fontFamily:'var(--font-num)', fontWeight:800, fontSize:16, color:'var(--text)' }}>{fmtU(p.usdPrice)}</div>
                       <div style={{ fontSize:12, color:p.stock===0?'oklch(55% 0.18 25)':'var(--text-muted)', marginTop:4 }}>{p.stock} in stock</div>
-                      <button onClick={() => setEditId(p.id)} style={{ ...miniBtn, marginTop:8 }}>Edit</button>
+                      <div style={{ display:'flex', gap:6, marginTop:8, justifyContent:'flex-end' }}>
+                        {p.listingStatus==='live' && <a href={`/shop/${p.id}`} target="_blank" rel="noreferrer" style={{ ...miniBtn, textDecoration:'none' }}>View ↗</a>}
+                        <button onClick={() => setEditId(p.id)} style={miniBtn}>Edit</button>
+                        <button onClick={() => deleteProduct(p)} style={{ ...miniBtn, color:'oklch(50% 0.18 25)', borderColor:'oklch(88% 0.08 25)' }}>Delete</button>
+                      </div>
                     </div>
                   </div>
                 </Panel>
@@ -2088,7 +2100,13 @@ function ProductsTab({ isMobile, products, onProductUpdate }) {
                         <td style={{ ...tdS, fontSize:13 }}>{fmtU(p.usdPrice)}</td>
                         <td style={{ ...tdS, color:p.stock===0?'oklch(55% 0.18 25)':'var(--text)', fontWeight:600 }}>{p.stock}</td>
                         <td style={tdS}><span style={{ padding:'3px 9px', borderRadius:6, background:st.bg, color:st.fg, fontSize:11, fontWeight:700, whiteSpace:'nowrap' }}>{st.label}</span></td>
-                        <td style={tdS}><button onClick={() => setEditId(p.id)} style={miniBtn}>Edit</button></td>
+                        <td style={{ ...tdS, whiteSpace:'nowrap' }}>
+                          <div style={{ display:'flex', gap:6 }}>
+                            {p.listingStatus==='live' && <a href={`/shop/${p.id}`} target="_blank" rel="noreferrer" style={{ ...miniBtn, textDecoration:'none' }}>View ↗</a>}
+                            <button onClick={() => setEditId(p.id)} style={miniBtn}>Edit</button>
+                            <button onClick={() => deleteProduct(p)} style={{ ...miniBtn, color:'oklch(50% 0.18 25)', borderColor:'oklch(88% 0.08 25)' }}>Delete</button>
+                          </div>
+                        </td>
                       </tr>
                     );
                   })}

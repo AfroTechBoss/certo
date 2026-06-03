@@ -165,4 +165,18 @@ router.patch('/:id', adminAuth, async (req, res) => {
   }
 });
 
+// DELETE /api/products/:id  (admin)
+router.delete('/:id', adminAuth, async (req, res) => {
+  try {
+    const { rows: pre } = await pool.queryR('SELECT name FROM products WHERE id = $1', [req.params.id]);
+    if (!pre.length) return res.status(404).json({ error: 'Product not found' });
+    await pool.queryR('DELETE FROM products WHERE id = $1', [req.params.id]);
+    await logAdminAction(req.adminName, 'Deleted product', `"${pre[0].name}"`);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('DELETE /products/:id:', err);
+    res.status(500).json({ error: 'Failed to delete product' });
+  }
+});
+
 module.exports = router;
