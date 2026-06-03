@@ -124,7 +124,7 @@ const C = {
   sageTint:   '#dff1e6',
 };
 
-const FONT_HEAD = "'Plus Jakarta Sans', Georgia, 'Times New Roman', serif";
+const FONT_HEAD = "'Syne', Georgia, 'Times New Roman', serif";
 const FONT_BODY = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif";
 // Inline style shorthand — every Syne element must include font-weight:800 explicitly
 // so the bold weight is applied as soon as the font loads (or if it falls back to Georgia)
@@ -136,7 +136,7 @@ const SYNE800 = `font-family:${FONT_HEAD};font-weight:800;letter-spacing:-0.02em
 const HEAD_STYLES = `
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <style>
   body { margin:0; padding:0; background:${C.cream}; font-family:${FONT_BODY}; -webkit-font-smoothing:antialiased; color:${C.ink}; }
   a { color:${C.accent}; text-decoration:none; }

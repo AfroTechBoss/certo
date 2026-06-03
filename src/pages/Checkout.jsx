@@ -260,7 +260,7 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
 
                 {/* Price */}
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 18, color: 'var(--text)' }}>
+                  <div style={{ fontFamily: 'var(--font-num)', fontWeight: 700, fontSize: 18, color: 'var(--text)' }}>
                     {fmt(lineTotal)}
                   </div>
                   {qty > 1 && (
@@ -329,7 +329,7 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
           <div style={{ padding: '20px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 20, color: 'var(--text)' }}>Order Total</span>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 26, color: 'var(--text)' }}>{fmt(totalUsd)}</div>
+              <div style={{ fontFamily: 'var(--font-num)', fontWeight: 700, fontSize: 26, color: 'var(--text)' }}>{fmt(totalUsd)}</div>
               <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)' }}>${totalUsd.toLocaleString()} USD</div>
             </div>
           </div>
@@ -388,7 +388,7 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0 0' }}>
           <span style={{ fontFamily: 'var(--font-head)', fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>You pay today</span>
-          <span style={{ fontFamily: 'var(--font-head)', fontSize: 22, fontWeight: 700, color: 'var(--accent)' }}>{fmt(totalUsd)}</span>
+          <span style={{ fontFamily: 'var(--font-num)', fontSize: 22, fontWeight: 700, color: 'var(--accent)' }}>{fmt(totalUsd)}</span>
         </div>
       </div>
 

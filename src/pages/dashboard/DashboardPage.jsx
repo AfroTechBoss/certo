@@ -222,7 +222,7 @@ const StatCard = ({ label, value, sub, delta, deltaUp, spark, sparkColor, accent
     </div>
     <div style={{ display:'flex', alignItems:'flex-end', justifyContent:'space-between', gap:12 }}>
       <div>
-        <div style={{ fontFamily:'var(--font-head)', fontWeight:800, fontSize:30, color:accent||'var(--text)', letterSpacing:'-0.025em', lineHeight:1 }}>{value}</div>
+        <div style={{ fontFamily:'var(--font-num)', fontWeight:800, fontSize:30, color:accent||'var(--text)', letterSpacing:'-0.025em', lineHeight:1 }}>{value}</div>
         {(sub||delta) && (
           <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:8 }}>
             {delta && <span style={{ display:'inline-flex', alignItems:'center', gap:2, fontFamily:'var(--font-body)', fontSize:12, fontWeight:700, color:deltaUp?'oklch(50% 0.16 155)':'oklch(55% 0.18 25)' }}>{deltaUp?'↑':'↓'} {delta}</span>}
@@ -289,7 +289,7 @@ const AreaChart = ({ data, xKey='day', yKey='views', color='var(--accent)', heig
       {hp && (
         <div style={{ position:'absolute', left:`${(tooltipX/W)*100}%`, top: tooltipAbove ? 'auto' : '8px', bottom: tooltipAbove ? '32px' : 'auto', transform:'translateX(-50%)', pointerEvents:'none', background:'var(--ink,#1a1714)', color:'white', borderRadius:9, padding:'8px 14px', fontSize:12, fontWeight:700, whiteSpace:'nowrap', boxShadow:'0 4px 16px rgba(26,23,20,0.25)', zIndex:10 }}>
           <div style={{ fontSize:10, fontWeight:500, color:'rgba(255,255,255,0.6)', marginBottom:2 }}>{hp.d[xKey]}</div>
-          <div style={{ fontSize:14, fontFamily:'var(--font-head)', fontWeight:800 }}>{fmt(hp.d[yKey])}</div>
+          <div style={{ fontSize:14, fontFamily:'var(--font-num)', fontWeight:800 }}>{fmt(hp.d[yKey])}</div>
         </div>
       )}
     </div>
@@ -326,12 +326,12 @@ const DonutChart = ({ segments, total: totalLabel }) => {
           ))}
           {hov ? (
             <>
-              <text x="50" y="44" textAnchor="middle" fontSize="13" fontWeight="800" fill="var(--text)" fontFamily="var(--font-head)">{hov.value}</text>
+              <text x="50" y="44" textAnchor="middle" fontSize="13" fontWeight="800" fill="var(--text)" fontFamily="var(--font-num)">{hov.value}</text>
               <text x="50" y="56" textAnchor="middle" fontSize="6.5" fill="var(--text-muted)" fontFamily="var(--font-body)" letterSpacing="0.06em">{Math.round((hov.value/total)*100)}%</text>
             </>
           ) : (
             <>
-              <text x="50" y="47" textAnchor="middle" fontSize="15" fontWeight="800" fill="var(--text)" fontFamily="var(--font-head)">{total>=1000?(total/1000).toFixed(1)+'k':total}</text>
+              <text x="50" y="47" textAnchor="middle" fontSize="15" fontWeight="800" fill="var(--text)" fontFamily="var(--font-num)">{total>=1000?(total/1000).toFixed(1)+'k':total}</text>
               <text x="50" y="60" textAnchor="middle" fontSize="7" fill="var(--text-muted)" fontFamily="var(--font-body)" letterSpacing="0.1em">{totalLabel||'TOTAL'}</text>
             </>
           )}
@@ -435,7 +435,7 @@ function OverviewTab({ isMobile, setTab, orders, revenueSeries, messages, produc
       </div>
 
       <div style={{ display:'grid', gridTemplateColumns:isMobile?'1fr':'1.6fr 1fr', gap:16 }}>
-        <Panel title="Revenue trend" action={<span style={{ fontFamily:'var(--font-head)', fontWeight:800, fontSize:18, color:'var(--text)' }}>{revTotal}</span>}>
+        <Panel title="Revenue trend" action={<span style={{ fontFamily:'var(--font-num)', fontWeight:800, fontSize:18, color:'var(--text)' }}>{revTotal}</span>}>
           <AreaChart data={revenueSeries} xKey="day" yKey="ngn" height={200}/>
         </Panel>
         <Panel title="Orders by status">
@@ -464,7 +464,7 @@ function OverviewTab({ isMobile, setTab, orders, revenueSeries, messages, produc
                 <div style={{ fontSize:12, color:'var(--text-muted)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{o.product}</div>
               </div>
               {!isMobile && <StatusPill status={o.status}/>}
-              <div style={{ fontFamily:'var(--font-head)', fontWeight:700, fontSize:13.5, color:'var(--text)', flexShrink:0 }}>{fmtN(o.ngn)}</div>
+              <div style={{ fontFamily:'var(--font-num)', fontWeight:700, fontSize:13.5, color:'var(--text)', flexShrink:0 }}>{fmtN(o.ngn)}</div>
             </div>
           )) : <Empty label="No orders yet"/>}
         </Panel>
@@ -834,7 +834,7 @@ function OrdersTab({ isMobile, orders, onOrdersChange, certificates, products, r
               <div key={o.id} onClick={() => setSel(o)} style={{ padding:'14px 18px', borderTop:i?'1px solid var(--border)':'none', cursor:'pointer' }}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
                   <span style={{ fontFamily:'var(--font-body)', fontWeight:700, fontSize:13, color:'var(--accent)' }}>{o.flag&&'🚩 '}{o.id}</span>
-                  <span style={{ fontFamily:'var(--font-head)', fontWeight:700, fontSize:14, color:'var(--text)' }}>{fmtN(o.ngn)}</span>
+                  <span style={{ fontFamily:'var(--font-num)', fontWeight:700, fontSize:14, color:'var(--text)' }}>{fmtN(o.ngn)}</span>
                 </div>
                 <div style={{ fontSize:13.5, fontWeight:600, color:'var(--text)', marginBottom:2 }}>{o.customer}</div>
                 <div style={{ fontSize:12, color:'var(--text-muted)', marginBottom:8 }}>{o.product}</div>
@@ -860,7 +860,7 @@ function OrdersTab({ isMobile, orders, onOrdersChange, certificates, products, r
                     <td style={{ ...tdS, maxWidth:180, color:'var(--text-muted)', fontSize:12.5 }}><div style={{ whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{o.product}</div>{o.items.length>1&&<span style={{ color:'var(--accent)', fontSize:11 }}>+{o.items.length-1} more</span>}</td>
                     <td style={tdS}><StatusPill status={o.status}/></td>
                     <td style={tdS}><PayPill method={o.payment_method}/></td>
-                    <td style={{ ...tdS, fontFamily:'var(--font-head)', fontWeight:700, color:'var(--text)' }}>{fmtN(o.ngn)}</td>
+                    <td style={{ ...tdS, fontFamily:'var(--font-num)', fontWeight:700, color:'var(--text)' }}>{fmtN(o.ngn)}</td>
                     <td style={tdS}><Icon name="chevron" size={15} c="var(--accent)"/></td>
                   </tr>
                 ))}
@@ -1933,7 +1933,7 @@ function OrderDetail({ order: initialOrder, onBack, isMobile, onOrdersChange, ex
                     {it.subtitle&&<div style={{ fontSize:12, color:'var(--text-muted)' }}>{it.subtitle}</div>}
                     {it.applecare&&it.applecare!=='none'&&<div style={{ fontSize:12, color:'var(--accent)', marginTop:2 }}>+ {it.applecare}</div>}
                   </div>
-                  <div style={{ fontFamily:'var(--font-head)', fontWeight:700, fontSize:14, color:'var(--text)' }}>{fmtU(it.usd_price*(it.qty||1))}</div>
+                  <div style={{ fontFamily:'var(--font-num)', fontWeight:700, fontSize:14, color:'var(--text)' }}>{fmtU(it.usd_price*(it.qty||1))}</div>
                 </div>
                 {(it.apple_url || it.product_id) && (
                   <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:8 }}>
@@ -2054,7 +2054,7 @@ function ProductsTab({ isMobile, products, onProductUpdate }) {
                       <span style={{ padding:'3px 9px', borderRadius:6, background:st.bg, color:st.fg, fontSize:11, fontWeight:700 }}>{st.label}</span>
                     </div>
                     <div style={{ textAlign:'right', flexShrink:0 }}>
-                      <div style={{ fontFamily:'var(--font-head)', fontWeight:800, fontSize:16, color:'var(--text)' }}>{fmtU(p.usdPrice)}</div>
+                      <div style={{ fontFamily:'var(--font-num)', fontWeight:800, fontSize:16, color:'var(--text)' }}>{fmtU(p.usdPrice)}</div>
                       <div style={{ fontSize:12, color:p.stock===0?'oklch(55% 0.18 25)':'var(--text-muted)', marginTop:4 }}>{p.stock} in stock</div>
                       <button onClick={() => setEditId(p.id)} style={{ ...miniBtn, marginTop:8 }}>Edit</button>
                     </div>
@@ -2351,7 +2351,7 @@ function CouponsTab({ isMobile, coupons: initialCoupons }) {
                     <div style={{ fontFamily:'var(--font-mono,monospace)', fontWeight:700, fontSize:16, color:'var(--text)', letterSpacing:'0.04em', background:'var(--bg-alt)', border:'1px dashed var(--border)', borderRadius:8, padding:'5px 12px' }}>{c.code}</div>
                     <button onClick={() => toggleActive(c)} style={{ padding:'3px 9px', borderRadius:100, fontSize:10.5, fontWeight:700, cursor:'pointer', border:'none', background:c.active?'oklch(93% 0.06 155)':'oklch(94% 0.02 0)', color:c.active?'oklch(35% 0.15 155)':'oklch(50% 0.04 0)' }}>{c.active?'Active':'Inactive'}</button>
                   </div>
-                  <div style={{ fontFamily:'var(--font-head)', fontWeight:800, fontSize:28, color:'var(--accent)', letterSpacing:'-0.02em', marginBottom:2 }}>
+                  <div style={{ fontFamily:'var(--font-num)', fontWeight:800, fontSize:28, color:'var(--accent)', letterSpacing:'-0.02em', marginBottom:2 }}>
                     {c.type==='percent' ? `${c.value}% off` : `₦${Number(c.value).toLocaleString()} off`}
                   </div>
                   {c.description && <div style={{ fontSize:12.5, color:'var(--text-muted)', marginBottom:4 }}>{c.description}</div>}
@@ -2590,7 +2590,7 @@ function ForexTab({ isMobile, liveRate, rateFetched, onRateChange, products }) {
         </div>
 
         <div style={{ display:'flex', alignItems:'baseline', gap:10 }}>
-          <span style={{ fontFamily:'var(--font-head)', fontWeight:800, fontSize:isMobile?48:64, letterSpacing:'-0.04em', lineHeight:1 }}>₦{displayRate.toLocaleString()}</span>
+          <span style={{ fontFamily:'var(--font-num)', fontWeight:800, fontSize:isMobile?48:64, letterSpacing:'-0.04em', lineHeight:1 }}>₦{displayRate.toLocaleString()}</span>
           <span style={{ fontSize:16, color:'rgba(255,255,255,0.5)', fontFamily:'var(--font-mono,monospace)' }}>/ $1</span>
         </div>
 
@@ -2662,7 +2662,7 @@ function ForexTab({ isMobile, liveRate, rateFetched, onRateChange, products }) {
           {products.slice(0,4).map(p => (
             <div key={p.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'7px 0', borderTop:'1px solid var(--border)', fontSize:13, gap:8 }}>
               <span style={{ color:'var(--text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', flex:1 }}>{p.name} {(p.subtitle||'').split('·')[0].trim()}</span>
-              <span style={{ fontFamily:'var(--font-head)', fontWeight:700, color:'var(--text)', flexShrink:0 }}>{fmtN(p.usdPrice * Number(overrideInput || displayRate))}</span>
+              <span style={{ fontFamily:'var(--font-num)', fontWeight:700, color:'var(--text)', flexShrink:0 }}>{fmtN(p.usdPrice * Number(overrideInput || displayRate))}</span>
             </div>
           ))}
           {!products.length && <div style={{ fontSize:13, color:'var(--text-muted)' }}>No products to preview.</div>}
@@ -2715,7 +2715,7 @@ function RevenueTab({ isMobile, orders, revenueSeries }) {
         <StatCard label="Orders"          value={visible.length} sub="this period" accent="var(--accent)" icon={<Icon name="ticket" size={16}/>}/>
       </div>
 
-      <Panel title="Revenue trend" action={<span style={{ fontFamily:'var(--font-head)', fontWeight:800, fontSize:18 }}>{cur==='ngn'?'₦'+(totalNgn/1e6).toFixed(1)+'M':fmtU(totalUsd)}</span>}>
+      <Panel title="Revenue trend" action={<span style={{ fontFamily:'var(--font-num)', fontWeight:800, fontSize:18 }}>{cur==='ngn'?'₦'+(totalNgn/1e6).toFixed(1)+'M':fmtU(totalUsd)}</span>}>
         <AreaChart data={revenueSeries} xKey="day" yKey="ngn" color="oklch(50% 0.15 155)" height={210}/>
       </Panel>
 
@@ -2739,7 +2739,7 @@ function RevenueTab({ isMobile, orders, revenueSeries }) {
                   <tr key={o.id} style={{ borderTop:'1px solid var(--border)' }}>
                     <td style={{ ...tdS, fontWeight:700, color:'var(--accent)' }}>{o.id}</td>
                     <td style={tdS}>{o.customer}</td>
-                    <td style={{ ...tdS, fontFamily:'var(--font-head)', fontWeight:700 }}>{cur==='ngn'?fmtN(o.ngn):fmtU(o.usd)}</td>
+                    <td style={{ ...tdS, fontFamily:'var(--font-num)', fontWeight:700 }}>{cur==='ngn'?fmtN(o.ngn):fmtU(o.usd)}</td>
                     <td style={{ ...tdS, color:'var(--text-muted)' }}>{fmtU(sf.toFixed(0))}</td>
                     <td style={{ ...tdS, color:'var(--text-muted)' }}>{fmtU(pm.toFixed(0))}</td>
                     <td style={{ ...tdS, color:'var(--text-muted)' }}>{fmtN(fxNgn)}</td>
@@ -2791,7 +2791,7 @@ function CustomersTab({ isMobile, orders }) {
                 <div style={{ fontSize:12, color:'var(--text-muted)' }}>{c.orders} order{c.orders>1?'s':''} · {c.last}</div>
               </div>
               <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:6 }}>
-                <div style={{ fontFamily:'var(--font-head)', fontWeight:700, fontSize:14 }}>{fmtN(c.spent)}</div>
+                <div style={{ fontFamily:'var(--font-num)', fontWeight:700, fontSize:14 }}>{fmtN(c.spent)}</div>
                 <button onClick={() => setWaCustomer(c)} style={{ ...miniBtn, background:'oklch(93% 0.08 145)', borderColor:'oklch(80% 0.12 145)', color:'oklch(35% 0.15 145)' }}>💬 WhatsApp</button>
               </div>
             </div>
@@ -2807,7 +2807,7 @@ function CustomersTab({ isMobile, orders }) {
                       <td style={tdS}><div style={{ display:'flex', alignItems:'center', gap:10 }}><CustAvatar name={c.name}/><span style={{ fontWeight:600 }}>{c.name}</span></div></td>
                       <td style={{ ...tdS, color:'var(--text-muted)', fontSize:12.5, fontFamily:'var(--font-mono,monospace)' }}>{c.phone||'—'}</td>
                       <td style={tdS}>{c.orders}</td>
-                      <td style={{ ...tdS, fontFamily:'var(--font-head)', fontWeight:700 }}>{fmtN(c.spent)}</td>
+                      <td style={{ ...tdS, fontFamily:'var(--font-num)', fontWeight:700 }}>{fmtN(c.spent)}</td>
                       <td style={{ ...tdS, color:'var(--text-muted)' }}>{c.last}</td>
                       <td style={tdS}>
                         <button onClick={() => setWaCustomer(c)} style={{ ...miniBtn, background:'oklch(93% 0.08 145)', borderColor:'oklch(80% 0.12 145)', color:'oklch(35% 0.15 145)' }}>💬 WhatsApp</button>

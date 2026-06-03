@@ -119,7 +119,7 @@ const ProductCard = ({ product, navigate, compact }) => {
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4 }}>
           <div>
-            <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: compact ? 15 : 22, color: 'var(--text)' }}>
+            <div style={{ fontFamily: 'var(--font-num)', fontWeight: 700, fontSize: compact ? 15 : 22, color: 'var(--text)' }}>
               {fmt(product.usdPrice)}
             </div>
             {!compact && <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)' }}>US: ${product.usdPrice.toLocaleString()}</div>}
@@ -603,7 +603,7 @@ const ProductDetailPage = ({ productId, navigate, addToCart, trackEvent }) => {
           <div style={{ display: 'flex', gap: 32, alignItems: 'flex-end', marginBottom: 8 }}>
             <div>
               <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Certo price</div>
-              <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: isMobile ? 30 : 38, color: 'var(--text)', letterSpacing: '-0.02em' }}>
+              <div style={{ fontFamily: 'var(--font-num)', fontWeight: 700, fontSize: isMobile ? 30 : 38, color: 'var(--text)', letterSpacing: '-0.02em' }}>
                 {fmt(displayPrice)}
               </div>
             </div>
@@ -721,7 +721,7 @@ const ProductDetailPage = ({ productId, navigate, addToCart, trackEvent }) => {
             )}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
               <span style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 18, color: 'var(--text)' }}>Total</span>
-              <span style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 24, color: 'var(--text)' }}>{fmt(totalUsd)}</span>
+              <span style={{ fontFamily: 'var(--font-num)', fontWeight: 700, fontSize: 24, color: 'var(--text)' }}>{fmt(totalUsd)}</span>
             </div>
           </div>
 
