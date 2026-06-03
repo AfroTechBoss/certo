@@ -172,7 +172,7 @@ function Certificate({ isMobile }) {
           </div>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--subtle)', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 4 }}>Total paid</div>
-            <div style={{ fontFamily: 'var(--font-head)', fontWeight: 800, fontSize: 20, color: 'var(--accent)', letterSpacing: '-0.02em' }}>₦1,745,820</div>
+            <div style={{ fontFamily: 'var(--font-num)', fontWeight: 800, fontSize: 20, color: 'var(--accent)', letterSpacing: '-0.02em' }}>₦1,745,820</div>
           </div>
         </div>
       </div>
@@ -735,7 +735,7 @@ function SectionCatalog({ navigate }) {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: isMobile ? 8 : 0 }}>
                       <div>
                         <div style={{
-                          fontFamily: 'var(--font-head)', fontWeight: 800,
+                          fontFamily: 'var(--font-num)', fontWeight: 800,
                           fontSize: isMobile ? 16 : 22, color: 'var(--ink)',
                           letterSpacing: '-0.02em', lineHeight: 1,
                         }}>₦{ngn.toLocaleString()}</div>
@@ -852,7 +852,7 @@ function SectionForex() {
 
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 8, flexWrap: 'wrap' }}>
             <span style={{
-              fontFamily: 'var(--font-head)', fontWeight: 800,
+              fontFamily: 'var(--font-num)', fontWeight: 800,
               fontSize: isMobile ? 60 : 92,
               color: 'white', letterSpacing: '-0.04em', lineHeight: 1,
             }}>₦{rate.toLocaleString()}</span>
