@@ -162,9 +162,12 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
                : at === 'service'  ? SERVICE_FEE
                : at === 'fees'     ? SERVICE_FEE + deliveryFeeUsd
                /* 'all' or legacy fallback */ : itemsSubtotal + SERVICE_FEE + dangerousFee + deliveryFeeUsd;
-    return couponData.discount_type === 'fixed'
-      ? Math.min(Number(couponData.discount_value), base)
-      : base * (Number(couponData.discount_value) / 100);
+    if (couponData.discount_type === 'fixed') {
+      // discount_value is stored in NGN — convert to USD at the locked rate before applying
+      const discountUsd = CERTO_RATE > 0 ? Number(couponData.discount_value) / CERTO_RATE : 0;
+      return Math.min(discountUsd, base);
+    }
+    return base * (Number(couponData.discount_value) / 100);
   })() : 0;
 
   const totalUsd = itemsSubtotal + SERVICE_FEE + dangerousFee + deliveryFeeUsd - couponDiscount;
