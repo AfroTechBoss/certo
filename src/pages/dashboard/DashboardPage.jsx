@@ -2700,7 +2700,7 @@ function RevenueTab({ isMobile, orders, revenueSeries }) {
   const totalNetNgn  = visible.reduce((s,o) => s+orderEstNetNgn(o), 0);
 
   const netDisplay = cur === 'ngn'
-    ? '₦' + (totalNetNgn / 1000).toFixed(0) + 'k'
+    ? '₦' + Math.round(totalNetNgn / 1000).toLocaleString('en-NG') + 'k'
     : fmtU(totalNetUsd.toFixed(0));
 
   return (
@@ -2711,7 +2711,7 @@ function RevenueTab({ isMobile, orders, revenueSeries }) {
       <div style={{ display:'grid', gridTemplateColumns:isMobile?'1fr 1fr':'repeat(4,1fr)', gap:14 }}>
         <StatCard label="Gross Revenue"   value={cur==='ngn'?'₦'+(totalNgn/1e6).toFixed(1)+'M':fmtU(totalUsd)} spark={revenueSeries.map(r=>r.ngn)} icon={<Icon name="coins" size={16}/>}/>
         <StatCard label="Est. Net Profit" value={netDisplay} sub="fee + 7% + forex" accent="oklch(45% 0.15 155)" icon={<Icon name="pulse" size={16}/>}/>
-        <StatCard label="Avg Order Value" value={visible.length?(cur==='ngn'?'₦'+(totalNgn/visible.length/1000).toFixed(0)+'k':fmtU((totalUsd/visible.length).toFixed(0))):'—'} icon={<Icon name="box" size={16}/>}/>
+        <StatCard label="Avg Order Value" value={visible.length?(cur==='ngn'?'₦'+Math.round(totalNgn/visible.length/1000).toLocaleString('en-NG')+'k':fmtU((totalUsd/visible.length).toFixed(0))):'—'} icon={<Icon name="box" size={16}/>}/>
         <StatCard label="Orders"          value={visible.length} sub="this period" accent="var(--accent)" icon={<Icon name="ticket" size={16}/>}/>
       </div>
 
@@ -2780,7 +2780,7 @@ function CustomersTab({ isMobile, orders }) {
         <div style={{ display:'grid', gridTemplateColumns:isMobile?'1fr 1fr':'repeat(3,1fr)', gap:14 }}>
           <StatCard label="Total Customers" value={customers.length} icon={<Icon name="users" size={16}/>}/>
           <StatCard label="Repeat Buyers"   value={customers.filter(c=>c.orders>1).length} accent="var(--accent)" sub="more than 1 order" icon={<Icon name="pulse" size={16}/>}/>
-          <StatCard label="Avg Lifetime"    value={customers.length?'₦'+(customers.reduce((s,c)=>s+c.spent,0)/customers.length/1000).toFixed(0)+'k':'—'} accent="oklch(45% 0.15 155)" icon={<Icon name="coins" size={16}/>}/>
+          <StatCard label="Avg Lifetime"    value={customers.length?'₦'+Math.round(customers.reduce((s,c)=>s+c.spent,0)/customers.length/1000).toLocaleString('en-NG')+'k':'—'} accent="oklch(45% 0.15 155)" icon={<Icon name="coins" size={16}/>}/>
         </div>
         <Panel pad={0}>
           {isMobile ? customers.map((c,i) => (
