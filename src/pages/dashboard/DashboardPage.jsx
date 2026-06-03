@@ -1406,7 +1406,11 @@ function ProductEditModal({ productId, onClose, onDone }) {
                   </label>
                 </div>
                 <div style={{ fontSize:13, color:'var(--text-muted)', padding:'8px 12px', background:'var(--bg-alt)', borderRadius:8, border:'1px solid var(--border)' }}>
-                  NGN at current rate: <strong style={{ color:'var(--text)' }}>₦{form.usd_price ? (Number(form.usd_price)*rate).toLocaleString('en-NG') : '0'}</strong>
+                  {form.usd_price ? <>
+                    Customers see: <strong style={{ color:'var(--text)' }}>${(Number(form.usd_price)*1.07).toFixed(2)}</strong>
+                    {' · '}₦{Math.round(Number(form.usd_price)*1.07*rate).toLocaleString('en-NG')}
+                    <span style={{ marginLeft:6, fontSize:11, color:'var(--accent)' }}>+7% margin applied</span>
+                  </> : 'Enter a price to see customer-facing amount'}
                 </div>
               </>}
 
@@ -1534,15 +1538,18 @@ function ProductCreateModal({ onClose, onDone }) {
     if (!form.usd_price)   { setErr('USD price is required.');    setActiveTab('basic'); return; }
     setErr(''); setBusy(true);
     try {
+      // Apply 7% selling-price margin to base cost before saving
+      const applyMargin = (p) => Math.round(Number(p) * 1.07 * 100) / 100;
+
       const hasVariants = form.variants.colors.length > 0 || form.variants.storages.length > 0;
       const variants = hasVariants ? {
         colors:   form.variants.colors.map(c => ({ ...c, images: typeof c.images === 'string' ? c.images.split('\n').map(s=>s.trim()).filter(Boolean) : (c.images||[]) })),
-        storages: form.variants.storages.map(s => ({ ...s, price_usd: Number(s.price_usd) })),
+        storages: form.variants.storages.map(s => ({ ...s, price_usd: applyMargin(s.price_usd) })),
       } : [];
 
       const res  = await authFetch('/api/products', { method: 'POST', body: JSON.stringify({
         name: form.name.trim(), subtitle: form.subtitle.trim(), category: form.category,
-        usd_price: Number(form.usd_price), stock_count: Number(form.stock_count),
+        usd_price: applyMargin(form.usd_price), stock_count: Number(form.stock_count),
         in_stock: form.in_stock, condition: form.condition, condition_note: form.condition_note,
         listing_status: form.listing_status, featured: form.featured,
         badge: form.badge.trim(), delivery_days: form.delivery_days.trim(), apple_url: form.apple_url.trim(),
