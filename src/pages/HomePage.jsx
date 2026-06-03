@@ -240,6 +240,32 @@ function SectionHero({ navigate }) {
           To you.
         </h1>
 
+        {/* Hero CTAs */}
+        <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 48 }}>
+          <button onClick={() => navigate('shop')} style={{
+            display: 'inline-flex', alignItems: 'center', gap: 10,
+            background: 'var(--accent)', color: 'white',
+            border: 'none', borderRadius: 14,
+            padding: isMobile ? '14px 28px' : '16px 36px',
+            fontFamily: 'var(--font-body)', fontWeight: 700,
+            fontSize: isMobile ? 15 : 16, cursor: 'pointer',
+            letterSpacing: '-0.01em',
+          }}>
+            Shop Apple →
+          </button>
+          <button onClick={() => navigate('track')} style={{
+            display: 'inline-flex', alignItems: 'center', gap: 10,
+            background: 'transparent', color: 'var(--ink)',
+            border: '1.5px solid var(--border)', borderRadius: 14,
+            padding: isMobile ? '14px 28px' : '16px 36px',
+            fontFamily: 'var(--font-body)', fontWeight: 600,
+            fontSize: isMobile ? 15 : 16, cursor: 'pointer',
+            letterSpacing: '-0.01em',
+          }}>
+            Track your order
+          </button>
+        </div>
+
         <div style={{
           borderTop: '1px solid var(--hairline)', paddingTop: 32,
           display: 'grid',
