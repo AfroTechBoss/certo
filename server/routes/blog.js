@@ -26,7 +26,7 @@ router.get('/', async (req, res) => {
     params.push(Number(limit));
     const { rows } = await pool.queryR(
       `SELECT id, slug, title, excerpt, category, read_time, post_date, featured, tags,
-              related_categories, emoji, published, created_at, updated_at
+              related_categories, emoji, image_url, published, created_at, updated_at
        FROM blog_posts ${where}
        ORDER BY featured DESC, created_at DESC
        LIMIT $${params.length}`,
@@ -69,7 +69,7 @@ router.get('/:slug', async (req, res) => {
 router.post('/', adminAuth, async (req, res) => {
   const {
     slug, title, excerpt, category, read_time, post_date,
-    featured, tags, related_categories, emoji, sections, published,
+    featured, tags, related_categories, emoji, image_url, sections, published,
   } = req.body;
   if (!slug || !title) return res.status(400).json({ error: 'slug and title required' });
 
@@ -77,8 +77,8 @@ router.post('/', adminAuth, async (req, res) => {
     const { rows } = await pool.queryR(
       `INSERT INTO blog_posts
          (slug, title, excerpt, category, read_time, post_date, featured, tags,
-          related_categories, emoji, sections, published)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+          related_categories, emoji, image_url, sections, published)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
        RETURNING *`,
       [
         slug.trim(), title.trim(), excerpt || '', category || 'Buying Guide',
@@ -87,6 +87,7 @@ router.post('/', adminAuth, async (req, res) => {
         JSON.stringify(Array.isArray(tags) ? tags : []),
         JSON.stringify(Array.isArray(related_categories) ? related_categories : []),
         emoji || '📝',
+        image_url || '',
         JSON.stringify(Array.isArray(sections) ? sections : []),
         published !== false,
       ],
@@ -103,7 +104,7 @@ router.post('/', adminAuth, async (req, res) => {
 // PATCH /api/blog/:id  (admin — update)
 router.patch('/:id', adminAuth, async (req, res) => {
   const allowed = ['title', 'excerpt', 'category', 'read_time', 'post_date',
-                   'featured', 'tags', 'related_categories', 'emoji', 'sections', 'published'];
+                   'featured', 'tags', 'related_categories', 'emoji', 'image_url', 'sections', 'published'];
   const fields  = Object.keys(req.body).filter(k => allowed.includes(k));
   if (!fields.length) return res.status(400).json({ error: 'Nothing to update' });
 

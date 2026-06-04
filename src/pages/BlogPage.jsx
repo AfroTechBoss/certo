@@ -42,7 +42,7 @@ function PostCard({ post, navigate, large }) {
       onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 8px 32px rgba(26,23,20,0.1)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
       onMouseLeave={e => { e.currentTarget.style.boxShadow = ''; e.currentTarget.style.transform = ''; }}
     >
-      {/* Emoji hero */}
+      {/* Cover image or emoji */}
       <div style={{
         background: 'var(--accent-tint)',
         width: large && !isMobile ? 220 : '100%',
@@ -50,8 +50,11 @@ function PostCard({ post, navigate, large }) {
         flexShrink: 0,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: large ? 52 : 38,
+        overflow: 'hidden',
       }}>
-        {post.emoji}
+        {post.image_url
+          ? <img src={post.image_url} alt={post.title} style={{ width:'100%', height:'100%', objectFit:'cover', display:'block', minHeight: large && !isMobile ? 160 : 120 }}/>
+          : post.emoji}
       </div>
 
       <div style={{ padding: large ? '28px 32px' : '20px 22px', flex: 1 }}>
@@ -218,9 +221,11 @@ function BlogPost({ slug, allPosts, navigate }) {
             {post.excerpt}
           </p>
 
-          {/* Hero emoji */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: isMobile ? 140 : 180, background: 'var(--accent-tint)', borderRadius: 20, marginBottom: 48, fontSize: isMobile ? 64 : 80 }}>
-            {post.emoji}
+          {/* Hero image or emoji */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: isMobile ? 200 : 320, background: 'var(--accent-tint)', borderRadius: 20, marginBottom: 48, fontSize: isMobile ? 64 : 80, overflow: 'hidden' }}>
+            {post.image_url
+              ? <img src={post.image_url} alt={post.title} style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}/>
+              : post.emoji}
           </div>
 
           {/* Article body */}
@@ -338,7 +343,9 @@ export function GuidesStrip({ posts, navigate, title = 'Recommended Guides', isM
               onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 20px rgba(26,23,20,0.08)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
               onMouseLeave={e => { e.currentTarget.style.boxShadow = ''; e.currentTarget.style.transform = ''; }}
             >
-              <div style={{ fontSize: 28, flexShrink: 0, width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--accent-tint)', borderRadius: 10 }}>{post.emoji}</div>
+              <div style={{ fontSize: 28, flexShrink: 0, width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--accent-tint)', borderRadius: 10, overflow: 'hidden' }}>
+                {post.image_url ? <img src={post.image_url} alt="" style={{ width:44, height:44, objectFit:'cover' }}/> : post.emoji}
+              </div>
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.08em', color: 'var(--accent)', textTransform: 'uppercase', marginBottom: 4 }}>{post.category}</div>
                 <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 14, color: 'var(--text)', lineHeight: 1.3, marginBottom: 4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{post.title}</div>

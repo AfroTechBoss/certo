@@ -100,6 +100,7 @@ app.use('/api/certificates',  publicLimiter, require('./routes/certificates'));
 app.use('/api/analytics',     publicLimiter, require('./routes/analytics'));
 app.use('/api/admin/logs',    require('./routes/adminLog'));
 app.use('/api/blog',          publicLimiter, require('./routes/blog'));
+app.use('/api/refunds',                    require('./routes/refunds'));
 
 // POST /api/admin/event  — lightweight client-side event logger
 // The dashboard calls this for actions that happen entirely on the frontend
@@ -326,6 +327,36 @@ async function runMigrations() {
       } catch(e) { console.warn('[migrations] blog_seed_v2 failed:', e.message); }
       await pool.queryR(`INSERT INTO schema_migrations (key) VALUES ('blog_seed_v2')`);
     }
+
+    // Add image_url to blog posts
+    await pool.queryR(`ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS image_url TEXT NOT NULL DEFAULT ''`);
+
+    // Refunds table — order_id is plain TEXT (no FK) so records survive order deletion
+    await pool.queryR(`
+      CREATE TABLE IF NOT EXISTS refunds (
+        id              SERIAL PRIMARY KEY,
+        order_id        TEXT NOT NULL DEFAULT '',
+        customer_name   TEXT NOT NULL DEFAULT '',
+        customer_email  TEXT NOT NULL DEFAULT '',
+        customer_phone  TEXT NOT NULL DEFAULT '',
+        product_name    TEXT NOT NULL DEFAULT '',
+        amount_ngn      NUMERIC NOT NULL DEFAULT 0,
+        amount_usd      NUMERIC NOT NULL DEFAULT 0,
+        reason          TEXT NOT NULL DEFAULT '',
+        status          TEXT NOT NULL DEFAULT 'pending',
+        payment_method  TEXT NOT NULL DEFAULT 'Bank Transfer',
+        bank_name       TEXT NOT NULL DEFAULT '',
+        account_number  TEXT NOT NULL DEFAULT '',
+        account_name    TEXT NOT NULL DEFAULT '',
+        notes           TEXT NOT NULL DEFAULT '',
+        issued_by       TEXT NOT NULL DEFAULT '',
+        created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await pool.queryR(`CREATE INDEX IF NOT EXISTS refunds_order_idx   ON refunds (order_id)`);
+    await pool.queryR(`CREATE INDEX IF NOT EXISTS refunds_status_idx  ON refunds (status)`);
+    await pool.queryR(`CREATE INDEX IF NOT EXISTS refunds_created_idx ON refunds (created_at DESC)`);
 
     console.log('[migrations] ✓ schema up to date');
   } catch (err) {
