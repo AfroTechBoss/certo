@@ -3309,6 +3309,32 @@ function BlogTab({ isMobile }) {
 const REFUND_STATUSES = ['pending','processing','completed','rejected'];
 const REFUND_METHODS  = ['Bank Transfer','Cash','Paystack Reversal','Flutterwave Reversal','Other'];
 
+const NG_BANKS = [
+  { name: 'Access Bank',     code: '044' },
+  { name: 'Citibank',        code: '023' },
+  { name: 'Ecobank',         code: '050' },
+  { name: 'Fidelity Bank',   code: '070' },
+  { name: 'First Bank',      code: '011' },
+  { name: 'FCMB',            code: '214' },
+  { name: 'GTBank',          code: '058' },
+  { name: 'Heritage Bank',   code: '030' },
+  { name: 'Keystone Bank',   code: '082' },
+  { name: 'Kuda Bank',       code: '090267' },
+  { name: 'Moniepoint',      code: '50515' },
+  { name: 'OPay',            code: '100004' },
+  { name: 'PalmPay',         code: '999991' },
+  { name: 'Polaris Bank',    code: '076' },
+  { name: 'Providus Bank',   code: '101' },
+  { name: 'Stanbic IBTC',    code: '221' },
+  { name: 'Sterling Bank',   code: '232' },
+  { name: 'Union Bank',      code: '032' },
+  { name: 'UBA',             code: '033' },
+  { name: 'Unity Bank',      code: '215' },
+  { name: 'VFD MFB',         code: '566' },
+  { name: 'Wema Bank',       code: '035' },
+  { name: 'Zenith Bank',     code: '057' },
+];
+
 function refundStatusStyle(s) {
   return {
     pending:    { color:'oklch(48% 0.12 60)',  background:'oklch(96% 0.06 60)',  border:'1px solid oklch(82% 0.1 60)'  },
@@ -3337,8 +3363,39 @@ function RefundEditor({ refund, orders, onSave, onCancel, saving, serverError, i
     notes:          refund?.notes          || '',
   });
   const [lookupMsg, setLookupMsg] = useState('');
+  const [bankCode, setBankCode] = useState(
+    () => NG_BANKS.find(b => b.name === refund?.bank_name)?.code || ''
+  );
+  const [acctLookup, setAcctLookup] = useState('idle'); // idle | loading | found | error
+  const [acctLookupMsg, setAcctLookupMsg] = useState('');
+  const didMount = React.useRef(false);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  useEffect(() => {
+    if (!didMount.current) { didMount.current = true; return; }
+    if (form.account_number.replace(/\D/g, '').length !== 10 || !bankCode) return;
+    let cancelled = false;
+    setAcctLookup('loading');
+    setAcctLookupMsg('');
+    set('account_name', '');
+    authFetch(`/api/refunds/resolve-account?account_number=${encodeURIComponent(form.account_number.replace(/\D/g,''))}&bank_code=${encodeURIComponent(bankCode)}`)
+      .then(r => r.json())
+      .then(data => {
+        if (cancelled) return;
+        if (data.account_name) {
+          set('account_name', data.account_name);
+          setAcctLookup('found');
+        } else {
+          setAcctLookup('error');
+          setAcctLookupMsg(data.error || 'Could not verify — enter account name manually.');
+        }
+      })
+      .catch(() => {
+        if (!cancelled) { setAcctLookup('error'); setAcctLookupMsg('Could not verify — enter account name manually.'); }
+      });
+    return () => { cancelled = true; };
+  }, [form.account_number, bankCode]);
 
   const lookupOrder = () => {
     const id = form.order_id.trim();
@@ -3430,17 +3487,49 @@ function RefundEditor({ refund, orders, onSave, onCancel, saving, serverError, i
         <div style={{ display:'grid', gridTemplateColumns:isMobile?'1fr':'1fr 1fr 1fr', gap:14 }}>
           <div>
             <label style={lS}>Bank Name</label>
-            <input value={form.bank_name} onChange={e=>set('bank_name',e.target.value)} style={{...inputS,width:'100%',boxSizing:'border-box'}} placeholder="e.g. GTBank"/>
+            <select
+              value={bankCode}
+              onChange={e => {
+                const b = NG_BANKS.find(b => b.code === e.target.value);
+                setBankCode(e.target.value);
+                set('bank_name', b?.name || '');
+                setAcctLookup('idle');
+                setAcctLookupMsg('');
+              }}
+              style={{...inputS,width:'100%',boxSizing:'border-box'}}
+            >
+              <option value="">-- Select bank --</option>
+              {NG_BANKS.map(b => <option key={b.code} value={b.code}>{b.name}</option>)}
+            </select>
           </div>
           <div>
             <label style={lS}>Account Number</label>
-            <input value={form.account_number} onChange={e=>set('account_number',e.target.value)} style={{...inputS,width:'100%',boxSizing:'border-box'}} placeholder="0123456789"/>
+            <input
+              value={form.account_number}
+              onChange={e => { set('account_number', e.target.value); setAcctLookup('idle'); setAcctLookupMsg(''); }}
+              style={{...inputS,width:'100%',boxSizing:'border-box'}}
+              placeholder="0123456789"
+              maxLength={10}
+            />
           </div>
           <div>
-            <label style={lS}>Account Name</label>
-            <input value={form.account_name} onChange={e=>set('account_name',e.target.value)} style={{...inputS,width:'100%',boxSizing:'border-box'}}/>
+            <label style={lS}>
+              Account Name
+              {acctLookup === 'loading' && <span style={{ fontWeight:400, textTransform:'none', letterSpacing:0, color:'var(--text-muted)', marginLeft:6 }}>Verifying…</span>}
+              {acctLookup === 'found'   && <span style={{ fontWeight:400, textTransform:'none', letterSpacing:0, color:'oklch(40% 0.14 155)', marginLeft:6 }}>✓ Verified</span>}
+            </label>
+            <input
+              value={form.account_name}
+              onChange={e => { set('account_name', e.target.value); setAcctLookup('idle'); }}
+              style={{...inputS,width:'100%',boxSizing:'border-box', opacity: acctLookup==='loading' ? 0.5 : 1}}
+              placeholder={acctLookup === 'loading' ? 'Verifying…' : 'Auto-filled or enter manually'}
+              readOnly={acctLookup === 'loading'}
+            />
           </div>
         </div>
+        {acctLookupMsg && (
+          <div style={{ fontSize:12, color:'oklch(50% 0.18 25)', marginTop:-10 }}>{acctLookupMsg}</div>
+        )}
 
         {/* Reason + notes */}
         <div>

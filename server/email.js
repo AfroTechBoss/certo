@@ -1197,6 +1197,303 @@ async function sendWhatsAppNotification(text) {
   await Promise.allSettled(sends);
 }
 
+// ─── refund initiated ────────────────────────────────────────────────────────
+
+function refundInitiatedHtml(refund) {
+  const {
+    id, customer_name, product_name, amount_ngn, amount_usd,
+    payment_method, bank_name, account_number, account_name,
+  } = refund;
+
+  const firstName = esc((customer_name || 'there').split(' ')[0]);
+  const maskedAcct = account_number
+    ? `&bull;&bull;&bull;&bull;&bull;&bull;${esc(String(account_number).slice(-4))}`
+    : '';
+
+  const inner = `
+  ${masthead()}
+
+  <!-- hero -->
+  <tr>
+    <td class="pad" style="padding:48px 40px 36px;text-align:center;border-bottom:1px solid ${C.hairline};">
+      <table role="presentation" cellpadding="0" cellspacing="0" align="center">
+        <tr><td style="background:${C.accentTint};width:56px;height:56px;border-radius:50%;text-align:center;line-height:56px;">
+          <span style="font-size:24px;">&#8635;</span>
+        </td></tr>
+      </table>
+      <div class="eyebrow" style="margin:24px 0 10px;">Refund initiated</div>
+      <h1 class="syne hero-h1" style="${SYNE800}font-size:36px;color:${C.ink};margin:0 0 14px;line-height:1.1;letter-spacing:-0.03em;">
+        Your refund is<br/>being processed.
+      </h1>
+      <p style="font-size:15px;color:${C.muted};margin:0 auto;line-height:1.7;max-width:420px;">
+        Hi ${firstName} &mdash; we've received your refund request and our team is processing it now.
+      </p>
+    </td>
+  </tr>
+
+  <!-- refund summary -->
+  <tr>
+    <td class="pad" style="padding:32px 40px 0;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${C.cream};border-radius:14px;">
+        <tr>
+          <td style="padding:20px 24px;">
+            <div class="eyebrow" style="margin-bottom:10px;">Refund details</div>
+            ${product_name ? `<div style="font-size:15px;font-weight:700;color:${C.ink};margin-bottom:12px;letter-spacing:-0.01em;">${esc(product_name)}</div>` : ''}
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid ${C.hairline};padding-top:10px;">
+              ${id ? `<tr>
+                <td style="font-size:12px;color:${C.muted};padding:5px 0;">Refund reference</td>
+                <td align="right" style="font-size:12px;color:${C.ink};font-weight:600;padding:5px 0;letter-spacing:0.04em;">#${esc(String(id))}</td>
+              </tr>` : ''}
+              ${amount_ngn ? `<tr>
+                <td style="font-size:12px;color:${C.muted};padding:5px 0;">Amount</td>
+                <td align="right" style="font-size:12px;color:${C.ink};font-weight:700;padding:5px 0;">${fmtNgn(amount_ngn)}</td>
+              </tr>` : ''}
+              ${amount_usd ? `<tr>
+                <td style="font-size:12px;color:${C.muted};padding:5px 0;">Amount (USD)</td>
+                <td align="right" style="font-size:12px;color:${C.ink};font-weight:600;padding:5px 0;">${fmtUsd(amount_usd)}</td>
+              </tr>` : ''}
+              ${payment_method ? `<tr>
+                <td style="font-size:12px;color:${C.muted};padding:5px 0;">Method</td>
+                <td align="right" style="font-size:12px;color:${C.ink};font-weight:600;padding:5px 0;">${esc(payment_method)}</td>
+              </tr>` : ''}
+              ${bank_name ? `<tr>
+                <td style="font-size:12px;color:${C.muted};padding:5px 0;">Bank</td>
+                <td align="right" style="font-size:12px;color:${C.ink};font-weight:600;padding:5px 0;">${esc(bank_name)}</td>
+              </tr>` : ''}
+              ${maskedAcct ? `<tr>
+                <td style="font-size:12px;color:${C.muted};padding:5px 0;">Account</td>
+                <td align="right" style="font-size:12px;color:${C.ink};font-weight:600;padding:5px 0;letter-spacing:0.06em;">${maskedAcct}</td>
+              </tr>` : ''}
+              ${account_name ? `<tr>
+                <td style="font-size:12px;color:${C.muted};padding:5px 0;">Account name</td>
+                <td align="right" style="font-size:12px;color:${C.ink};font-weight:600;padding:5px 0;">${esc(account_name)}</td>
+              </tr>` : ''}
+            </table>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+  <!-- what happens next -->
+  <tr>
+    <td class="pad" style="padding:28px 40px 0;">
+      <div class="eyebrow" style="margin-bottom:16px;">What happens next</div>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td style="vertical-align:top;padding-bottom:14px;">
+            <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+              <td style="font-size:10px;font-weight:700;color:${C.card};background:${C.ink};border-radius:50%;width:20px;height:20px;text-align:center;line-height:20px;letter-spacing:0;padding:0;vertical-align:middle;">1</td>
+              <td style="padding-left:12px;font-size:14px;color:${C.ink};line-height:1.6;">Our team reviews and approves your refund request.</td>
+            </tr></table>
+          </td>
+        </tr>
+        <tr>
+          <td style="vertical-align:top;padding-bottom:14px;">
+            <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+              <td style="font-size:10px;font-weight:700;color:${C.card};background:${C.ink};border-radius:50%;width:20px;height:20px;text-align:center;line-height:20px;letter-spacing:0;padding:0;vertical-align:middle;">2</td>
+              <td style="padding-left:12px;font-size:14px;color:${C.ink};line-height:1.6;">The funds are transferred to your ${bank_name ? esc(bank_name) : 'designated'} account.</td>
+            </tr></table>
+          </td>
+        </tr>
+        <tr>
+          <td style="vertical-align:top;">
+            <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+              <td style="font-size:10px;font-weight:700;color:${C.card};background:${C.ink};border-radius:50%;width:20px;height:20px;text-align:center;line-height:20px;letter-spacing:0;padding:0;vertical-align:middle;">3</td>
+              <td style="padding-left:12px;font-size:14px;color:${C.ink};line-height:1.6;">You'll receive another email once the refund has been sent.</td>
+            </tr></table>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+  <!-- didn't request this? -->
+  <tr>
+    <td class="pad" style="padding:28px 40px 24px;">
+      <div style="border:1px solid ${C.accentTint};background:${C.accentTint};border-radius:14px;padding:24px;">
+        <div class="syne" style="${SYNE800}font-size:18px;color:${C.ink};margin-bottom:8px;">Didn't request this refund?</div>
+        <p style="font-size:14px;color:${C.ink};line-height:1.7;margin:0 0 18px;opacity:0.85;">
+          If you didn't ask for a refund or believe this is an error, please contact us immediately and we'll investigate right away.
+        </p>
+        <a href="mailto:hello@certo.ng" style="display:inline-block;background:${C.ink};color:#fff;font-size:13px;font-weight:600;padding:11px 22px;border-radius:9px;text-decoration:none;margin-right:8px;">Email us</a>
+        <a href="https://wa.me/${WA_NUM}" style="display:inline-block;background:#fff;color:${C.ink};border:1px solid ${C.border};font-size:13px;font-weight:600;padding:10px 22px;border-radius:9px;text-decoration:none;">WhatsApp</a>
+      </div>
+    </td>
+  </tr>
+
+  <!-- soft outro -->
+  <tr>
+    <td class="pad" style="padding:8px 40px 36px;text-align:center;border-bottom:1px solid ${C.hairline};">
+      <p style="font-size:13px;color:${C.muted};line-height:1.7;margin:0;">
+        Questions about your refund?<br/>
+        <a href="mailto:hello@certo.ng" style="color:${C.accent};font-weight:600;">hello@certo.ng</a>
+        &nbsp;&middot;&nbsp;
+        <a href="https://wa.me/${WA_NUM}" style="color:${C.accent};font-weight:600;">WhatsApp</a>
+      </p>
+    </td>
+  </tr>
+
+  ${footerBlock()}
+  `;
+
+  return shell({
+    title: `Refund in progress – Certo`,
+    preheader: `Hi ${firstName}, your refund is being processed. You'll hear from us once it's sent.`,
+    inner,
+  });
+}
+
+async function sendRefundInitiatedEmail(refund) {
+  if (!refund.customer_email) return;
+  const html = refundInitiatedHtml(refund);
+  const firstName = (refund.customer_name || 'there').split(' ')[0];
+  return transporter.sendMail({
+    from:    process.env.SMTP_USER ? `"Certo" <${process.env.SMTP_USER}>` : '"Certo" <noreply@certo.ng>',
+    to:      `${refund.customer_name} <${refund.customer_email}>`,
+    subject: `Your refund is being processed – Certo`,
+    html,
+    text: `Hi ${firstName},\n\nWe've received your refund request and our team is processing it now.\n\nRefund details:\n• ${refund.product_name || 'Your order'}${refund.amount_ngn ? `\n• Amount: ₦${Number(refund.amount_ngn).toLocaleString()}` : ''}${refund.bank_name ? `\n• Bank: ${refund.bank_name}` : ''}${refund.account_number ? `\n• Account: ••••${String(refund.account_number).slice(-4)}` : ''}\n\nYou'll receive another email once the refund has been sent.\n\nIf you didn't request this refund, please contact us immediately:\n• Email: hello@certo.ng\n• WhatsApp: https://wa.me/${WA_NUM}\n\nCerto`,
+  });
+}
+
+// ─── refund completed ────────────────────────────────────────────────────────
+
+function refundCompletedHtml(refund) {
+  const {
+    id, customer_name, product_name, amount_ngn, amount_usd,
+    payment_method, bank_name, account_number, account_name,
+  } = refund;
+
+  const firstName = esc((customer_name || 'there').split(' ')[0]);
+  const maskedAcct = account_number
+    ? `&bull;&bull;&bull;&bull;&bull;&bull;${esc(String(account_number).slice(-4))}`
+    : '';
+
+  const inner = `
+  ${masthead()}
+
+  <!-- hero -->
+  <tr>
+    <td class="pad" style="padding:48px 40px 36px;text-align:center;border-bottom:1px solid ${C.hairline};">
+      <table role="presentation" cellpadding="0" cellspacing="0" align="center">
+        <tr><td style="background:${C.sageTint};width:56px;height:56px;border-radius:50%;text-align:center;line-height:56px;">
+          <span style="font-size:22px;color:${C.sage};">&#10003;</span>
+        </td></tr>
+      </table>
+      <div class="eyebrow" style="margin:24px 0 10px;">Refund complete</div>
+      <h1 class="syne hero-h1" style="${SYNE800}font-size:36px;color:${C.ink};margin:0 0 14px;line-height:1.1;letter-spacing:-0.03em;">
+        Your refund<br/>has been sent.
+      </h1>
+      <p style="font-size:15px;color:${C.muted};margin:0 auto;line-height:1.7;max-width:420px;">
+        Hi ${firstName} &mdash; great news! Your refund has been processed and the funds are on their way to your account.
+      </p>
+    </td>
+  </tr>
+
+  <!-- refund details -->
+  <tr>
+    <td class="pad" style="padding:32px 40px 0;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${C.sageTint};border-radius:14px;">
+        <tr>
+          <td style="padding:20px 24px;">
+            <div class="eyebrow" style="margin-bottom:10px;">Refund details</div>
+            ${product_name ? `<div style="font-size:15px;font-weight:700;color:${C.ink};margin-bottom:12px;letter-spacing:-0.01em;">${esc(product_name)}</div>` : ''}
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid rgba(0,0,0,0.08);padding-top:10px;">
+              ${id ? `<tr>
+                <td style="font-size:12px;color:${C.muted};padding:5px 0;">Refund reference</td>
+                <td align="right" style="font-size:12px;color:${C.ink};font-weight:600;padding:5px 0;letter-spacing:0.04em;">#${esc(String(id))}</td>
+              </tr>` : ''}
+              ${amount_ngn ? `<tr>
+                <td style="font-size:12px;color:${C.muted};padding:5px 0;">Amount refunded</td>
+                <td align="right" style="font-size:14px;color:${C.sage};font-weight:700;padding:5px 0;">${fmtNgn(amount_ngn)}</td>
+              </tr>` : ''}
+              ${amount_usd ? `<tr>
+                <td style="font-size:12px;color:${C.muted};padding:5px 0;">Amount (USD)</td>
+                <td align="right" style="font-size:12px;color:${C.ink};font-weight:600;padding:5px 0;">${fmtUsd(amount_usd)}</td>
+              </tr>` : ''}
+              ${payment_method ? `<tr>
+                <td style="font-size:12px;color:${C.muted};padding:5px 0;">Method</td>
+                <td align="right" style="font-size:12px;color:${C.ink};font-weight:600;padding:5px 0;">${esc(payment_method)}</td>
+              </tr>` : ''}
+              ${bank_name ? `<tr>
+                <td style="font-size:12px;color:${C.muted};padding:5px 0;">Bank</td>
+                <td align="right" style="font-size:12px;color:${C.ink};font-weight:600;padding:5px 0;">${esc(bank_name)}</td>
+              </tr>` : ''}
+              ${maskedAcct ? `<tr>
+                <td style="font-size:12px;color:${C.muted};padding:5px 0;">Account</td>
+                <td align="right" style="font-size:12px;color:${C.ink};font-weight:600;padding:5px 0;letter-spacing:0.06em;">${maskedAcct}</td>
+              </tr>` : ''}
+              ${account_name ? `<tr>
+                <td style="font-size:12px;color:${C.muted};padding:5px 0;">Account name</td>
+                <td align="right" style="font-size:12px;color:${C.ink};font-weight:600;padding:5px 0;">${esc(account_name)}</td>
+              </tr>` : ''}
+            </table>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+  <!-- note -->
+  <tr>
+    <td class="pad" style="padding:28px 40px 0;">
+      <p style="font-size:14px;color:${C.muted};line-height:1.8;margin:0;">
+        Depending on your bank, the funds may take <strong style="color:${C.ink};">1&ndash;3 business days</strong> to reflect in your account.
+        If you have any questions, don't hesitate to reach out.
+      </p>
+    </td>
+  </tr>
+
+  <!-- didn't request this? -->
+  <tr>
+    <td class="pad" style="padding:28px 40px 24px;">
+      <div style="border:1px solid ${C.accentTint};background:${C.accentTint};border-radius:14px;padding:24px;">
+        <div class="syne" style="${SYNE800}font-size:18px;color:${C.ink};margin-bottom:8px;">Didn't request this refund?</div>
+        <p style="font-size:14px;color:${C.ink};line-height:1.7;margin:0 0 18px;opacity:0.85;">
+          If you didn't request a refund or believe this is a mistake, please contact us immediately and we'll look into it right away.
+        </p>
+        <a href="mailto:hello@certo.ng" style="display:inline-block;background:${C.ink};color:#fff;font-size:13px;font-weight:600;padding:11px 22px;border-radius:9px;text-decoration:none;margin-right:8px;">Email us</a>
+        <a href="https://wa.me/${WA_NUM}" style="display:inline-block;background:#fff;color:${C.ink};border:1px solid ${C.border};font-size:13px;font-weight:600;padding:10px 22px;border-radius:9px;text-decoration:none;">WhatsApp</a>
+      </div>
+    </td>
+  </tr>
+
+  <!-- soft outro -->
+  <tr>
+    <td class="pad" style="padding:8px 40px 36px;text-align:center;border-bottom:1px solid ${C.hairline};">
+      <p style="font-size:13px;color:${C.muted};line-height:1.7;margin:0;">
+        Thank you for choosing Certo.<br/>
+        <a href="mailto:hello@certo.ng" style="color:${C.accent};font-weight:600;">hello@certo.ng</a>
+        &nbsp;&middot;&nbsp;
+        <a href="https://wa.me/${WA_NUM}" style="color:${C.accent};font-weight:600;">WhatsApp</a>
+      </p>
+    </td>
+  </tr>
+
+  ${footerBlock()}
+  `;
+
+  return shell({
+    title: `Refund sent – Certo`,
+    preheader: `Hi ${firstName}, your refund has been processed and the funds are on their way.`,
+    inner,
+  });
+}
+
+async function sendRefundCompletedEmail(refund) {
+  if (!refund.customer_email) return;
+  const html = refundCompletedHtml(refund);
+  const firstName = (refund.customer_name || 'there').split(' ')[0];
+  return transporter.sendMail({
+    from:    process.env.SMTP_USER ? `"Certo" <${process.env.SMTP_USER}>` : '"Certo" <noreply@certo.ng>',
+    to:      `${refund.customer_name} <${refund.customer_email}>`,
+    subject: `Your refund has been sent – Certo`,
+    html,
+    text: `Hi ${firstName},\n\nGreat news — your refund has been processed and the funds are on their way.\n\nRefund details:\n• ${refund.product_name || 'Your order'}${refund.amount_ngn ? `\n• Amount: ₦${Number(refund.amount_ngn).toLocaleString()}` : ''}${refund.bank_name ? `\n• Bank: ${refund.bank_name}` : ''}${refund.account_number ? `\n• Account: ••••${String(refund.account_number).slice(-4)}` : ''}\n\nFunds may take 1–3 business days to reflect depending on your bank.\n\nIf you didn't request this refund, please contact us immediately:\n• Email: hello@certo.ng\n• WhatsApp: https://wa.me/${WA_NUM}\n\nThank you for choosing Certo.`,
+  });
+}
+
 module.exports = {
   sendOrderConfirmation,
   sendStatusUpdate,
@@ -1206,6 +1503,8 @@ module.exports = {
   sendNewOrderNotification,
   sendContactNotification,
   sendWhatsAppNotification,
+  sendRefundInitiatedEmail,
+  sendRefundCompletedEmail,
   transporter,
   // expose builders for previewing / testing
   orderConfirmationHtml,
@@ -1213,4 +1512,6 @@ module.exports = {
   cancellationHtml,
   pendingPaymentHtml,
   pendingNairaHtml,
+  refundInitiatedHtml,
+  refundCompletedHtml,
 };
