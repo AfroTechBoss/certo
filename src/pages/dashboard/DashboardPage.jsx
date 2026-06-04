@@ -3374,27 +3374,30 @@ function RefundEditor({ refund, orders, onSave, onCancel, saving, serverError, i
 
   useEffect(() => {
     if (!didMount.current) { didMount.current = true; return; }
-    if (form.account_number.replace(/\D/g, '').length !== 10 || !bankCode) return;
-    let cancelled = false;
+    const digits = form.account_number.replace(/\D/g, '');
+    if (digits.length !== 10 || !bankCode) return;
     setAcctLookup('loading');
     setAcctLookupMsg('');
     set('account_name', '');
-    authFetch(`/api/refunds/resolve-account?account_number=${encodeURIComponent(form.account_number.replace(/\D/g,''))}&bank_code=${encodeURIComponent(bankCode)}`)
-      .then(r => r.json())
-      .then(data => {
-        if (cancelled) return;
-        if (data.account_name) {
-          set('account_name', data.account_name);
-          setAcctLookup('found');
-        } else {
-          setAcctLookup('error');
-          setAcctLookupMsg(data.error || 'Could not verify — enter account name manually.');
-        }
-      })
-      .catch(() => {
-        if (!cancelled) { setAcctLookup('error'); setAcctLookupMsg('Could not verify — enter account name manually.'); }
-      });
-    return () => { cancelled = true; };
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      authFetch(`/api/refunds/resolve-account?account_number=${encodeURIComponent(digits)}&bank_code=${encodeURIComponent(bankCode)}`)
+        .then(r => r.json())
+        .then(data => {
+          if (cancelled) return;
+          if (data.account_name) {
+            set('account_name', data.account_name);
+            setAcctLookup('found');
+          } else {
+            setAcctLookup('error');
+            setAcctLookupMsg(data.error || 'Could not verify — enter name manually.');
+          }
+        })
+        .catch(() => {
+          if (!cancelled) { setAcctLookup('error'); setAcctLookupMsg('Could not verify — enter name manually.'); }
+        });
+    }, 400);
+    return () => { cancelled = true; clearTimeout(timer); };
   }, [form.account_number, bankCode]);
 
   const lookupOrder = () => {
