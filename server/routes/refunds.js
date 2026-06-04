@@ -73,7 +73,16 @@ router.post('/', adminAuth, async (req, res) => {
       req.adminName, 'Created refund',
       `${customer_name}${order_id ? ` (Order ${order_id})` : ''} — ₦${Number(amount_ngn)||0}`,
     );
-    sendRefundInitiatedEmail(rows[0]).catch(err => console.error('[email] refund initiated:', err.message));
+    if (rows[0].customer_email) {
+      try {
+        await sendRefundInitiatedEmail(rows[0]);
+        console.log(`[email] Refund initiated email sent to ${rows[0].customer_email}`);
+      } catch (err) {
+        console.error('[email] Refund initiated email failed:', err);
+      }
+    } else {
+      console.warn('[email] Refund initiated — no customer_email, skipping email');
+    }
     res.status(201).json(rows[0]);
   } catch (err) {
     console.error('POST /refunds:', err.message);
@@ -112,7 +121,16 @@ router.patch('/:id', adminAuth, async (req, res) => {
     await logAdminAction(req.adminName, 'Updated refund', `#${req.params.id}${req.body.status ? ` → ${req.body.status}` : ''}`);
 
     if (req.body.status === 'completed' && prevStatus !== 'completed') {
-      sendRefundCompletedEmail(rows[0]).catch(err => console.error('[email] refund completed:', err.message));
+      if (rows[0].customer_email) {
+        try {
+          await sendRefundCompletedEmail(rows[0]);
+          console.log(`[email] Refund completed email sent to ${rows[0].customer_email}`);
+        } catch (err) {
+          console.error('[email] Refund completed email failed:', err);
+        }
+      } else {
+        console.warn('[email] Refund completed — no customer_email, skipping email');
+      }
     }
 
     res.json(rows[0]);
