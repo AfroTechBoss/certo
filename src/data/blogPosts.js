@@ -350,24 +350,540 @@ export const BLOG_POSTS = [
       },
     ],
   },
+
+  {
+    slug: 'best-iphone-for-your-budget-nigeria-2025',
+    title: 'Best iPhone for Your Budget in Nigeria — 2025 Guide',
+    excerpt: 'From ₦400,000 to ₦2,000,000+, there is a right iPhone for every budget. Here is how to pick the one that makes the most sense for you.',
+    category: 'Buying Guide',
+    readTime: '7 min read',
+    date: 'May 2025',
+    featured: false,
+    tags: ['iPhone', 'Budget', 'Buying Guide', '2025'],
+    relatedCategories: ['iPhone'],
+    emoji: '💡',
+    sections: [
+      {
+        heading: 'Under ₦700,000 — iPhone 13',
+        body: [
+          'The iPhone 13 remains one of the best value iPhones you can buy in 2025. It still runs the latest iOS, the camera is genuinely excellent for everyday use, and the battery life is solid. If you are buying new-to-iPhone or upgrading from a device older than iPhone 11, this is the sweet spot.',
+          'What you get: 6.1-inch OLED, A15 Bionic (the same chip as the iPhone 14), Dual 12MP cameras, Ceramic Shield front, 5G. What you miss: Dynamic Island, 48MP camera, USB-C, always-on display.',
+        ],
+      },
+      {
+        heading: '₦700,000 – ₦1,100,000 — iPhone 14 or 15',
+        body: [
+          'The iPhone 14 is a modest upgrade over the 13 — same chip, similar cameras, slightly bigger battery. Unless you find a great deal on a 14, spend the extra to get the iPhone 15 in this range.',
+          'The iPhone 15 (standard model) brings USB-C charging, a 48MP main camera, and the Dynamic Island cutout from the Pro models. It is a meaningful upgrade over any iPhone before it. For most people, the iPhone 15 is the best all-around iPhone in 2025.',
+        ],
+      },
+      {
+        heading: '₦1,100,000 – ₦1,600,000 — iPhone 15 Pro',
+        body: [
+          'The iPhone 15 Pro is the first "real" Pro iPhone that most people actually need to think about. The A17 Pro chip is significantly faster than anything before it, the camera system with 3x optical zoom is genuinely better for photography, and the titanium build feels premium without the weight of stainless steel.',
+          'The Action Button replaces the mute switch and can be customised to launch the camera, toggle focus modes, or run a Shortcut. For creators, the ProRes video recording is a game-changer if you edit on a Mac.',
+        ],
+      },
+      {
+        heading: 'Above ₦1,600,000 — iPhone 15 Pro Max',
+        body: [
+          'The Pro Max gets you the 5x telephoto periscope lens — a genuine upgrade for portrait photography and distant subjects. The 6.7-inch screen is also notably better than the 6.1-inch base Pro, and battery life is exceptional.',
+          'Be honest: if you do not actively use zoom in photography, the Pro Max\'s main advantage is screen size and battery. For most people, the 15 Pro is a better value unless you specifically need the larger size.',
+        ],
+      },
+      {
+        heading: 'Refurbished iPhones — The Certo Advantage',
+        body: 'All Certo refurbished iPhones are Grade A — meaning they have no visible scratches or dents and retain full battery health above 85%. We source directly from Apple\'s certified refurbishment programme, verify every serial number, and include a 6-month warranty. A Grade A refurbished iPhone 15 Pro from Certo costs 20–30% less than a new unit while being functionally identical.',
+      },
+    ],
+  },
+
+  {
+    slug: 'how-to-transfer-data-to-new-iphone-nigeria',
+    title: 'How to Transfer Everything to Your New iPhone (Step by Step)',
+    excerpt: 'Switching from Android or upgrading from an older iPhone? This guide walks you through every method — iCloud, Quick Start, and manual transfer.',
+    category: 'Tips & Tricks',
+    readTime: '6 min read',
+    date: 'May 2025',
+    featured: false,
+    tags: ['iPhone', 'Setup', 'Transfer', 'iCloud', 'Switch from Android'],
+    relatedCategories: ['iPhone'],
+    emoji: '🔄',
+    sections: [
+      {
+        heading: 'Method 1: Quick Start (iPhone to iPhone — easiest)',
+        body: [
+          'Quick Start works when you are upgrading from one iPhone to another. Place your old iPhone next to your new one during setup, and iOS transfers everything — apps, settings, photos, messages, and even your Wi-Fi passwords — wirelessly or via a Lightning/USB-C cable.',
+          'Steps: Turn on your new iPhone → place your old iPhone nearby → scan the animation on the new phone using your old phone → follow the on-screen instructions. The cable transfer is faster (30–60 min for most setups vs 2–4 hours wirelessly).',
+          'Note: Both phones need to stay connected and awake throughout. Use a cable if your phones support it.',
+        ],
+      },
+      {
+        heading: 'Method 2: iCloud Backup + Restore',
+        body: [
+          'This is the most flexible method and works whether you are upgrading iPhones or switching from Android. First, back up your old iPhone to iCloud (Settings → [Your Name] → iCloud → iCloud Backup → Back Up Now). Then during new iPhone setup, choose "Restore from iCloud Backup" and sign in.',
+          'Downside: You need enough iCloud storage. Apple gives 5GB free, which is rarely enough. You may need to pay ₦299/month (50GB) or ₦999/month (200GB) temporarily. Cancel after the transfer if you do not want the subscription.',
+        ],
+      },
+      {
+        heading: 'Method 3: Switching from Android (Move to iOS)',
+        body: [
+          'Download the "Move to iOS" app on your Android phone before you begin iPhone setup. During iPhone setup, choose "Move Data from Android" and follow the pairing steps. It transfers contacts, message history, photos, videos, bookmarks, mail accounts, and some free apps.',
+          'What does NOT transfer: Apps that are Android-only (WhatsApp message history requires a paid tool like Dr.Fone), paid apps (you will need to re-purchase or find iOS equivalents), and some app data.',
+          'For WhatsApp specifically: Go to WhatsApp → Settings → Chats → Move Chats to iPhone. This is built into WhatsApp and transfers your full chat history.',
+        ],
+      },
+      {
+        heading: 'First Things to Set Up on a New iPhone',
+        body: [
+          '1. Sign into your Apple ID (Settings → Sign in to iPhone)',
+          '2. Enable Find My iPhone (Privacy & Security → Location Services → Find My)',
+          '3. Set up Face ID (Settings → Face ID & Passcode)',
+          '4. Turn on iCloud Photos if you want automatic backup (Settings → Photos → iCloud Photos)',
+          '5. Install WhatsApp and restore your chat backup',
+          '6. Check for iOS updates (Settings → General → Software Update)',
+        ],
+      },
+    ],
+  },
+
+  {
+    slug: 'apple-watch-guide-nigeria-2025',
+    title: 'Apple Watch in Nigeria — Is It Worth It? Full Buyer\'s Guide',
+    excerpt: 'Apple Watch prices in Nigeria, which model to buy, what features actually matter for daily use in Lagos, and whether it is worth the investment.',
+    category: 'Buying Guide',
+    readTime: '6 min read',
+    date: 'May 2025',
+    featured: false,
+    tags: ['Apple Watch', 'Wearables', 'Nigeria', 'Buying Guide'],
+    relatedCategories: ['Apple Watch'],
+    emoji: '⌚',
+    sections: [
+      {
+        heading: 'What Apple Watch Actually Does Well',
+        body: [
+          'Heart rate monitoring, sleep tracking, and ECG (Series 4 and above). These health features are genuinely useful and have helped many people catch cardiac irregularities early.',
+          'Notifications and calls directly from your wrist — particularly useful in Lagos when driving or in meetings where picking up your phone is inconvenient.',
+          'Apple Pay (works internationally but not yet locally on Nigerian cards). If you travel frequently to the UK, US, or Europe, this is a standout feature.',
+          'Fitness tracking: steps, workouts, stand reminders, and a surprisingly effective motivation system through the Activity rings.',
+        ],
+      },
+      {
+        heading: 'Which Model to Buy',
+        body: [
+          'Apple Watch SE (2nd gen) — The best value. At roughly ₦350,000–₦500,000, you get the essential features: heart rate, sleep, fall detection, crash detection, and workout tracking. No ECG or blood oxygen sensor, but for most people these are not deciding factors.',
+          'Apple Watch Series 9 — Adds ECG, blood oxygen, always-on display, and the new Double Tap gesture. Worth it if health monitoring is your priority or if you want the best experience.',
+          'Apple Watch Ultra 2 — Titanium case, 60-hour battery, dual-frequency GPS, and a very loud siren. Designed for extreme sports. Unless you are a trail runner or diver, this is overkill at ₦1,500,000+.',
+        ],
+      },
+      {
+        heading: 'Nigerian Specific Considerations',
+        body: [
+          'Cellular vs GPS only: In Nigeria, Apple Watch cellular connectivity does not work on any local network. Buy GPS-only and save ₦50,000–₦80,000.',
+          'Battery: The standard Apple Watch lasts 18–36 hours on a charge. This means charging every night. If you want to track sleep, charge during your morning routine instead.',
+          'Repairs: Apple Watch screens crack and displays fail. Out-of-warranty screen replacements cost $150–$300 through Apple. Local repair shops in Lagos can fix them for ₦30,000–₦80,000 using third-party displays.',
+        ],
+      },
+      {
+        heading: 'The Bottom Line',
+        body: 'If you are an iPhone user who is health-conscious and frequently in situations where checking your phone is inconvenient, the Apple Watch SE is a genuinely useful purchase. If you already have a fitness band and just want the Apple logo, save your money for a Pro iPhone model instead.',
+      },
+    ],
+  },
+
+  {
+    slug: 'airpods-buyer-guide-nigeria',
+    title: 'AirPods Buyer\'s Guide for Nigeria — Which One Should You Buy?',
+    excerpt: 'AirPods 4, AirPods Pro 2, or AirPods Max? A honest comparison covering price, features, and what actually matters for daily use in Nigeria.',
+    category: 'Buying Guide',
+    readTime: '5 min read',
+    date: 'May 2025',
+    featured: false,
+    tags: ['AirPods', 'Earbuds', 'Buying Guide', 'Nigeria'],
+    relatedCategories: ['AirPods'],
+    emoji: '🎧',
+    sections: [
+      {
+        heading: 'AirPods 4 — The New Standard',
+        body: [
+          'The AirPods 4 replaced the AirPods 3 in 2024 and are available in two versions: standard (₦150,000–₦200,000) and with Active Noise Cancellation (₦200,000–₦280,000).',
+          'The standard AirPods 4 are excellent everyday earbuds with the H2 chip, Adaptive Audio, and personalized Spatial Audio. If you are upgrading from AirPods 2 or 3, the improvement in sound quality and call clarity is noticeable.',
+          'The ANC version adds active noise cancellation and Transparency Mode — worth the extra cost if you commute daily or work in noisy environments (like most Lagos offices).',
+        ],
+      },
+      {
+        heading: 'AirPods Pro 2 — The Best AirPods',
+        body: [
+          'The AirPods Pro 2 (₦300,000–₦450,000) remain the best in-ear earbuds Apple makes. The silicone tips create a seal that the open-fit AirPods 4 cannot match — this makes both noise cancellation and bass significantly better.',
+          'The Transparency Mode is the best on the market — it sounds so natural that you genuinely cannot tell if your ears are covered. The USB-C charging case (with the 2024 update) also works as a hearing aid for mild hearing loss.',
+          'If you spend time on Lagos Third Mainland Bridge in traffic, the Pro 2 will meaningfully improve your daily experience.',
+        ],
+      },
+      {
+        heading: 'AirPods Max — Headphones, Not Earbuds',
+        body: 'The AirPods Max (₦700,000–₦1,000,000) are over-ear headphones, not earbuds — a completely different use case. The sound quality is exceptional, and they are the most comfortable headphones Apple has made. They are not practical for commuting, exercise, or wearing in Lagos heat. They are for sitting at a desk, on a flight, or in an air-conditioned environment. If that describes your primary use case, they are worth every naira.',
+      },
+      {
+        heading: 'Fake AirPods Are Everywhere — Be Careful',
+        body: [
+          'The counterfeit AirPods market in Nigeria is enormous. Fakes range from obvious rebrands (i12 TWS, i18 TWS) to convincing replicas that boot with an Apple animation and show up in iOS Bluetooth settings.',
+          'How to verify: Connect to an iPhone and go to Settings → General → About → scroll down to AirPods. Real AirPods show firmware version, serial number, and model. Fakes either show nothing or show generic text.',
+          'Always buy from authorised sellers or directly through Certo. The ₦20,000 you save on fakes costs you your hearing quality and your data (some fake AirPods use Bluetooth exploits).',
+        ],
+      },
+    ],
+  },
+
+  {
+    slug: 'iphone-storage-guide-how-much-do-you-need',
+    title: 'iPhone Storage Guide — 128GB, 256GB, or 512GB?',
+    excerpt: 'Choosing the wrong storage tier is one of the most common iPhone-buying mistakes. Here\'s exactly how to figure out how much you actually need.',
+    category: 'Buying Guide',
+    readTime: '4 min read',
+    date: 'May 2025',
+    featured: false,
+    tags: ['iPhone', 'Storage', 'Buying Tips'],
+    relatedCategories: ['iPhone'],
+    emoji: '💾',
+    sections: [
+      {
+        heading: 'Why Storage Matters More Than It Used To',
+        body: 'Modern iPhone cameras capture ProRAW photos at 25–75MB each. A 4K HDR video at 60fps uses 400MB per minute. If you take photos and videos seriously — or even casually — your storage fills faster than you expect. iCloud Photos helps, but requires a strong Wi-Fi connection to access older media. In Nigeria, where internet reliability varies, having local storage matters.',
+      },
+      {
+        heading: '128GB — Who It\'s For',
+        body: [
+          'If you primarily use streaming apps (Spotify, YouTube, Netflix), rely on cloud storage, take an average number of photos, and do not record much video — 128GB is fine.',
+          'Who should avoid 128GB: anyone who records video regularly, downloads movies or podcasts for offline use, uses their iPhone as a work computer, or plays large games.',
+        ],
+      },
+      {
+        heading: '256GB — The Safe Default',
+        body: 'For most people, 256GB is the sweet spot. It gives you room to grow, handles a few years of photos and videos, holds a handful of large apps, and will not require you to manage storage actively. The price difference between 128GB and 256GB is typically ₦30,000–₦50,000 — worth it for the peace of mind.',
+      },
+      {
+        heading: '512GB — Who Actually Needs It',
+        body: [
+          'Content creators who shoot ProRAW or ProRes video on their iPhone.',
+          'People who travel frequently and download media offline for long trips.',
+          'Anyone who does not trust cloud services and keeps everything locally.',
+          'Music producers and DJs who store large sample libraries.',
+          'For everyone else, 512GB is money spent on space you will never fill.',
+        ],
+      },
+      {
+        heading: 'Can You Upgrade Later?',
+        body: 'No. iPhone storage cannot be expanded — there is no microSD slot. The decision you make at purchase is permanent. This is why it is better to size up once rather than regret it two years later. If you are between tiers, always go larger.',
+      },
+    ],
+  },
+
+  {
+    slug: 'iphone-warranty-apple-care-nigeria-guide',
+    title: 'iPhone Warranty and AppleCare+ in Nigeria — What You Need to Know',
+    excerpt: 'Does Apple warranty apply in Nigeria? What does AppleCare+ actually cover? And what happens if your iPhone is damaged or stolen? Full breakdown.',
+    category: 'Tips & Tricks',
+    readTime: '5 min read',
+    date: 'May 2025',
+    featured: false,
+    tags: ['Warranty', 'AppleCare', 'iPhone', 'Nigeria'],
+    relatedCategories: ['iPhone', 'Mac', 'iPad', 'Apple Watch'],
+    emoji: '🛡️',
+    sections: [
+      {
+        heading: 'Standard Apple Warranty in Nigeria',
+        body: [
+          'Every new iPhone comes with a 1-year limited warranty from Apple. This covers manufacturing defects — things like the screen stopping working, Face ID failing, or a button becoming unresponsive for no reason.',
+          'What it does NOT cover: accidental damage (cracked screens, water damage, drops), battery degradation below 80%, and third-party damage (if a repair shop has opened your phone).',
+          'The warranty is global — a device purchased through Certo in Nigeria is warrantied worldwide, including at any Apple Store in the US, UK, or UAE.',
+        ],
+      },
+      {
+        heading: 'AppleCare+ — What It Actually Covers',
+        body: [
+          'AppleCare+ extends your coverage to 2 years and adds accidental damage protection. With AppleCare+, you can get up to 2 accidental damage incidents repaired per year — cracked screen or back glass for a fixed fee ($29 in the US), or other accidental damage for $99.',
+          'AppleCare+ with Theft and Loss adds protection against theft and loss — Apple replaces your device for $149 if it is stolen or lost, as long as Find My was enabled at the time.',
+          'Certo offers AppleCare+ at checkout — we strongly recommend it for iPhones above ₦800,000.',
+        ],
+      },
+      {
+        heading: 'How to Check If Your iPhone Is Under Warranty',
+        body: [
+          'Go to checkcoverage.apple.com, enter your serial number, and Apple will show you the exact warranty status, coverage type, and expiry date.',
+          'This is also how we verify every Certo device before it reaches you — we check that the warranty is valid and has not been previously claimed.',
+        ],
+      },
+      {
+        heading: 'Local Repairs vs Apple Service',
+        body: 'Once a local repair shop opens your iPhone, Apple\'s warranty is voided. If you have an issue under warranty, always contact Apple first — even if the nearest Apple Store is in London or Dubai. A repair that would cost ₦60,000 locally is free under warranty. The cost of a return flight can still be worth it for a major issue on a high-end device.',
+      },
+    ],
+  },
+
+  {
+    slug: 'ipad-buyer-guide-nigeria-2025',
+    title: 'Which iPad Should You Buy in Nigeria in 2025?',
+    excerpt: 'iPad Air, iPad Pro, or iPad mini? A practical guide to picking the right iPad for your needs and budget in Nigeria.',
+    category: 'Buying Guide',
+    readTime: '7 min read',
+    date: 'June 2025',
+    featured: false,
+    tags: ['iPad', 'Buying Guide', 'Nigeria', '2025'],
+    relatedCategories: ['iPad'],
+    emoji: '🖥️',
+    sections: [
+      {
+        heading: 'The iPad Lineup in 2025',
+        body: [
+          'Apple sells four iPad lines. Understanding the differences is the first step to making the right call.',
+          'iPad (standard): The entry point. Runs on the A14 or A15 chip, has a 10.9-inch LCD screen, and starts around ₦350,000–₦550,000 in Nigeria through Certo. It supports the first-gen Apple Pencil and the Magic Keyboard Folio. For basic use — reading, light work, streaming — it does everything well.',
+          'iPad mini: The 8.3-inch compact option. Runs the A15 chip, supports the second-gen Apple Pencil, and fits in a jacket pocket. Ideal for reading, annotating documents on the go, and drawing.',
+          'iPad Air: The mid-tier performer. M-series chip, 11-inch or 13-inch display, USB-C, and support for the latest Apple Pencil and Magic Keyboard. This is the sweet spot for students and professionals.',
+          'iPad Pro: The professional tool. M4 chip, ProMotion 120Hz display, the most ports, best cameras, and the highest prices. Only buy this if you are genuinely using it as a primary computer replacement for professional work.',
+        ],
+      },
+      {
+        heading: 'For Students and Everyday Use: iPad Air',
+        body: 'The iPad Air M2 or M3 is the best all-around iPad for most Nigerians. Students who use it for note-taking (with Apple Pencil), Zoom classes, and research get everything they need. Professionals who need a portable screen for reading documents, attending online meetings, and casual content creation will not need more. At ₦700,000–₦1,200,000, it is a significant investment — but it will last 5–7 years with iPadOS updates.',
+      },
+      {
+        heading: 'For Readers and Travellers: iPad mini',
+        body: 'If portability is the priority — and you read books, annotate PDFs, or need something for long flights and commutes — the iPad mini is unmatched. It fits in a small bag, the screen is excellent for text, and the battery lasts all day. The main limitation is keyboard typing — the small screen makes the iPad mini keyboard cramped. If you need to write anything substantial, look at the Air instead.',
+      },
+      {
+        heading: 'For Content Creators and Professionals: iPad Pro',
+        body: 'The iPad Pro exists for people who use the iPad as their main machine. If you are a graphic designer using Procreate professionally, a video editor working in DaVinci Resolve, or an architect doing iPad-based drafting — the iPad Pro justifies its price. For most other users, the iPad Pro is more hardware than they will ever use.',
+      },
+      {
+        heading: 'Cellular vs Wi-Fi Only',
+        body: 'In Nigeria, iPad cellular connectivity adds ₦100,000–₦150,000 to the price. Given how universal mobile hotspots are (and how reliable they can be on 4G), most users are better served by a Wi-Fi-only iPad used with their iPhone as a personal hotspot. The cellular iPads do not work as standalone phone replacements — they handle data only.',
+      },
+    ],
+  },
+
+  {
+    slug: 'iphone-16-vs-15-upgrade-nigeria-2025',
+    title: 'iPhone 16 vs iPhone 15 in Nigeria — Is It Worth Upgrading?',
+    excerpt: 'The iPhone 16 brings Apple Intelligence, a new Camera Control button, and improved battery life. But if you have an iPhone 15, should you spend the money?',
+    category: 'Buying Guide',
+    readTime: '5 min read',
+    date: 'June 2025',
+    featured: false,
+    tags: ['iPhone 16', 'iPhone 15', 'Upgrade', 'Nigeria', 'Comparison'],
+    relatedCategories: ['iPhone'],
+    emoji: '📲',
+    sections: [
+      {
+        heading: 'What\'s New in iPhone 16',
+        body: [
+          'The iPhone 16 introduces Apple Intelligence — Apple\'s AI features powered by on-device processing and Private Cloud Compute. In Nigeria, where Siri and Apple\'s AI tools have limited availability outside English-language markets, the practical impact is currently lower than in the US.',
+          'The Camera Control button is a physical button on the right side of the phone dedicated to photography. It allows you to adjust focus, zoom, and shutter speed without touching the screen — genuinely useful for photographers.',
+          'The A18 chip is significantly faster than the A16 in the iPhone 15 standard model. Battery life has improved notably — the iPhone 16 lasts roughly 1–2 hours longer per charge than the 15.',
+        ],
+      },
+      {
+        heading: 'What Did Not Change Much',
+        body: 'The camera hardware on the standard iPhone 16 (non-Pro) is an incremental upgrade over the iPhone 15. The 48MP main camera and 12MP ultrawide are present in both. The display is the same 6.1-inch Super Retina XDR OLED. The design is nearly identical.',
+      },
+      {
+        heading: 'Who Should Upgrade from iPhone 15',
+        body: [
+          'Upgrade if: You are a photographer and want the Camera Control button, your iPhone 15 battery health has dropped below 80%, or you want Apple Intelligence features when they fully launch in Nigeria.',
+          'Skip the upgrade if: You bought your iPhone 15 in the last 12–18 months, your battery is healthy, and you are not shooting professional photography. The iPhone 15 will receive iOS updates until at least 2028.',
+        ],
+      },
+      {
+        heading: 'Who Should Buy the iPhone 16 Fresh',
+        body: 'If you are upgrading from iPhone 12, 13, or anything older — the iPhone 16 is an excellent choice. The jump from an iPhone 13 to 16 is significant: better camera, faster chip, USB-C charging, and Apple Intelligence readiness.',
+      },
+      {
+        heading: 'Price Difference in Nigeria',
+        body: 'At current exchange rates through Certo, the iPhone 16 costs approximately ₦50,000–₦80,000 more than the equivalent iPhone 15 model. Given the battery life improvement alone, this is often worth it for new buyers. For iPhone 15 owners, the maths only work if you have a specific use case for the new features.',
+      },
+    ],
+  },
+
+  {
+    slug: 'how-to-protect-iphone-nigeria',
+    title: 'How to Protect Your iPhone in Nigeria — Cases, Insurance, and Theft Prevention',
+    excerpt: 'A high-end iPhone is a significant investment in Nigeria. Here is how to protect it from damage, theft, and loss — practical advice for Nigerian conditions.',
+    category: 'Tips & Tricks',
+    readTime: '5 min read',
+    date: 'June 2025',
+    featured: false,
+    tags: ['iPhone', 'Protection', 'Cases', 'Theft', 'Nigeria', 'Tips'],
+    relatedCategories: ['iPhone'],
+    emoji: '🔒',
+    sections: [
+      {
+        heading: 'Physical Protection: Cases and Screen Protectors',
+        body: 'A quality case and tempered glass screen protector are the cheapest insurance you can buy. A ₦5,000–₦15,000 Spigen, OtterBox, or Nomad case protects a ₦1,000,000+ phone from drops that would otherwise cost ₦150,000+ to fix. Avoid generic "original quality" cases from computer village — many leave gaps around the corners and the back glass, exactly where impact damage happens. For screen protectors: use tempered glass, not plastic film. A plastic film scratches easily and provides minimal drop protection.',
+      },
+      {
+        heading: 'Enable Find My iPhone',
+        body: [
+          'Settings → [Your Name] → Find My → Enable all options. This should be the first thing you do with any new iPhone.',
+          'Find My allows you to: track your phone\'s location in real time (even offline using Bluetooth proximity from other Apple devices), remotely lock or erase the phone if stolen, and display a message and phone number on the locked screen for honest finders.',
+          'Thieves in Lagos are aware of Activation Lock — a stolen iPhone that is Find My-enabled is essentially worthless because it cannot be reset without the Apple ID. This is a genuine deterrent.',
+        ],
+      },
+      {
+        heading: 'Anti-Theft Habits in Lagos',
+        body: [
+          'Lagos has specific theft patterns that iPhone users should know. Most phone thefts happen at traffic lights and pedestrian crossings — hands on phones, windows down.',
+          'Keep your phone out of sight at traffic stops. Do not hold your phone with the window down while driving or in an Uber. Be aware of motorcycles stopping close to you while you are on the phone. Use wrist straps for activities where your phone could be snatched, like outdoor events.',
+        ],
+      },
+      {
+        heading: 'iCloud Backup — Always On',
+        body: 'Settings → [Your Name] → iCloud → iCloud Backup → turn on and Back Up Now. If your phone is lost or stolen, your photos, contacts, WhatsApp chats (if enabled), and app data can be fully restored to a new device. 5GB of free iCloud storage is not enough — pay ₦299/month for 50GB or ₦999/month for 200GB. It is small insurance for years of irreplaceable data.',
+      },
+      {
+        heading: 'AppleCare+ With Theft and Loss',
+        body: 'AppleCare+ with Theft and Loss covers one device replacement per year if your iPhone is stolen. The replacement fee is $149 through Apple — far less than buying a new phone. The catch: Find My must have been active on the device at the time of theft. Given theft rates in Lagos and major Nigerian cities, AppleCare+ with Theft and Loss is worth serious consideration for anyone buying a Pro model.',
+      },
+    ],
+  },
+
+  {
+    slug: 'apple-id-security-two-factor-nigeria',
+    title: 'How to Secure Your Apple ID in Nigeria — Two-Factor Authentication and Account Safety',
+    excerpt: 'Your Apple ID controls your iPhone, your iCloud data, and your Apple Pay. Here is how to lock it down properly against scams and hacks.',
+    category: 'Tips & Tricks',
+    readTime: '4 min read',
+    date: 'June 2025',
+    featured: false,
+    tags: ['Apple ID', 'Security', 'Two-Factor', 'Nigeria', 'Tips'],
+    relatedCategories: ['iPhone', 'Mac', 'iPad'],
+    emoji: '🔐',
+    sections: [
+      {
+        heading: 'Why Your Apple ID is a High-Value Target',
+        body: 'Your Apple ID is the master key to everything Apple: your photos, contacts, iMessages, emails, iCloud Drive, App Store purchases, and Apple Pay. A compromised Apple ID means an attacker can lock you out of your own iPhone, access your private data, and make purchases with your saved payment methods. In Nigeria, Apple ID scams typically arrive via SMS ("Your Apple ID has been locked, click here to verify") or email. These are phishing attempts. Apple will never ask for your password via SMS.',
+      },
+      {
+        heading: 'Enable Two-Factor Authentication',
+        body: [
+          'Two-factor authentication (2FA) means that even if someone knows your Apple ID password, they cannot access your account without also having access to one of your trusted devices or your phone number.',
+          'To enable: Settings → [Your Name] → Sign-In & Security → Two-Factor Authentication → Turn On.',
+          'Once enabled, any new device login requires entering a 6-digit code sent to your phone or displayed on a trusted Apple device. This is one of the most important security settings on any iPhone.',
+        ],
+      },
+      {
+        heading: 'Use a Strong, Unique Password',
+        body: 'Your Apple ID password should be long (12+ characters), unique (not used anywhere else), and not related to your name, birthday, or phone number. Use the iPhone\'s built-in password suggestions when setting it — Safari generates strong passwords and saves them to iCloud Keychain. Do not use the same password for your Apple ID and your email, banking apps, or social media accounts.',
+      },
+      {
+        heading: 'Account Recovery Contacts',
+        body: 'Apple allows you to set up Account Recovery Contacts — trusted people who can help you regain access to your Apple ID if you ever get locked out. Settings → [Your Name] → Sign-In & Security → Account Recovery → Add Recovery Contact. Nominate a family member or trusted friend with an Apple device. This is an underused but valuable feature.',
+      },
+      {
+        heading: 'Before Selling or Repairing Your iPhone',
+        body: [
+          'Before handing your iPhone to a repair shop: sign out of your Apple ID (Settings → [Your Name] → Sign Out). This removes your iCloud account from the device and prevents the repair shop from accessing your data.',
+          'Before selling your iPhone: go to Settings → General → Transfer or Reset iPhone → Erase All Content and Settings. This removes your Apple ID, disables Activation Lock, and wipes all personal data.',
+        ],
+      },
+    ],
+  },
+
+  {
+    slug: 'macbook-vs-windows-laptop-nigeria-2025',
+    title: 'MacBook vs Windows Laptop in Nigeria — An Honest 2025 Comparison',
+    excerpt: 'Should you buy a MacBook or a Windows laptop? The honest answer depends on your work, your budget, and how you use a laptop in the Nigerian context.',
+    category: 'Buying Guide',
+    readTime: '6 min read',
+    date: 'June 2025',
+    featured: false,
+    tags: ['MacBook', 'Windows', 'Laptop', 'Nigeria', 'Comparison', '2025'],
+    relatedCategories: ['Mac'],
+    emoji: '🖥️',
+    sections: [
+      {
+        heading: 'What Windows Laptops Get Right',
+        body: 'Windows laptops dominate globally for a reason: variety and software compatibility. At ₦300,000–₦600,000, you can get a capable Windows laptop (Dell XPS, HP Spectre, Lenovo ThinkPad) that runs Microsoft Office, engineering software, and Windows-specific applications that have no Mac equivalent. Windows is also better for software engineers working with .NET, enterprise tools, and specific Nigerian business software — payroll systems, accounting tools, government platforms — that may not have Mac versions.',
+      },
+      {
+        heading: 'What MacBooks Get Right',
+        body: [
+          'Battery life: A MacBook Air M3 lasts 15–18 hours in real use. Most Windows laptops in the same price range last 6–10 hours. For Nigerian conditions — power outages, working from cafes, long flights — this matters enormously.',
+          'Performance per watt: Apple\'s M-series chips are the most efficient laptop chips available. A MacBook Air handles professional work silently without a fan, without throttling, and without needing to be plugged in.',
+          'Longevity: MacBook hardware is supported with software updates for 7+ years. A 2021 MacBook Air still runs the latest macOS in 2025. The combination of hardware quality and software support means a MacBook purchased today will be relevant and fast in 2030.',
+        ],
+      },
+      {
+        heading: 'The Software Question',
+        body: [
+          'Microsoft Office runs natively on Mac. Google Chrome, WhatsApp Web, Zoom, Slack, Figma, Notion, Adobe Creative Cloud — all have excellent Mac versions.',
+          'What does not run on Mac: most Windows games, specific Nigerian enterprise software, Visual Studio (Windows version), AutoCAD for Windows. If these are essential to your work, you need Windows.',
+        ],
+      },
+      {
+        heading: 'Price Reality in Nigeria',
+        body: 'A MacBook Air M2 costs approximately ₦1,100,000–₦1,400,000 through Certo. A comparable Windows laptop (Dell XPS 13, HP Spectre, ThinkPad X1 Carbon) costs ₦850,000–₦1,500,000 from authorised Nigerian distributors. The MacBook is not as expensive as it seems when you compare like for like — premium Windows laptops cost similar amounts. The difference is that cheaper Windows options exist (₦300,000–₦500,000) with no comparable MacBook.',
+      },
+      {
+        heading: 'Who Should Buy Which',
+        body: [
+          'Buy a MacBook if: You are a designer, developer (non-.NET), content creator, writer, or anyone who values battery life and a stable OS. The MacBook Air is the best all-around laptop for most professionals in Nigeria.',
+          'Buy a Windows laptop if: You need specific Windows software, you are on a tight budget, you are an engineer using industry tools (AutoCAD, Revit, SolidWorks), or you play PC games.',
+        ],
+      },
+    ],
+  },
+
+  {
+    slug: 'iphone-water-damage-what-to-do-nigeria',
+    title: 'What to Do When Your iPhone Gets Wet — A Step-by-Step Guide',
+    excerpt: 'Modern iPhones are water resistant, not waterproof. Here is exactly what to do in the first 30 minutes after your iPhone gets wet — and what not to do.',
+    category: 'Tips & Tricks',
+    readTime: '4 min read',
+    date: 'June 2025',
+    featured: false,
+    tags: ['iPhone', 'Water Damage', 'Repairs', 'Tips', 'Nigeria'],
+    relatedCategories: ['iPhone'],
+    emoji: '💧',
+    sections: [
+      {
+        heading: 'Water Resistance Ratings Explained',
+        body: 'Modern iPhones (iPhone 12 and newer) have an IP68 rating — tested to survive submersion in up to 6 metres of water for 30 minutes. The iPhone 15 Pro models are tested to 6 metres. These tests are conducted in laboratory conditions with still, fresh water. What the rating does NOT protect against: salt water (beach, ocean), pool water (chlorine), soapy water, high-pressure sprays, and physical impact that cracks the seal. Water resistance also degrades over time as the device ages and is dropped.',
+      },
+      {
+        heading: 'Immediately After Getting Wet',
+        body: [
+          'Do not charge it. A wet charging port + electricity = a short circuit that can permanently damage the logic board. iOS will warn you "Liquid Detected in Lightning Connector" — listen to it.',
+          'Do not use a hairdryer or put it in rice. These are myths. Rice does not absorb enough moisture and can push starch dust into the ports. A hairdryer can push moisture further into the device.',
+          'Do: Turn the phone off immediately if it is on. Dry the outside with a soft cloth. Hold the Lightning or USB-C port facing down and gently tap to dislodge excess water. Place the phone in a dry, ventilated area at room temperature.',
+        ],
+      },
+      {
+        heading: 'The 24-Hour Rule',
+        body: 'Leave the phone off for at least 24 hours before attempting to charge or use it. The internal components need time to dry out. After 24 hours, check the port with a torch — it should look dry and clean with no moisture visible. If the phone was submerged in salt water or pool water: rinse it gently with clean fresh water first (to remove the salts and chemicals that cause corrosion), then follow the drying procedure above.',
+      },
+      {
+        heading: 'When to See a Repair Shop',
+        body: 'If after 24 hours the phone does not turn on, the screen has patches or discolouration, the speaker sounds muffled or crackly, or the charging port is not recognised — take it to a professional repair shop immediately. Water damage to a logic board progresses with time, especially in Lagos humidity. Do not wait weeks before seeking repair. The sooner a technician cleans the board, the better the outcome.',
+      },
+      {
+        heading: 'AppleCare+ and Water Damage',
+        body: 'Standard Apple Warranty does NOT cover water damage, even on IP-rated devices. The Liquid Contact Indicator (a small red dot inside the SIM tray slot) will trigger and void warranty coverage. AppleCare+ covers accidental damage, including water damage, for a fixed fee ($99 in the US). This is one of the strongest arguments for AppleCare+ for Nigerian buyers — given Lagos rain, humidity, and swimming pool occasions, water exposure is more likely here than in temperate climates.',
+      },
+    ],
+  },
 ];
 
-// Get posts by category
 export const getPostsByCategory = (category) =>
   BLOG_POSTS.filter(p => p.category === category);
 
-// Get related posts for a product category
 export const getRelatedPosts = (productCategory, count = 3) => {
   const matching = BLOG_POSTS.filter(p =>
     p.relatedCategories.includes(productCategory)
   );
-  // Shuffle and take `count`
   const shuffled = [...matching].sort(() => Math.random() - 0.5);
   return shuffled.slice(0, count).length ? shuffled.slice(0, count)
     : BLOG_POSTS.filter(p => p.featured).slice(0, count);
 };
 
-// Get featured / homepage posts
 export const getFeaturedPosts = (count = 3) => {
   const featured = BLOG_POSTS.filter(p => p.featured);
   const rest = BLOG_POSTS.filter(p => !p.featured);

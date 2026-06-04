@@ -84,7 +84,12 @@ app.post('/api/admin/login', loginLimiter, async (req, res) => {
 
 // Serve Vite-built frontend
 const distPath = path.join(__dirname, '..', 'dist');
+const rootPath = path.join(__dirname, '..');
 app.use(express.static(distPath));
+
+// Admin panel — serves admin.html + raw src/ so Babel can process DashboardPage client-side
+app.get(['/admin', '/admin.html'], (_req, res) => res.sendFile(path.join(rootPath, 'admin.html')));
+app.use('/src', express.static(path.join(rootPath, 'src')));
 
 // API routes — public routes get the general rate limiter
 app.use('/api/products',      publicLimiter, require('./routes/products'));
@@ -94,6 +99,7 @@ app.use('/api/contact',       publicLimiter, require('./routes/contact'));
 app.use('/api/certificates',  publicLimiter, require('./routes/certificates'));
 app.use('/api/analytics',     publicLimiter, require('./routes/analytics'));
 app.use('/api/admin/logs',    require('./routes/adminLog'));
+app.use('/api/blog',          publicLimiter, require('./routes/blog'));
 
 // POST /api/admin/event  — lightweight client-side event logger
 // The dashboard calls this for actions that happen entirely on the frontend
@@ -238,6 +244,87 @@ async function runMigrations() {
       );
       await pool.queryR(`INSERT INTO schema_migrations (key) VALUES ('price_margin_v1')`);
       console.log(`[migrations] ✓ price_margin_v1: raised usd_price +7% on ${rowCount} products`);
+    }
+
+    // Blog posts table
+    await pool.queryR(`
+      CREATE TABLE IF NOT EXISTS blog_posts (
+        id                  SERIAL PRIMARY KEY,
+        slug                TEXT UNIQUE NOT NULL,
+        title               TEXT NOT NULL,
+        excerpt             TEXT NOT NULL DEFAULT '',
+        category            TEXT NOT NULL DEFAULT 'Buying Guide',
+        read_time           TEXT NOT NULL DEFAULT '5 min read',
+        post_date           TEXT NOT NULL DEFAULT '',
+        featured            BOOLEAN NOT NULL DEFAULT false,
+        tags                JSONB NOT NULL DEFAULT '[]',
+        related_categories  JSONB NOT NULL DEFAULT '[]',
+        emoji               TEXT NOT NULL DEFAULT '📝',
+        sections            JSONB NOT NULL DEFAULT '[]',
+        published           BOOLEAN NOT NULL DEFAULT true,
+        created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    // Seed blog posts from static data on first run
+    const { rows: blogCheck } = await pool.queryR(
+      `SELECT 1 FROM schema_migrations WHERE key = 'blog_seed_v1'`
+    );
+    if (!blogCheck.length) {
+      try {
+        const { SEED_POSTS } = require('./blogSeed');
+        for (const p of SEED_POSTS) {
+          await pool.queryR(
+            `INSERT INTO blog_posts
+               (slug, title, excerpt, category, read_time, post_date, featured,
+                tags, related_categories, emoji, sections, published)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+             ON CONFLICT (slug) DO NOTHING`,
+            [
+              p.slug, p.title, p.excerpt || '', p.category || 'Buying Guide',
+              p.readTime || '5 min read', p.date || '',
+              p.featured || false,
+              JSON.stringify(p.tags || []),
+              JSON.stringify(p.relatedCategories || []),
+              p.emoji || '📝',
+              JSON.stringify(p.sections || []),
+              true,
+            ]
+          );
+        }
+        console.log(`[migrations] ✓ blog_seed_v1: seeded ${SEED_POSTS.length} posts`);
+      } catch(e) {
+        console.warn('[migrations] blog seed failed:', e.message);
+      }
+      await pool.queryR(`INSERT INTO schema_migrations (key) VALUES ('blog_seed_v1')`);
+    }
+
+    // Seed 6 additional blog posts (blog_seed_v2)
+    const { rows: bsv2 } = await pool.queryR(
+      `SELECT 1 FROM schema_migrations WHERE key = 'blog_seed_v2'`
+    );
+    if (!bsv2.length) {
+      const NEW_POSTS = [
+        { slug:'ipad-buyer-guide-nigeria-2025', title:'Which iPad Should You Buy in Nigeria in 2025?', excerpt:'iPad Air, iPad Pro, or iPad mini? A practical guide to picking the right iPad for your needs and budget in Nigeria.', category:'Buying Guide', readTime:'7 min read', date:'June 2025', featured:false, tags:['iPad','Buying Guide','Nigeria','2025'], relatedCategories:['iPad'], emoji:'🖥️', sections:[{heading:'The iPad Lineup in 2025',body:['Apple sells four iPad lines.','iPad (standard): Entry point, A14/A15 chip, 10.9-inch LCD, starts ~₦350,000–₦550,000.','iPad mini: 8.3-inch, A15, fits in a pocket — ideal for reading and annotation.','iPad Air: M-series chip, 11 or 13-inch, sweet spot for students and professionals.','iPad Pro: M4 chip, ProMotion 120Hz — only for those who need it as a primary computer.']},{heading:'For Students and Everyday Use: iPad Air',body:'The iPad Air M2 or M3 is the best all-around iPad for most Nigerians. Students who use it for note-taking, Zoom, and research get everything they need. It will last 5–7 years with iPadOS updates.'},{heading:'For Readers and Travellers: iPad mini',body:'If portability is the priority — reading books, annotating PDFs, long flights — the iPad mini is unmatched. Main limitation: the keyboard is cramped for sustained typing.'},{heading:'For Professionals: iPad Pro',body:'The iPad Pro exists for people who use it as a primary machine — Procreate professionals, video editors using DaVinci Resolve, architects doing iPad-based drafting. For most others, it is more hardware than needed.'},{heading:'Cellular vs Wi-Fi Only',body:'In Nigeria, iPad cellular connectivity adds ₦100,000–₦150,000 to the price. Most users are better served by a Wi-Fi-only iPad used with their iPhone as a hotspot.'}] },
+        { slug:'iphone-16-vs-15-upgrade-nigeria-2025', title:'iPhone 16 vs iPhone 15 in Nigeria — Is It Worth Upgrading?', excerpt:"The iPhone 16 brings Apple Intelligence, a new Camera Control button, and improved battery. But if you have an iPhone 15, should you spend the money?", category:'Buying Guide', readTime:'5 min read', date:'June 2025', featured:false, tags:['iPhone 16','iPhone 15','Upgrade','Nigeria','Comparison'], relatedCategories:['iPhone'], emoji:'📲', sections:[{heading:"What's New in iPhone 16",body:['The iPhone 16 introduces Apple Intelligence — AI features powered by on-device processing. In Nigeria, practical impact is currently lower than in the US.','Camera Control is a physical button dedicated to photography — adjust focus, zoom, and shutter without touching the screen.','The A18 chip is significantly faster. Battery life improved — roughly 1–2 hours longer than the iPhone 15.']},{heading:'What Did Not Change Much',body:'The camera hardware on standard iPhone 16 is incremental over iPhone 15. Same 48MP main camera. Same 6.1-inch Super Retina XDR OLED. Nearly identical design.'},{heading:'Who Should Upgrade from iPhone 15',body:['Upgrade if: You want Camera Control, your iPhone 15 battery has dropped below 80%, or you want Apple Intelligence readiness.','Skip if: You bought your iPhone 15 in the last 12–18 months and your battery is healthy. iPhone 15 receives iOS updates until at least 2028.']},{heading:'Who Should Buy iPhone 16 Fresh',body:'If upgrading from iPhone 12, 13, or older — iPhone 16 is excellent. The jump from 13 to 16 is significant: better camera, USB-C, faster chip, Apple Intelligence.'},{heading:'Price Difference in Nigeria',body:'Through Certo, iPhone 16 costs ~₦50,000–₦80,000 more than the equivalent iPhone 15. For new buyers, the battery improvement often justifies it. For iPhone 15 owners, upgrade only with a specific use case.'}] },
+        { slug:'how-to-protect-iphone-nigeria', title:'How to Protect Your iPhone in Nigeria — Cases, Insurance, and Theft Prevention', excerpt:'A high-end iPhone is a significant investment in Nigeria. Practical advice on protecting it from damage, theft, and loss.', category:'Tips & Tricks', readTime:'5 min read', date:'June 2025', featured:false, tags:['iPhone','Protection','Cases','Theft','Nigeria','Tips'], relatedCategories:['iPhone'], emoji:'🔒', sections:[{heading:'Physical Protection: Cases and Screen Protectors',body:'A quality case and tempered glass screen protector are the cheapest insurance available. A ₦5,000–₦15,000 Spigen, OtterBox, or Nomad case protects a ₦1,000,000+ phone from drops that would otherwise cost ₦150,000+ to fix. Avoid generic cases — many leave gaps around corners where impact damage happens.'},{heading:'Enable Find My iPhone',body:['Settings → [Your Name] → Find My → Enable all options.','Find My allows you to track location in real time, remotely lock or erase the phone, and display a message on the locked screen for honest finders.','Thieves in Lagos know that Activation Lock makes a stolen Find My-enabled iPhone essentially worthless.']},{heading:'Anti-Theft Habits in Lagos',body:['Most phone thefts happen at traffic lights and pedestrian crossings.','Keep your phone out of sight at traffic stops. Do not hold it with the window down. Use wrist straps at outdoor events.']},{heading:'iCloud Backup — Always On',body:'Settings → [Your Name] → iCloud → iCloud Backup → turn on. 5GB free storage is not enough — pay ₦299/month for 50GB or ₦999/month for 200GB. Small cost for years of irreplaceable data.'},{heading:'AppleCare+ With Theft and Loss',body:'Covers one device replacement per year if stolen, at $149 through Apple. Find My must have been active at time of theft. Worth serious consideration for Pro model buyers in Lagos.'}] },
+        { slug:'apple-id-security-two-factor-nigeria', title:'How to Secure Your Apple ID in Nigeria — Two-Factor Authentication and Account Safety', excerpt:'Your Apple ID controls your iPhone, iCloud data, and Apple Pay. Here is how to lock it down properly against scams and hacks.', category:'Tips & Tricks', readTime:'4 min read', date:'June 2025', featured:false, tags:['Apple ID','Security','Two-Factor','Nigeria','Tips'], relatedCategories:['iPhone','Mac','iPad'], emoji:'🔐', sections:[{heading:'Why Your Apple ID is a High-Value Target',body:"Your Apple ID is the master key to everything Apple: photos, contacts, iMessages, iCloud Drive, App Store purchases, and Apple Pay. In Nigeria, Apple ID scams arrive via SMS ('Your Apple ID has been locked, click here'). These are phishing attempts — Apple will never ask for your password via SMS."},{heading:'Enable Two-Factor Authentication',body:['Settings → [Your Name] → Sign-In & Security → Two-Factor Authentication → Turn On.','Any new device login requires a 6-digit code sent to your phone or displayed on a trusted device. This is one of the most important security settings on any iPhone.']},{heading:'Use a Strong, Unique Password',body:"Your Apple ID password should be 12+ characters, unique (not used elsewhere), and unrelated to your name or birthday. Use the iPhone's built-in password suggestions — Safari generates strong passwords and saves them to iCloud Keychain."},{heading:'Account Recovery Contacts',body:'Settings → [Your Name] → Sign-In & Security → Account Recovery → Add Recovery Contact. Nominate a trusted family member or friend with an Apple device. Invaluable if you are ever locked out.'},{heading:'Before Selling or Repairing Your iPhone',body:['Before handing to a repair shop: sign out of your Apple ID (Settings → [Your Name] → Sign Out).','Before selling: Settings → General → Transfer or Reset iPhone → Erase All Content and Settings. This removes your Apple ID, disables Activation Lock, and wipes personal data.']}] },
+        { slug:'macbook-vs-windows-laptop-nigeria-2025', title:'MacBook vs Windows Laptop in Nigeria — An Honest 2025 Comparison', excerpt:'Should you buy a MacBook or a Windows laptop? The honest answer depends on your work, budget, and how you use a laptop in the Nigerian context.', category:'Buying Guide', readTime:'6 min read', date:'June 2025', featured:false, tags:['MacBook','Windows','Laptop','Nigeria','Comparison','2025'], relatedCategories:['Mac'], emoji:'⚖️', sections:[{heading:'What Windows Laptops Get Right',body:'Variety and software compatibility. At ₦300,000–₦600,000, you can get a capable Dell XPS, HP Spectre, or ThinkPad. Better for .NET development, Nigerian enterprise software, payroll/accounting platforms, and government systems that lack Mac versions.'},{heading:'What MacBooks Get Right',body:['Battery life: MacBook Air M3 lasts 15–18 hours in real use. Most Windows laptops last 6–10 hours. Critical for Nigerian conditions — power outages, cafes, long flights.','Performance per watt: M-series chips are the most efficient laptop chips available. MacBook Air handles professional work silently without a fan.','Longevity: Supported with updates for 7+ years. A 2021 MacBook Air still runs the latest macOS in 2025.']},{heading:'The Software Question',body:['Microsoft Office, Google Chrome, Zoom, Slack, Figma, Adobe Creative Cloud — all have excellent Mac versions.','What does NOT run on Mac: Windows games, specific Nigerian enterprise software, Visual Studio (Windows), AutoCAD for Windows.']},{heading:'Price Reality in Nigeria',body:'MacBook Air M2 costs ~₦1,100,000–₦1,400,000 through Certo. Comparable Windows laptops (Dell XPS 13, ThinkPad X1 Carbon) cost ₦850,000–₦1,500,000 from authorised distributors. Premium Windows and MacBook pricing is similar — cheaper Windows options exist, with no comparable MacBook.'},{heading:'Who Should Buy Which',body:['Buy a MacBook if: You are a designer, developer (non-.NET), content creator, or anyone who values battery life and a stable OS.','Buy a Windows laptop if: You need specific Windows software, are on a tight budget, use industry tools like AutoCAD or Revit, or play PC games.']}] },
+        { slug:'iphone-water-damage-what-to-do-nigeria', title:'What to Do When Your iPhone Gets Wet — A Step-by-Step Guide', excerpt:'Modern iPhones are water resistant, not waterproof. Here is exactly what to do in the first 30 minutes after your iPhone gets wet — and what not to do.', category:'Tips & Tricks', readTime:'4 min read', date:'June 2025', featured:false, tags:['iPhone','Water Damage','Repairs','Tips','Nigeria'], relatedCategories:['iPhone'], emoji:'💧', sections:[{heading:'Water Resistance Ratings Explained',body:'iPhone 12 and newer have IP68 — tested to 6 metres for 30 minutes in still fresh water. NOT protected against: salt water, pool water (chlorine), soapy water, high-pressure sprays, or impact that cracks the seal. Water resistance degrades over time.'},{heading:'Immediately After Getting Wet',body:['Do not charge it. Wet charging port + electricity = short circuit that permanently damages the logic board.','Do not use a hairdryer or put it in rice. Both are myths — rice does not absorb enough moisture and can push starch dust into ports.','Do: Turn off immediately. Dry outside with soft cloth. Hold the port facing down and gently tap. Leave in a dry, ventilated area at room temperature.']},{heading:'The 24-Hour Rule',body:'Leave the phone off for at least 24 hours before charging. After 24 hours, check the port with a torch — it should look dry and clean. If submerged in salt/pool water, rinse gently with clean fresh water first to remove corrosive chemicals, then dry.'},{heading:'When to See a Repair Shop',body:'If after 24 hours it does not turn on, the screen has patches or discolouration, the speaker sounds muffled, or the port is not recognised — see a technician immediately. Water damage progresses fast in Lagos humidity. Do not wait weeks.'},{heading:'AppleCare+ and Water Damage',body:'Standard Apple Warranty does NOT cover water damage — the Liquid Contact Indicator (red dot inside SIM tray) will void coverage. AppleCare+ covers accidental damage including water damage for $99. Given Lagos rain and humidity, this is one of the strongest arguments for AppleCare+.'}] },
+      ];
+      try {
+        for (const p of NEW_POSTS) {
+          await pool.queryR(
+            `INSERT INTO blog_posts (slug,title,excerpt,category,read_time,post_date,featured,tags,related_categories,emoji,sections,published)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) ON CONFLICT (slug) DO NOTHING`,
+            [p.slug,p.title,p.excerpt||'',p.category||'Buying Guide',p.readTime||'5 min read',p.date||'',p.featured||false,
+             JSON.stringify(p.tags||[]),JSON.stringify(p.relatedCategories||[]),p.emoji||'📝',JSON.stringify(p.sections||[]),true]
+          );
+        }
+        console.log(`[migrations] ✓ blog_seed_v2: seeded ${NEW_POSTS.length} additional posts`);
+      } catch(e) { console.warn('[migrations] blog_seed_v2 failed:', e.message); }
+      await pool.queryR(`INSERT INTO schema_migrations (key) VALUES ('blog_seed_v2')`);
     }
 
     console.log('[migrations] ✓ schema up to date');
@@ -504,6 +591,61 @@ app.get('/product/:id', async (req, res) => {
       `<meta name="twitter:title"       content="${title} | Certo"/>`,
       `<meta name="twitter:description" content="${desc}"/>`,
       `<meta name="twitter:image"       content="${image}"/>`,
+    ].join('\n  ');
+
+    const html = fs.readFileSync(indexPath, 'utf8').replace('</head>', `  ${ogTags}\n</head>`);
+    res.send(html);
+  } catch (err) {
+    res.sendFile(indexPath);
+  }
+});
+
+// /blog/:slug — inject OG + JSON-LD for blog post link previews
+app.get('/blog/:slug', async (req, res) => {
+  const indexPath = path.join(__dirname, '..', 'dist', 'index.html');
+  try {
+    const { rows } = await pool.queryR(
+      `SELECT slug, title, excerpt, category, emoji, post_date
+       FROM blog_posts WHERE slug = $1 AND published = true`,
+      [req.params.slug],
+    );
+    const p = rows[0];
+    if (!p) return res.sendFile(indexPath);
+
+    const esc   = (s) => (s || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+    const title = p.title;
+    const desc  = p.excerpt || '';
+    const url   = `https://certo.ng/blog/${p.slug}`;
+    const image = 'https://certo.ng/logo.png';
+
+    const jsonLd = JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'Article',
+      headline: title,
+      description: desc,
+      url,
+      datePublished: p.post_date || '',
+      publisher: {
+        '@type': 'Organization',
+        name: 'Certo',
+        url: 'https://certo.ng',
+        logo: { '@type': 'ImageObject', url: image },
+      },
+    });
+
+    const ogTags = [
+      `<title>${esc(title)} | Certo</title>`,
+      `<meta name="description" content="${esc(desc)}"/>`,
+      `<link rel="canonical" href="${url}"/>`,
+      `<meta property="og:type"         content="article"/>`,
+      `<meta property="og:url"          content="${url}"/>`,
+      `<meta property="og:title"        content="${esc(title)} | Certo"/>`,
+      `<meta property="og:description"  content="${esc(desc)}"/>`,
+      `<meta property="og:image"        content="${image}"/>`,
+      `<meta name="twitter:card"        content="summary"/>`,
+      `<meta name="twitter:title"       content="${esc(title)} | Certo"/>`,
+      `<meta name="twitter:description" content="${esc(desc)}"/>`,
+      `<script type="application/ld+json">${jsonLd}</script>`,
     ].join('\n  ');
 
     const html = fs.readFileSync(indexPath, 'utf8').replace('</head>', `  ${ogTags}\n</head>`);

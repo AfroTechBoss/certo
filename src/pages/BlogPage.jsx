@@ -1,16 +1,30 @@
-import React, { useState } from 'react';
-import { BLOG_POSTS, BLOG_CATEGORIES, getPostsByCategory } from '../data/blogPosts.js';
+import React, { useState, useEffect } from 'react';
+import { BLOG_CATEGORIES, BLOG_POSTS as FALLBACK_POSTS } from '../data/blogPosts.js';
 
 function useIsMobile() {
   const mq = typeof window !== 'undefined' ? window.matchMedia('(max-width: 767px)') : null;
   const [m, setM] = useState(() => mq ? mq.matches : false);
-  React.useEffect(() => {
+  useEffect(() => {
     if (!mq) return;
     const h = (e) => setM(e.matches);
     mq.addEventListener('change', h);
     return () => mq.removeEventListener('change', h);
   }, []);
   return m;
+}
+
+// Normalize DB field names to match component expectations
+function mapPost(p) {
+  return {
+    ...p,
+    readTime: p.read_time || p.readTime || '5 min read',
+    date: p.post_date || p.date || '',
+    relatedCategories: Array.isArray(p.related_categories)
+      ? p.related_categories
+      : (Array.isArray(p.relatedCategories) ? p.relatedCategories : []),
+    tags: Array.isArray(p.tags) ? p.tags : [],
+    sections: Array.isArray(p.sections) ? p.sections : [],
+  };
 }
 
 // ─── Post card ────────────────────────────────────────────────────────────────
@@ -78,12 +92,12 @@ function PostCard({ post, navigate, large }) {
 }
 
 // ─── Blog listing ─────────────────────────────────────────────────────────────
-function BlogListing({ navigate }) {
+function BlogListing({ posts, loading, navigate }) {
   const isMobile = useIsMobile();
   const [activeCategory, setActiveCategory] = useState('All');
 
-  const filtered = activeCategory === 'All' ? BLOG_POSTS
-    : BLOG_POSTS.filter(p => p.category === activeCategory);
+  const filtered = activeCategory === 'All' ? posts
+    : posts.filter(p => p.category === activeCategory);
 
   const featured = filtered.find(p => p.featured) || filtered[0];
   const rest = filtered.filter(p => p !== featured);
@@ -127,7 +141,11 @@ function BlogListing({ navigate }) {
 
       {/* Content */}
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? '32px 16px' : '48px 48px' }}>
-        {filtered.length === 0 ? (
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '80px 0', color: 'var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: 14 }}>
+            Loading guides…
+          </div>
+        ) : filtered.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '80px 0', color: 'var(--text-muted)' }}>No posts in this category yet.</div>
         ) : (
           <>
@@ -152,9 +170,9 @@ function BlogListing({ navigate }) {
 }
 
 // ─── Single post ──────────────────────────────────────────────────────────────
-function BlogPost({ slug, navigate }) {
+function BlogPost({ slug, allPosts, navigate }) {
   const isMobile = useIsMobile();
-  const post = BLOG_POSTS.find(p => p.slug === slug);
+  const post = allPosts.find(p => p.slug === slug);
 
   if (!post) return (
     <div style={{ minHeight: '60vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
@@ -164,8 +182,10 @@ function BlogPost({ slug, navigate }) {
     </div>
   );
 
-  // Related posts (same category, excluding current)
-  const related = BLOG_POSTS.filter(p => p.slug !== slug && (p.category === post.category || p.relatedCategories.some(c => post.relatedCategories.includes(c)))).slice(0, 3);
+  const related = allPosts.filter(p =>
+    p.slug !== slug &&
+    (p.category === post.category || p.relatedCategories.some(c => post.relatedCategories.includes(c)))
+  ).slice(0, 3);
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
@@ -216,7 +236,7 @@ function BlogPost({ slug, navigate }) {
                 )}
                 {Array.isArray(section.body)
                   ? section.body.map((para, j) => (
-                    <p key={j} style={{ fontSize: 15.5, color: para.match(/^(iPhone|Note:|Get it|Skip it|Tier|Low-end|Mid-range|RAM|Storage|Apple does|Dial|Check|Look|Before|Go to|These|iPhone \d|With Apple|DIY|Add|For most|The|If you|Fully)/) ? 'var(--text-muted)' : 'var(--text)', lineHeight: 1.8, margin: '0 0 12px' }}>
+                    <p key={j} style={{ fontSize: 15.5, color: 'var(--text)', lineHeight: 1.8, margin: '0 0 12px' }}>
                       {para}
                     </p>
                   ))
@@ -269,8 +289,34 @@ function BlogPost({ slug, navigate }) {
 
 // ─── Main export ──────────────────────────────────────────────────────────────
 export function BlogPage({ navigate, postSlug }) {
-  if (postSlug) return <BlogPost slug={postSlug} navigate={navigate} />;
-  return <BlogListing navigate={navigate} />;
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/blog?limit=200')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          setPosts(data.map(mapPost));
+        } else {
+          setPosts(FALLBACK_POSTS);
+        }
+      })
+      .catch(() => setPosts(FALLBACK_POSTS))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (postSlug) {
+    if (loading) {
+      return (
+        <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontFamily: 'var(--font-body)' }}>
+          Loading…
+        </div>
+      );
+    }
+    return <BlogPost slug={postSlug} allPosts={posts} navigate={navigate} />;
+  }
+  return <BlogListing posts={posts} loading={loading} navigate={navigate} />;
 }
 
 // ─── Mini guides strip (used in homepage + product pages) ─────────────────────
@@ -296,7 +342,7 @@ export function GuidesStrip({ posts, navigate, title = 'Recommended Guides', isM
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.08em', color: 'var(--accent)', textTransform: 'uppercase', marginBottom: 4 }}>{post.category}</div>
                 <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 14, color: 'var(--text)', lineHeight: 1.3, marginBottom: 4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{post.title}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{post.readTime}</div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{post.readTime || post.read_time}</div>
               </div>
             </div>
           ))}
