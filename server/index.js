@@ -636,7 +636,7 @@ app.get('/blog/:slug', async (req, res) => {
   const indexPath = path.join(__dirname, '..', 'dist', 'index.html');
   try {
     const { rows } = await pool.queryR(
-      `SELECT slug, title, excerpt, category, emoji, post_date
+      `SELECT slug, title, excerpt, category, emoji, post_date, image_url
        FROM blog_posts WHERE slug = $1 AND published = true`,
       [req.params.slug],
     );
@@ -647,7 +647,8 @@ app.get('/blog/:slug', async (req, res) => {
     const title = p.title;
     const desc  = p.excerpt || '';
     const url   = `https://certo.ng/blog/${p.slug}`;
-    const image = 'https://certo.ng/logo.png';
+    const image = p.image_url || 'https://certo.ng/logo.png';
+    const hasImg = !!p.image_url;
 
     const jsonLd = JSON.stringify({
       '@context': 'https://schema.org',
@@ -655,12 +656,13 @@ app.get('/blog/:slug', async (req, res) => {
       headline: title,
       description: desc,
       url,
+      image: image,
       datePublished: p.post_date || '',
       publisher: {
         '@type': 'Organization',
         name: 'Certo',
         url: 'https://certo.ng',
-        logo: { '@type': 'ImageObject', url: image },
+        logo: { '@type': 'ImageObject', url: 'https://certo.ng/logo.png' },
       },
     });
 
@@ -673,11 +675,14 @@ app.get('/blog/:slug', async (req, res) => {
       `<meta property="og:title"        content="${esc(title)} | Certo"/>`,
       `<meta property="og:description"  content="${esc(desc)}"/>`,
       `<meta property="og:image"        content="${image}"/>`,
-      `<meta name="twitter:card"        content="summary"/>`,
+      hasImg ? `<meta property="og:image:width"  content="1200"/>` : '',
+      hasImg ? `<meta property="og:image:height" content="630"/>` : '',
+      `<meta name="twitter:card"        content="${hasImg ? 'summary_large_image' : 'summary'}"/>`,
       `<meta name="twitter:title"       content="${esc(title)} | Certo"/>`,
       `<meta name="twitter:description" content="${esc(desc)}"/>`,
+      `<meta name="twitter:image"       content="${image}"/>`,
       `<script type="application/ld+json">${jsonLd}</script>`,
-    ].join('\n  ');
+    ].filter(Boolean).join('\n  ');
 
     const html = fs.readFileSync(indexPath, 'utf8').replace('</head>', `  ${ogTags}\n</head>`);
     res.send(html);
