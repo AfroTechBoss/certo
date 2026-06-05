@@ -12,8 +12,11 @@
     { "source": "/admin.html", "destination": "/dashboard", "permanent": false }
   ],
   "rewrites": [
-    { "source": "/api/:path*",  "destination": "/api/server.js" },
-    { "source": "/product/:id", "destination": "/api/server.js" },
-    { "source": "/(.*)",        "destination": "/index.html"    }
+    { "source": "/api/:path*",   "destination": "/api/server.js" },
+    { "source": "/product/:id",  "destination": "/api/server.js" },
+    { "source": "/blog/:slug",   "destination": "/api/server.js" },
+    { "source": "/guides/:slug", "destination": "/api/server.js" },
+    { "source": "/sitemap.xml",  "destination": "/api/server.js" },
+    { "source": "/(.*)",         "destination": "/index.html"    }
   ]
 }

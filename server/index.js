@@ -590,6 +590,9 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
+// Shared HTML-attribute escaper for OG tag injection
+const esc = (s) => (s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
 // /product/:id — inject OG meta tags into index.html for social link previews
 // Crawlers see image/title; browsers load the SPA and React navigates to the product
 app.get('/product/:id', async (req, res) => {
@@ -609,26 +612,48 @@ app.get('/product/:id', async (req, res) => {
     const image = cleanImg
       ? `https://certo.ng/api/img?url=${encodeURIComponent(cleanImg)}`
       : 'https://certo.ng/logo.png';
-    const title  = p.name + (p.subtitle ? ` – ${p.subtitle}` : '');
-    const desc   = `Buy genuine ${p.name} from Apple US, delivered to Nigeria. $${Number(p.usd_price).toLocaleString()} USD. Serial verified. Full Apple warranty.`;
-    const url    = `https://certo.ng/product/${p.id}`;
+    const title    = p.name + (p.subtitle ? ` – ${p.subtitle}` : '');
+    const desc     = `Buy genuine ${p.name} from Apple US, delivered to Nigeria. $${Number(p.usd_price).toLocaleString()} USD. Serial verified. Full Apple warranty.`;
+    const url      = `https://certo.ng/product/${p.id}`;
+    const keywords = `buy ${p.name} Nigeria, ${p.name} price Nigeria, genuine ${p.name} Nigeria, Apple ${p.category} Nigeria, Certo Nigeria, Apple products Nigeria`;
+
+    const jsonLd = JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'Product',
+      name: title,
+      description: desc,
+      url,
+      image,
+      brand: { '@type': 'Brand', name: 'Apple' },
+      offers: {
+        '@type': 'Offer',
+        priceCurrency: 'USD',
+        price: String(p.usd_price),
+        availability: 'https://schema.org/InStock',
+        seller: { '@type': 'Organization', name: 'Certo', url: 'https://certo.ng' },
+      },
+    });
 
     const ogTags = [
-      `<title>${title} | Certo</title>`,
-      `<meta name="description" content="${desc}"/>`,
+      `<title>${esc(title)} | Certo</title>`,
+      `<meta name="description"         content="${esc(desc)}"/>`,
+      `<meta name="keywords"            content="${esc(keywords)}"/>`,
+      `<link rel="canonical"            href="${url}"/>`,
       `<meta property="og:type"         content="product"/>`,
       `<meta property="og:url"          content="${url}"/>`,
-      `<meta property="og:title"        content="${title} | Certo"/>`,
-      `<meta property="og:description"  content="${desc}"/>`,
+      `<meta property="og:title"        content="${esc(title)} | Certo"/>`,
+      `<meta property="og:description"  content="${esc(desc)}"/>`,
       `<meta property="og:image"        content="${image}"/>`,
       `<meta property="og:image:width"  content="800"/>`,
       `<meta property="og:image:height" content="800"/>`,
       `<meta name="twitter:card"        content="summary_large_image"/>`,
-      `<meta name="twitter:title"       content="${title} | Certo"/>`,
-      `<meta name="twitter:description" content="${desc}"/>`,
+      `<meta name="twitter:title"       content="${esc(title)} | Certo"/>`,
+      `<meta name="twitter:description" content="${esc(desc)}"/>`,
       `<meta name="twitter:image"       content="${image}"/>`,
+      `<script type="application/ld+json">${jsonLd}</script>`,
     ].join('\n  ');
 
+    res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
     const html = fs.readFileSync(indexPath, 'utf8').replace('</head>', `  ${ogTags}\n</head>`);
     res.send(html);
   } catch (err) {
@@ -636,24 +661,25 @@ app.get('/product/:id', async (req, res) => {
   }
 });
 
-// /blog/:slug — inject OG + JSON-LD for blog post link previews
-app.get('/blog/:slug', async (req, res) => {
+// /blog/:slug and /guides/:slug — inject OG + JSON-LD for blog post link previews
+async function serveBlogPostPage(req, res) {
   const indexPath = path.join(__dirname, '..', 'dist', 'index.html');
   try {
     const { rows } = await pool.queryR(
-      `SELECT slug, title, excerpt, category, emoji, post_date, image_url
+      `SELECT slug, title, excerpt, category, emoji, post_date, image_url, tags, updated_at
        FROM blog_posts WHERE slug = $1 AND published = true`,
       [req.params.slug],
     );
     const p = rows[0];
     if (!p) return res.sendFile(indexPath);
 
-    const esc   = (s) => (s || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-    const title = p.title;
-    const desc  = p.excerpt || '';
-    const url   = `https://certo.ng/blog/${p.slug}`;
-    const image = p.image_url || 'https://certo.ng/logo.png';
-    const hasImg = !!p.image_url;
+    const title    = p.title;
+    const desc     = p.excerpt || '';
+    const url      = `https://certo.ng/blog/${p.slug}`;
+    const image    = p.image_url || 'https://certo.ng/logo.png';
+    const hasImg   = !!p.image_url;
+    const tags     = Array.isArray(p.tags) ? p.tags : (typeof p.tags === 'string' ? JSON.parse(p.tags || '[]') : []);
+    const keywords = [...tags, p.category, 'Apple Nigeria', 'genuine Apple', 'Certo Nigeria', 'buy Apple Nigeria'].filter(Boolean).join(', ');
 
     const jsonLd = JSON.stringify({
       '@context': 'https://schema.org',
@@ -661,8 +687,10 @@ app.get('/blog/:slug', async (req, res) => {
       headline: title,
       description: desc,
       url,
-      image: image,
+      image,
       datePublished: p.post_date || '',
+      dateModified: p.updated_at ? new Date(p.updated_at).toISOString() : '',
+      keywords,
       publisher: {
         '@type': 'Organization',
         name: 'Certo',
@@ -672,9 +700,10 @@ app.get('/blog/:slug', async (req, res) => {
     });
 
     const ogTags = [
-      `<title>${esc(title)} | Certo</title>`,
+      `<title>${esc(title)} | Certo Guides</title>`,
       `<meta name="description" content="${esc(desc)}"/>`,
-      `<link rel="canonical" href="${url}"/>`,
+      `<meta name="keywords"    content="${esc(keywords)}"/>`,
+      `<link rel="canonical"    href="${url}"/>`,
       `<meta property="og:type"         content="article"/>`,
       `<meta property="og:url"          content="${url}"/>`,
       `<meta property="og:title"        content="${esc(title)} | Certo"/>`,
@@ -689,10 +718,63 @@ app.get('/blog/:slug', async (req, res) => {
       `<script type="application/ld+json">${jsonLd}</script>`,
     ].filter(Boolean).join('\n  ');
 
+    res.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=3600');
     const html = fs.readFileSync(indexPath, 'utf8').replace('</head>', `  ${ogTags}\n</head>`);
     res.send(html);
   } catch (err) {
     res.sendFile(indexPath);
+  }
+}
+
+app.get('/blog/:slug',   serveBlogPostPage);
+app.get('/guides/:slug', serveBlogPostPage);
+
+// /sitemap.xml — dynamic sitemap for all indexable pages
+app.get('/sitemap.xml', async (req, res) => {
+  try {
+    const base = 'https://certo.ng';
+    const toDate = (d) => d ? new Date(d).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+
+    const [posts, products] = await Promise.all([
+      pool.queryR(`SELECT slug, updated_at FROM blog_posts WHERE published = true ORDER BY updated_at DESC`),
+      pool.queryR(`SELECT id, updated_at FROM products ORDER BY updated_at DESC`),
+    ]);
+
+    const staticPages = [
+      { path: '/',             priority: '1.0', freq: 'weekly'  },
+      { path: '/shop',         priority: '0.9', freq: 'daily'   },
+      { path: '/guides',       priority: '0.8', freq: 'weekly'  },
+      { path: '/how-it-works', priority: '0.7', freq: 'monthly' },
+      { path: '/about',        priority: '0.6', freq: 'monthly' },
+      { path: '/faq',          priority: '0.6', freq: 'monthly' },
+      { path: '/contact',      priority: '0.5', freq: 'monthly' },
+      { path: '/verify',       priority: '0.5', freq: 'monthly' },
+      { path: '/privacy',      priority: '0.3', freq: 'yearly'  },
+      { path: '/terms',        priority: '0.3', freq: 'yearly'  },
+      { path: '/refund',       priority: '0.4', freq: 'monthly' },
+    ];
+
+    const urlXml = (loc, lastmod, freq, priority) => [
+      '  <url>',
+      `    <loc>${loc}</loc>`,
+      lastmod ? `    <lastmod>${lastmod}</lastmod>` : '',
+      `    <changefreq>${freq}</changefreq>`,
+      `    <priority>${priority}</priority>`,
+      '  </url>',
+    ].filter(Boolean).join('\n');
+
+    const urls = [
+      ...staticPages.map(p => urlXml(`${base}${p.path}`, '', p.freq, p.priority)),
+      ...products.rows.map(r => urlXml(`${base}/product/${r.id}`, toDate(r.updated_at), 'weekly', '0.8')),
+      ...posts.rows.map(r => urlXml(`${base}/blog/${r.slug}`, toDate(r.updated_at), 'monthly', '0.7')),
+    ];
+
+    res.set('Content-Type', 'application/xml; charset=utf-8');
+    res.set('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400');
+    res.send(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join('\n')}\n</urlset>`);
+  } catch (err) {
+    res.set('Content-Type', 'application/xml; charset=utf-8');
+    res.send('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>');
   }
 });
 
