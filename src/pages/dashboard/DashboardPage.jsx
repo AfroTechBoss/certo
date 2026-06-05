@@ -3333,6 +3333,7 @@ const NG_BANKS = [
   { name: 'Union Bank',      code: '032'    },
   { name: 'UBA',             code: '033'    },
   { name: 'Unity Bank',      code: '215'    },
+  { name: 'Vale Finance',     code: '050020' },
   { name: 'VFD MFB',         code: '566'    },
   { name: 'Wema Bank',       code: '035'    },
   { name: 'Zenith Bank',     code: '057'    },
