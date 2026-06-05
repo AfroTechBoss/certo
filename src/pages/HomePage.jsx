@@ -647,8 +647,186 @@ function ProductIcon({ type }) {
       <rect x="7" y="7" width="54" height="72" rx="2" stroke="var(--accent)" strokeWidth="0.5" opacity="0.5" />
     </svg>
   );
+  if (type === 'imac') return (
+    <svg width="90" height="78" viewBox="0 0 90 78">
+      <rect x="3" y="3" width="84" height="54" rx="5" {...props} />
+      <rect x="8" y="8" width="74" height="44" rx="2" stroke="var(--accent)" strokeWidth="0.5" opacity="0.5" fill="none" />
+      <path d="M37 57 L45 69 L53 57" {...props} />
+      <line x1="30" y1="69" x2="60" y2="69" stroke="var(--ink)" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  );
   return null;
 }
+
+// ─── 4a. CATEGORIES ──────────────────────────────────────────────────────────
+
+const SHOP_CATEGORIES = [
+  {
+    name: 'iPhone',
+    tagline: 'From Pro to Plus.',
+    param: 'iPhone',
+    gradient: 'linear-gradient(145deg, #dce8fd 0%, #c5d8fc 100%)',
+    icon: 'iphone',
+    imgSrc: '/cat-iphone.jpg',
+  },
+  {
+    name: 'MacBook',
+    tagline: 'Pro or Air — pure speed.',
+    param: 'MacBook',
+    gradient: 'linear-gradient(145deg, #f0f0f2 0%, #d8d8de 100%)',
+    icon: 'laptop',
+    imgSrc: '/cat-macbook.jpg',
+  },
+  {
+    name: 'iMac',
+    tagline: 'All-in-one. All the power.',
+    param: 'MacBook',
+    gradient: 'linear-gradient(145deg, #fde8e8 0%, #fccfcf 100%)',
+    icon: 'imac',
+    imgSrc: '/cat-imac.jpg',
+  },
+  {
+    name: 'iPad',
+    tagline: 'Halfway between phone and Mac.',
+    param: 'iPad',
+    gradient: 'linear-gradient(145deg, #e4faf0 0%, #c6f2db 100%)',
+    icon: 'ipad',
+    imgSrc: '/cat-ipad.jpg',
+  },
+];
+
+function CategoryCard({ cat, navigate, isMobile }) {
+  const [hovered, setHovered] = useState(false);
+  const [imgError, setImgError] = useState(false);
+
+  return (
+    <article
+      onClick={() => navigate('shop', cat.param)}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        cursor: 'pointer',
+        borderRadius: 20,
+        overflow: 'hidden',
+        border: '1px solid var(--border)',
+        background: 'var(--card)',
+        transform: hovered ? 'translateY(-6px)' : 'translateY(0)',
+        transition: 'transform 0.25s ease, box-shadow 0.25s ease',
+        boxShadow: hovered
+          ? '0 28px 72px -16px rgba(26,23,20,0.22)'
+          : '0 2px 8px -4px rgba(26,23,20,0.06)',
+      }}
+    >
+      {/* Image / placeholder */}
+      <div style={{
+        height: isMobile ? 180 : 268,
+        background: cat.gradient,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'hidden',
+        position: 'relative',
+      }}>
+        {!imgError ? (
+          <img
+            src={cat.imgSrc}
+            alt={cat.name}
+            onError={() => setImgError(true)}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+          />
+        ) : (
+          <div style={{
+            opacity: 0.45,
+            transform: hovered ? 'scale(1.08)' : 'scale(1)',
+            transition: 'transform 0.35s ease',
+          }}>
+            <ProductIcon type={cat.icon} />
+          </div>
+        )}
+      </div>
+
+      {/* Text strip */}
+      <div style={{
+        padding: isMobile ? '16px 18px 18px' : '22px 24px 24px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: 12,
+      }}>
+        <div>
+          <div style={{
+            fontFamily: 'var(--font-head)', fontWeight: 800,
+            fontSize: isMobile ? 18 : 22, color: 'var(--ink)',
+            letterSpacing: '-0.02em', lineHeight: 1, marginBottom: 4,
+          }}>{cat.name}</div>
+          <div style={{
+            fontSize: isMobile ? 11 : 12, color: 'var(--muted)', lineHeight: 1.4,
+          }}>{cat.tagline}</div>
+        </div>
+        <div style={{
+          width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
+          background: hovered ? 'var(--ink)' : 'var(--bg-alt)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: hovered ? 'white' : 'var(--ink)',
+          fontSize: 17, transition: 'background 0.2s, color 0.2s',
+        }}>→</div>
+      </div>
+    </article>
+  );
+}
+
+function SectionCategories({ navigate }) {
+  const isMobile = useIsMobile();
+  return (
+    <section style={{
+      background: 'var(--cream)',
+      padding: isMobile ? '64px 20px' : '120px 48px',
+      borderTop: '1px solid var(--hairline)',
+    }}>
+      <div style={{ maxWidth: 1440, margin: '0 auto' }}>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: isMobile ? '1fr' : '1fr auto',
+          alignItems: 'flex-end',
+          gap: isMobile ? 16 : 40,
+          marginBottom: isMobile ? 36 : 56,
+        }}>
+          <div>
+            <div style={{
+              fontSize: 11, fontWeight: 700, letterSpacing: '0.18em',
+              color: 'var(--accent)', textTransform: 'uppercase', marginBottom: 20,
+            }}>Browse the Range</div>
+            <h2 style={{
+              fontFamily: 'var(--font-head)', fontWeight: 800,
+              fontSize: 'clamp(32px, 5vw, 64px)', lineHeight: 0.95,
+              letterSpacing: '-0.04em', color: 'var(--ink)', margin: 0,
+            }}>
+              Shop by<br />category.
+            </h2>
+          </div>
+          <button onClick={() => navigate('shop')} style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            fontSize: 14, fontWeight: 600, color: 'var(--ink)',
+            borderBottom: '1.5px solid var(--ink)', paddingBottom: 3,
+            alignSelf: isMobile ? 'flex-start' : 'flex-end',
+          }}>View everything →</button>
+        </div>
+
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
+          gap: isMobile ? 14 : 20,
+        }}>
+          {SHOP_CATEGORIES.map(cat => (
+            <CategoryCard key={cat.name} cat={cat} navigate={navigate} isMobile={isMobile} />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── 4b. CATALOG ─────────────────────────────────────────────────────────────
 
 function SectionCatalog({ navigate }) {
   const isMobile = useIsMobile();
@@ -1256,22 +1434,25 @@ const HomePage = ({ navigate }) => {
       <div data-screen-label="03 Chain of custody" data-certo-reveal>
         <SectionChainOfCustody />
       </div>
-      <div data-screen-label="04 Catalog · Featured" data-certo-reveal>
+      <div data-screen-label="04 Categories · Browse by type" data-certo-reveal>
+        <SectionCategories navigate={navigate} />
+      </div>
+      <div data-screen-label="05 Catalog · Featured" data-certo-reveal>
         <SectionCatalog navigate={navigate} />
       </div>
-      <div data-screen-label="05 Forex · The promise" data-certo-reveal>
+      <div data-screen-label="06 Forex · The promise" data-certo-reveal>
         <SectionForex />
       </div>
-      <div data-screen-label="06 Voices · Testimonials" data-certo-reveal>
+      <div data-screen-label="07 Voices · Testimonials" data-certo-reveal>
         <SectionVoices />
       </div>
-      <div data-screen-label="07 Founder note" data-certo-reveal>
+      <div data-screen-label="08 Founder note" data-certo-reveal>
         <SectionFounder />
       </div>
-      <div data-screen-label="08 Guides" data-certo-reveal>
+      <div data-screen-label="09 Guides" data-certo-reveal>
         <GuidesStrip navigate={navigate} />
       </div>
-      <div data-screen-label="09 Final CTA" data-certo-reveal>
+      <div data-screen-label="10 Final CTA" data-certo-reveal>
         <SectionFinalCTA navigate={navigate} />
       </div>
     </main>
