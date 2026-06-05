@@ -210,7 +210,7 @@ const ShopPage = ({ navigate, addToCart, initialType }) => {
       .catch(() => setLoading(false));
   }, [typeFilter, condFilter, search, sort, page]);
 
-  const types = ['All', 'iPhone', 'MacBook', 'iPad', 'AirPods', 'Watch', 'Apple TV', 'HomePod', 'Accessories'];
+  const types = ['All', 'iPhone', 'MacBook', 'iMac', 'iPad', 'AirPods', 'Watch', 'Apple TV', 'HomePod', 'Accessories'];
   const conds = ['All', 'New', 'Refurbished'];
 
   const OptionPill = ({ label, active, onClick }) => (

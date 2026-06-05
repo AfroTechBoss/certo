@@ -680,7 +680,7 @@ const SHOP_CATEGORIES = [
   {
     name: 'iMac',
     tagline: 'All-in-one. All the power.',
-    param: 'MacBook',
+    param: 'iMac',
     gradient: 'linear-gradient(145deg, #fde8e8 0%, #fccfcf 100%)',
     icon: 'imac',
     imgSrc: '/cat-imac.jpg',

@@ -1236,6 +1236,7 @@ function ProductEditModal({ productId, onClose, onDone }) {
         setForm({
           name:           p.name           || '',
           subtitle:       p.subtitle       || '',
+          category:       p.category       || 'iPhone',
           usd_price:      p.usd_price      ?? 0,
           stock_count:    p.stock_count    ?? 0,
           in_stock:       p.in_stock       !== false,
@@ -1286,7 +1287,7 @@ function ProductEditModal({ productId, onClose, onDone }) {
       } : [];
 
       const res  = await authFetch(`/api/products/${productId}`, { method:'PATCH', body: JSON.stringify({
-        name: form.name.trim(), subtitle: form.subtitle.trim(),
+        name: form.name.trim(), subtitle: form.subtitle.trim(), category: form.category,
         usd_price: Number(form.usd_price), stock_count: Number(form.stock_count),
         in_stock: form.in_stock, condition: form.condition, condition_note: form.condition_note,
         listing_status: form.listing_status, featured: form.featured,
@@ -1379,6 +1380,12 @@ function ProductEditModal({ productId, onClose, onDone }) {
               {activeTab === 'basic' && <>
                 <div><label style={L}>Product Name</label><input value={form.name} onChange={e => set('name', e.target.value)} style={I}/></div>
                 <div><label style={L}>Subtitle / Storage / Color</label><input value={form.subtitle} onChange={e => set('subtitle', e.target.value)} placeholder="e.g. 256GB · Desert Titanium" style={I}/></div>
+                <div>
+                  <label style={L}>Category</label>
+                  <select value={form.category} onChange={e => set('category', e.target.value)} style={{ ...I, cursor:'pointer' }}>
+                    {PROD_CATS.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
                   <div><label style={L}>USD Price</label><input type="number" min="0" step="0.01" value={form.usd_price} onChange={e => set('usd_price', e.target.value)} style={I}/></div>
                   <div><label style={L}>Stock Count</label><input type="number" min="0" value={form.stock_count} onChange={e => set('stock_count', e.target.value)} style={I}/></div>
@@ -1505,6 +1512,9 @@ function ProductEditModal({ productId, onClose, onDone }) {
     </Modal>
   );
 }
+
+// DB-level category values — 'Mac' is used for MacBook, 'iMac' for iMac
+const PROD_CATS = ['iPhone', 'Mac', 'iMac', 'iPad', 'AirPods', 'Watch', 'Apple TV', 'HomePod', 'Accessories'];
 
 // ─── Create product modal ─────────────────────────────────────────────────────
 function ProductCreateModal({ onClose, onDone }) {
@@ -1647,6 +1657,12 @@ function ProductCreateModal({ onClose, onDone }) {
           {activeTab === 'basic' && <>
             <div><label style={L}>Product Name</label><input value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. iPhone 16 Pro" style={I}/></div>
             <div><label style={L}>Subtitle / Storage / Color</label><input value={form.subtitle} onChange={e => set('subtitle', e.target.value)} placeholder="e.g. 256GB · Desert Titanium" style={I}/></div>
+            <div>
+              <label style={L}>Category</label>
+              <select value={form.category} onChange={e => set('category', e.target.value)} style={{ ...I, cursor:'pointer' }}>
+                {PROD_CATS.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
               <div><label style={L}>USD Price</label><input type="number" min="0" step="0.01" value={form.usd_price} onChange={e => set('usd_price', e.target.value)} placeholder="0" style={I}/></div>
               <div><label style={L}>Stock Count</label><input type="number" min="0" value={form.stock_count} onChange={e => set('stock_count', e.target.value)} style={I}/></div>
