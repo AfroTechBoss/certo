@@ -180,8 +180,8 @@ function Certificate({ isMobile }) {
 
       {/* DELIVERED stamp */}
       <div style={{
-        position: 'absolute', top: 20,
-        right: isMobile ? 12 : -30,
+        position: 'absolute', top: isMobile ? 92 : 20,
+        right: isMobile ? 8 : -30,
         transform: 'rotate(10deg)',
         background: 'var(--sage)', color: 'white',
         padding: isMobile ? '8px 14px' : '12px 24px', borderRadius: 6,
@@ -222,10 +222,11 @@ function SectionHero({ navigate }) {
 
         <h1 style={{
           fontFamily: 'var(--font-head)', fontWeight: 800,
-          fontSize: isMobile ? 'clamp(48px, 13vw, 72px)' : 'clamp(64px, 9vw, 132px)',
-          lineHeight: 0.9,
-          letterSpacing: '-0.045em', color: 'var(--ink)',
-          margin: '0 0 40px',
+          fontSize: isMobile ? 'clamp(32px, 9vw, 64px)' : 'clamp(64px, 9vw, 132px)',
+          lineHeight: 0.92,
+          letterSpacing: '-0.04em', color: 'var(--ink)',
+          margin: '0 0 36px',
+          wordBreak: 'break-word',
         }}>
           We import Apple.<br />
           <span style={{ display: 'inline-block', position: 'relative' }}>
@@ -242,26 +243,28 @@ function SectionHero({ navigate }) {
         </h1>
 
         {/* Hero CTAs */}
-        <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 48 }}>
+        <div style={{ display: 'flex', gap: 12, marginBottom: 44, flexDirection: isMobile ? 'column' : 'row' }}>
           <button onClick={() => navigate('shop')} style={{
-            display: 'inline-flex', alignItems: 'center', gap: 10,
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 10,
             background: 'var(--accent)', color: 'white',
             border: 'none', borderRadius: 14,
-            padding: isMobile ? '14px 28px' : '16px 36px',
+            padding: isMobile ? '16px 28px' : '16px 36px',
             fontFamily: 'var(--font-body)', fontWeight: 700,
             fontSize: isMobile ? 15 : 16, cursor: 'pointer',
             letterSpacing: '-0.01em',
+            width: isMobile ? '100%' : 'auto',
           }}>
             Shop Apple →
           </button>
           <button onClick={() => navigate('track')} style={{
-            display: 'inline-flex', alignItems: 'center', gap: 10,
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 10,
             background: 'transparent', color: 'var(--ink)',
             border: '1.5px solid var(--border)', borderRadius: 14,
-            padding: isMobile ? '14px 28px' : '16px 36px',
+            padding: isMobile ? '15px 28px' : '16px 36px',
             fontFamily: 'var(--font-body)', fontWeight: 600,
             fontSize: isMobile ? 15 : 16, cursor: 'pointer',
             letterSpacing: '-0.01em',
+            width: isMobile ? '100%' : 'auto',
           }}>
             Track your order
           </button>
@@ -368,7 +371,8 @@ function SectionCertificate({ navigate }) {
 
           <h2 style={{
             fontFamily: 'var(--font-head)', fontWeight: 800,
-            fontSize: 'clamp(36px, 5vw, 64px)', lineHeight: 0.95,
+            fontSize: isMobile ? 'clamp(28px, 8vw, 48px)' : 'clamp(36px, 5vw, 64px)',
+            lineHeight: 0.95,
             letterSpacing: '-0.04em', color: 'var(--ink)', margin: '0 0 28px',
           }}>
             And here's<br />
@@ -419,8 +423,10 @@ function SectionCertificate({ navigate }) {
           </button>
         </div>
 
-        <div style={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
-          <Certificate isMobile={isMobile} />
+        <div style={{ position: 'relative', display: 'flex', justifyContent: 'center', overflowX: 'hidden' }}>
+          <div style={{ width: '100%', maxWidth: isMobile ? '100%' : 540 }}>
+            <Certificate isMobile={isMobile} />
+          </div>
         </div>
       </div>
     </section>
@@ -469,8 +475,10 @@ function SectionChainOfCustody() {
             }}>Chapter III · Chain of Custody</div>
             <h2 style={{
               fontFamily: 'var(--font-head)', fontWeight: 800,
-              fontSize: 'clamp(32px, 5vw, 64px)', lineHeight: 0.95,
+              fontSize: isMobile ? 'clamp(28px, 8vw, 48px)' : 'clamp(32px, 5vw, 64px)',
+              lineHeight: 0.95,
               letterSpacing: '-0.04em', color: 'white', margin: 0, maxWidth: 800,
+              wordBreak: 'break-word',
             }}>
               From Cupertino to your couch.<br />
               <span style={{ color: 'var(--accent)' }}>You watch every step.</span>
@@ -747,28 +755,31 @@ function CategoryCard({ cat, navigate, isMobile }) {
 
       {/* Text strip */}
       <div style={{
-        padding: isMobile ? '16px 18px 18px' : '22px 24px 24px',
+        padding: isMobile ? '14px 14px 16px' : '22px 24px 24px',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        gap: 12,
+        gap: isMobile ? 8 : 12,
       }}>
-        <div>
+        <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{
             fontFamily: 'var(--font-head)', fontWeight: 800,
-            fontSize: isMobile ? 18 : 22, color: 'var(--ink)',
-            letterSpacing: '-0.02em', lineHeight: 1, marginBottom: 4,
+            fontSize: isMobile ? 16 : 22, color: 'var(--ink)',
+            letterSpacing: '-0.02em', lineHeight: 1, marginBottom: 3,
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
           }}>{cat.name}</div>
           <div style={{
-            fontSize: isMobile ? 11 : 12, color: 'var(--muted)', lineHeight: 1.4,
+            fontSize: isMobile ? 10 : 12, color: 'var(--muted)', lineHeight: 1.3,
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
           }}>{cat.tagline}</div>
         </div>
         <div style={{
-          width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
+          width: isMobile ? 28 : 36, height: isMobile ? 28 : 36,
+          borderRadius: '50%', flexShrink: 0,
           background: hovered ? 'var(--ink)' : 'var(--bg-alt)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           color: hovered ? 'white' : 'var(--ink)',
-          fontSize: 17, transition: 'background 0.2s, color 0.2s',
+          fontSize: isMobile ? 13 : 17, transition: 'background 0.2s, color 0.2s',
         }}>→</div>
       </div>
     </article>
@@ -798,7 +809,8 @@ function SectionCategories({ navigate }) {
             }}>Browse the Range</div>
             <h2 style={{
               fontFamily: 'var(--font-head)', fontWeight: 800,
-              fontSize: 'clamp(32px, 5vw, 64px)', lineHeight: 0.95,
+              fontSize: isMobile ? 'clamp(28px, 8vw, 48px)' : 'clamp(32px, 5vw, 64px)',
+              lineHeight: 0.95,
               letterSpacing: '-0.04em', color: 'var(--ink)', margin: 0,
             }}>
               Shop by<br />category.
@@ -861,7 +873,8 @@ function SectionCatalog({ navigate }) {
             }}>Chapter IV · The Catalog</div>
             <h2 style={{
               fontFamily: 'var(--font-head)', fontWeight: 800,
-              fontSize: 'clamp(32px, 5vw, 64px)', lineHeight: 0.95,
+              fontSize: isMobile ? 'clamp(28px, 8vw, 48px)' : 'clamp(32px, 5vw, 64px)',
+              lineHeight: 0.95,
               letterSpacing: '-0.04em', color: 'var(--ink)', margin: 0, maxWidth: 700,
             }}>
               Apple's latest.<br />
@@ -1013,7 +1026,8 @@ function SectionForex() {
           }}>Chapter V · The Forex Promise</div>
           <h2 style={{
             fontFamily: 'var(--font-head)', fontWeight: 800,
-            fontSize: 'clamp(32px, 4.5vw, 56px)', lineHeight: 0.95,
+            fontSize: isMobile ? 'clamp(28px, 8vw, 48px)' : 'clamp(32px, 4.5vw, 56px)',
+            lineHeight: 0.95,
             letterSpacing: '-0.04em', color: 'var(--ink)', margin: '0 0 24px',
           }}>
             You pay the rate<br />
@@ -1058,7 +1072,7 @@ function SectionForex() {
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 8, flexWrap: 'wrap' }}>
             <span style={{
               fontFamily: 'var(--font-num)', fontWeight: 800,
-              fontSize: isMobile ? 60 : 92,
+              fontSize: isMobile ? 'clamp(40px, 14vw, 64px)' : 92,
               color: 'white', letterSpacing: '-0.04em', lineHeight: 1,
             }}>₦{rate.toLocaleString()}</span>
             <span style={{ fontSize: 16, color: 'rgba(255,255,255,0.5)', fontFamily: 'var(--font-mono)', letterSpacing: '0.04em' }}>/ $1</span>
@@ -1153,8 +1167,10 @@ function SectionVoices() {
           }}>Chapter VI · The People</div>
           <h2 style={{
             fontFamily: 'var(--font-head)', fontWeight: 800,
-            fontSize: 'clamp(32px, 5vw, 64px)', lineHeight: 0.95,
+            fontSize: isMobile ? 'clamp(28px, 8vw, 48px)' : 'clamp(32px, 5vw, 64px)',
+            lineHeight: 0.95,
             letterSpacing: '-0.04em', color: 'var(--ink)', margin: 0, maxWidth: 700,
+            wordBreak: 'break-word',
           }}>
             Who took the leap.<br />What happened next.
           </h2>
@@ -1227,7 +1243,9 @@ function SectionVoices() {
           ].map(([n, l], i) => (
             <div key={n} style={{
               textAlign: 'center',
-              borderRight: (!isMobile && i < 3) ? '1px solid var(--hairline)' : 'none',
+              borderRight: isMobile
+                ? (i % 2 === 0 ? '1px solid var(--hairline)' : 'none')
+                : (i < 3 ? '1px solid var(--hairline)' : 'none'),
               padding: isMobile ? '0 8px' : '0 16px',
             }}>
               <div style={{
@@ -1266,7 +1284,8 @@ function SectionFounder() {
 
         <div style={{
           fontFamily: 'var(--font-head)', fontStyle: 'italic',
-          fontSize: 'clamp(20px, 3vw, 34px)', lineHeight: 1.4,
+          fontSize: isMobile ? 'clamp(18px, 5vw, 28px)' : 'clamp(20px, 3vw, 34px)',
+          lineHeight: 1.4,
           letterSpacing: '-0.015em', color: 'var(--ink)', marginBottom: 32,
         }}>
           "Two devices. Two different kinds of dishonesty. The same lesson both times: in this market,
@@ -1346,9 +1365,10 @@ function SectionFinalCTA({ navigate }) {
 
         <h2 style={{
           fontFamily: 'var(--font-head)', fontWeight: 800,
-          fontSize: isMobile ? 'clamp(40px, 13vw, 72px)' : 'clamp(48px, 7vw, 92px)',
+          fontSize: isMobile ? 'clamp(36px, 11vw, 72px)' : 'clamp(48px, 7vw, 92px)',
           lineHeight: 0.95,
-          letterSpacing: '-0.045em', color: 'white', margin: '0 0 28px',
+          letterSpacing: '-0.04em', color: 'white', margin: '0 0 28px',
+          wordBreak: 'break-word',
         }}>
           Buy Apple<br />the right way.
         </h2>
