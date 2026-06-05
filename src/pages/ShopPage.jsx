@@ -4,7 +4,6 @@ import React from 'react';
 import { CERTO_RATE, PRODUCTS, useResponsive } from '../data.js';
 import { ProductIcon, fmt } from './HomePage.jsx';
 import { GuidesStrip } from './BlogPage.jsx';
-import { getRelatedPosts } from '../data/blogPosts.js';
 
 // Strip the .v= cache-buster from Apple CDN URLs (it causes proxy encoding issues and isn't needed)
 const cleanAppleImg = (url) => url ? url.replace(/[&?]\.v=[^&]*/, '') : null;
@@ -834,17 +833,12 @@ const ProductDetailPage = ({ productId, navigate, addToCart, trackEvent }) => {
       )}
 
       {/* ── Related guides ──────────────────────────────────────────── */}
-      {(() => {
-        const guides = getRelatedPosts(product.type, 3);
-        return guides.length > 0 ? (
-          <GuidesStrip
-            posts={guides}
-            navigate={navigate}
-            title="Helpful Guides"
-            isMobile={isMobile}
-          />
-        ) : null;
-      })()}
+      <GuidesStrip
+        navigate={navigate}
+        productType={product.type}
+        title="Helpful Guides"
+        isMobile={isMobile}
+      />
 
     </div>
   );

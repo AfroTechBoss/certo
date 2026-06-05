@@ -4,7 +4,6 @@
 import React, { useEffect, useState } from 'react';
 import { CERTO_RATE } from '../data.js';
 import { GuidesStrip } from './BlogPage.jsx';
-import { getFeaturedPosts } from '../data/blogPosts.js';
 
 // ─── Mobile hook (via matchMedia — works with CSS viewport emulation) ─────────
 
@@ -1270,7 +1269,7 @@ const HomePage = ({ navigate }) => {
         <SectionFounder />
       </div>
       <div data-screen-label="08 Guides" data-certo-reveal>
-        <GuidesStrip posts={getFeaturedPosts(3)} navigate={navigate} isMobile={false} />
+        <GuidesStrip navigate={navigate} isMobile={false} />
       </div>
       <div data-screen-label="09 Final CTA" data-certo-reveal>
         <SectionFinalCTA navigate={navigate} />

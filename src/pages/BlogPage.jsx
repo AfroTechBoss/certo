@@ -324,37 +324,217 @@ export function BlogPage({ navigate, postSlug }) {
   return <BlogListing posts={posts} loading={loading} navigate={navigate} />;
 }
 
-// ─── Mini guides strip (used in homepage + product pages) ─────────────────────
-export function GuidesStrip({ posts, navigate, title = 'Recommended Guides', isMobile }) {
+// ─── Guide card ───────────────────────────────────────────────────────────────
+function GuideCard({ post, navigate, compact = false }) {
+  const [hovered, setHovered] = useState(false);
+  const [imgFailed, setImgFailed] = useState(false);
+  const hasImage = post.image_url && !imgFailed;
+
   return (
-    <div style={{ padding: isMobile ? '48px 20px' : '64px 48px', background: 'var(--bg-alt)', borderTop: '1px solid var(--border)' }}>
-      <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28, flexWrap: 'wrap', gap: 12 }}>
-          <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 800, fontSize: isMobile ? 20 : 26, letterSpacing: '-0.02em', color: 'var(--text)', margin: 0 }}>
-            {title}
-          </h2>
-          <button onClick={() => navigate('guides')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, color: 'var(--accent)', fontFamily: 'var(--font-body)' }}>
-            View all guides →
-          </button>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 16 }}>
-          {posts.map(post => (
-            <div key={post.slug} onClick={() => navigate('guides', post.slug)} style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 14, padding: '18px 20px', cursor: 'pointer', display: 'flex', gap: 14, alignItems: 'flex-start', transition: 'all 0.2s' }}
-              onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 20px rgba(26,23,20,0.08)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
-              onMouseLeave={e => { e.currentTarget.style.boxShadow = ''; e.currentTarget.style.transform = ''; }}
-            >
-              <div style={{ fontSize: 28, flexShrink: 0, width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--accent-tint)', borderRadius: 10, overflow: 'hidden' }}>
-                {post.image_url ? <img src={post.image_url} alt="" style={{ width:44, height:44, objectFit:'cover' }}/> : post.emoji}
-              </div>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.08em', color: 'var(--accent)', textTransform: 'uppercase', marginBottom: 4 }}>{post.category}</div>
-                <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 14, color: 'var(--text)', lineHeight: 1.3, marginBottom: 4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{post.title}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{post.readTime || post.read_time}</div>
-              </div>
-            </div>
-          ))}
+    <article
+      onClick={() => navigate('guides', post.slug)}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        background: '#fff',
+        borderRadius: compact ? 14 : 18,
+        overflow: 'hidden',
+        cursor: 'pointer',
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        transition: 'transform 0.28s cubic-bezier(0.22,1,0.36,1), box-shadow 0.28s',
+        transform: hovered ? 'translateY(-5px)' : 'none',
+        boxShadow: hovered
+          ? '0 32px 60px -12px rgba(0,0,0,0.5), 0 0 0 1px rgba(217,119,87,0.12)'
+          : '0 2px 18px rgba(0,0,0,0.2)',
+      }}
+    >
+      {/* Image */}
+      <div style={{
+        position: 'relative',
+        aspectRatio: compact ? '16 / 9' : '16 / 10',
+        background: hasImage ? '#111' : '#f0ebe3',
+        overflow: 'hidden',
+        flexShrink: 0,
+      }}>
+        <img
+          src={hasImage ? post.image_url : '/logo.png'}
+          alt={post.title}
+          onError={() => setImgFailed(true)}
+          style={{
+            width: '100%', height: '100%',
+            objectFit: hasImage ? 'cover' : 'contain',
+            padding: hasImage ? 0 : '20%',
+            opacity: hasImage ? 1 : 0.4,
+            transform: hovered && hasImage ? 'scale(1.06)' : 'scale(1)',
+            transition: 'transform 0.55s cubic-bezier(0.22,1,0.36,1)',
+            display: 'block',
+          }}
+        />
+        <span style={{
+          position: 'absolute', top: 11, left: 11,
+          background: 'rgba(255,255,255,0.95)',
+          backdropFilter: 'blur(6px)',
+          color: '#d97757',
+          fontSize: 9.5, fontWeight: 800,
+          letterSpacing: '0.1em', textTransform: 'uppercase',
+          padding: '4px 9px', borderRadius: 5,
+          boxShadow: '0 1px 6px rgba(0,0,0,0.14)',
+        }}>{post.category}</span>
+      </div>
+
+      {/* Body */}
+      <div style={{
+        padding: compact ? '14px 16px 16px' : '20px 22px 22px',
+        display: 'flex', flexDirection: 'column', flex: 1,
+      }}>
+        <h3 style={{
+          fontFamily: 'var(--font-head)', fontWeight: 800,
+          fontSize: compact ? 14 : 18,
+          lineHeight: 1.28, letterSpacing: '-0.01em',
+          color: '#1a1714', margin: '0 0 auto',
+          display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+        }}>{post.title}</h3>
+
+        <div style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          marginTop: compact ? 12 : 16,
+          paddingTop: compact ? 10 : 13,
+          borderTop: '1px solid rgba(26,23,20,0.08)',
+          fontSize: compact ? 11 : 12.5,
+        }}>
+          <span style={{ color: '#5f5a50', display: 'flex', alignItems: 'center', gap: 5 }}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
+            {post.readTime || post.read_time}
+          </span>
+          <span style={{
+            color: '#d97757', fontWeight: 700,
+            transform: hovered ? 'translateX(4px)' : 'none',
+            transition: 'transform 0.2s',
+          }}>Read →</span>
         </div>
       </div>
-    </div>
+    </article>
+  );
+}
+
+// ─── Guides strip (homepage + product pages) — self-fetches live from API ──────
+export function GuidesStrip({ navigate, productType = null, title = 'Guides & Resources', subtitle = 'Honest answers about buying Apple in Nigeria — written by us, not a marketing team.', isMobile }) {
+  const [posts, setPosts] = useState([]);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/blog?limit=30')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!Array.isArray(data) || !data.length) {
+          setPosts(FALLBACK_POSTS.slice(0, 3).map(mapPost));
+          return;
+        }
+        const mapped = data.map(mapPost);
+        let picks;
+        if (productType) {
+          picks = mapped.filter(p => p.relatedCategories?.includes(productType));
+          if (picks.length < 2) picks = mapped.filter(p => p.featured);
+        } else {
+          picks = mapped.filter(p => p.featured);
+          if (!picks.length) picks = mapped;
+        }
+        setPosts(picks.slice(0, 3));
+      })
+      .catch(() => setPosts(FALLBACK_POSTS.slice(0, 3).map(mapPost)))
+      .finally(() => setReady(true));
+  }, [productType]);
+
+  if (!ready || !posts.length) return null;
+
+  const [first, second, third] = posts;
+  const hasThree = posts.length === 3;
+
+  return (
+    <section style={{
+      background: '#1a1714',
+      padding: isMobile ? '64px 20px 72px' : '96px 60px 104px',
+    }}>
+      <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+
+        {/* Header */}
+        <div style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end',
+          flexWrap: 'wrap', gap: 20,
+          marginBottom: isMobile ? 36 : 52,
+        }}>
+          <div>
+            <div style={{
+              fontSize: 10.5, fontWeight: 800, letterSpacing: '0.2em',
+              color: '#d97757', textTransform: 'uppercase', marginBottom: 12,
+            }}>The Certo Guide</div>
+            <h2 style={{
+              fontFamily: 'var(--font-head)', fontWeight: 800,
+              fontSize: isMobile ? 28 : 'clamp(30px, 3.5vw, 42px)',
+              letterSpacing: '-0.035em', lineHeight: 1.05,
+              color: '#fff', margin: '0 0 10px',
+            }}>{title}</h2>
+            <p style={{
+              fontFamily: 'var(--font-body)', fontSize: isMobile ? 14 : 15,
+              color: 'rgba(255,255,255,0.45)', lineHeight: 1.65, margin: 0,
+            }}>{subtitle}</p>
+          </div>
+          {!isMobile && (
+            <button
+              onClick={() => navigate('guides')}
+              style={{
+                background: 'transparent',
+                border: '1.5px solid rgba(255,255,255,0.2)',
+                color: 'rgba(255,255,255,0.75)',
+                borderRadius: 999, padding: '11px 24px', cursor: 'pointer',
+                fontFamily: 'var(--font-body)', fontSize: 13.5, fontWeight: 600,
+                whiteSpace: 'nowrap', transition: 'all 0.18s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.45)'; e.currentTarget.style.color = '#fff'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'; e.currentTarget.style.color = 'rgba(255,255,255,0.75)'; }}
+            >View all guides →</button>
+          )}
+        </div>
+
+        {/* Cards */}
+        {isMobile ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {posts.map(p => <GuideCard key={p.slug} post={p} navigate={navigate} />)}
+          </div>
+        ) : hasThree ? (
+          <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 20, alignItems: 'stretch' }}>
+            <GuideCard post={first} navigate={navigate} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              <GuideCard post={second} navigate={navigate} compact />
+              <GuideCard post={third} navigate={navigate} compact />
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${posts.length}, 1fr)`, gap: 20 }}>
+            {posts.map(p => <GuideCard key={p.slug} post={p} navigate={navigate} />)}
+          </div>
+        )}
+
+        {/* Mobile CTA */}
+        {isMobile && (
+          <button
+            onClick={() => navigate('guides')}
+            style={{
+              display: 'block', width: '100%', marginTop: 28,
+              background: 'transparent',
+              border: '1.5px solid rgba(255,255,255,0.2)',
+              color: 'rgba(255,255,255,0.75)',
+              borderRadius: 12, padding: '14px',
+              cursor: 'pointer', fontFamily: 'var(--font-body)',
+              fontSize: 14, fontWeight: 600,
+            }}
+          >View all guides →</button>
+        )}
+      </div>
+    </section>
   );
 }
