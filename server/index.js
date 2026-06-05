@@ -602,8 +602,13 @@ app.get('/product/:id', async (req, res) => {
     const p = rows[0];
     if (!p) return res.sendFile(indexPath);
 
-    const rawImg = (p.image_urls && p.image_urls[0]) || '';
-    const image  = rawImg ? rawImg.replace(/[&?]\.v=[^&]*/, '') : 'https://certo.ng/logo.png';
+    const rawImg  = (p.image_urls && p.image_urls[0]) || '';
+    const cleanImg = rawImg ? rawImg.replace(/[&?]\.v=[^&]*/, '') : '';
+    // Route Apple CDN images through our proxy so crawlers can fetch them
+    // (Apple CDN blocks direct hotlinks without a Referer from apple.com)
+    const image = cleanImg
+      ? `https://certo.ng/api/img?url=${encodeURIComponent(cleanImg)}`
+      : 'https://certo.ng/logo.png';
     const title  = p.name + (p.subtitle ? ` – ${p.subtitle}` : '');
     const desc   = `Buy genuine ${p.name} from Apple US, delivered to Nigeria. $${Number(p.usd_price).toLocaleString()} USD. Serial verified. Full Apple warranty.`;
     const url    = `https://certo.ng/product/${p.id}`;
