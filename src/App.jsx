@@ -138,7 +138,7 @@ const parsePath = () => {
   if (route === 'shop')      return { page: 'shop',    param };
   if (route === 'track')     return { page: 'track',   param };
   if (route === 'verify')    return { page: 'verify',  param };
-  if (route === 'blog')      return { page: 'blog',    param };
+  if (route === 'blog' || route === 'guides') return { page: 'guides', param };
   if (route === 'dashboard') return { page: param ? `dashboard-${param}` : 'dashboard', param: null };
   const known = ['home', 'how-it-works', 'about', 'faq', 'contact', 'cart', 'checkout', 'privacy', 'terms', 'refund', 'verify'];
   if (known.includes(route)) return { page: route, param: null };
@@ -151,7 +151,7 @@ const toPath = (page, param) => {
   if (page === 'shop')    return param ? `/shop/${encodeURIComponent(param)}` : '/shop';
   if (page === 'track')   return param ? `/track/${encodeURIComponent(param)}` : '/track';
   if (page === 'verify')  return param ? `/verify/${encodeURIComponent(param)}` : '/verify';
-  if (page === 'blog')    return param ? `/blog/${encodeURIComponent(param)}` : '/blog';
+  if (page === 'blog' || page === 'guides') return param ? `/blog/${encodeURIComponent(param)}` : '/blog';
   if (page.startsWith('dashboard')) {
     const sub = page.replace('dashboard-', '');
     return sub === 'dashboard' ? '/dashboard' : `/dashboard/${sub}`;

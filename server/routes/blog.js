@@ -26,7 +26,7 @@ router.get('/', async (req, res) => {
     params.push(Number(limit));
     const { rows } = await pool.queryR(
       `SELECT id, slug, title, excerpt, category, read_time, post_date, featured, tags,
-              related_categories, emoji, image_url, published, created_at, updated_at
+              related_categories, emoji, image_url, sections, published, created_at, updated_at
        FROM blog_posts ${where}
        ORDER BY featured DESC, created_at DESC
        LIMIT $${params.length}`,
