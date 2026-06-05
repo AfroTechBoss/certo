@@ -373,7 +373,7 @@ const NavComponent = ({ page, navigate, cartCount = 0, lastAdded = null, cart = 
   ] : [
     { key: 'shop',         label: 'Shop'         },
     { key: 'how-it-works', label: 'How It Works' },
-    { key: 'blog',         label: 'Guides'       },
+    { key: 'guides',       label: 'Guides'       },
     { key: 'about',        label: 'About'        },
     { key: 'faq',          label: 'FAQ'          },
   ];

@@ -32,7 +32,7 @@ function PostCard({ post, navigate, large }) {
   const isMobile = useIsMobile();
   return (
     <div
-      onClick={() => navigate('blog', post.slug)}
+      onClick={() => navigate('guides', post.slug)}
       style={{
         background: 'var(--bg)', border: '1px solid var(--border)',
         borderRadius: large ? 20 : 16, overflow: 'hidden', cursor: 'pointer',
@@ -181,7 +181,7 @@ function BlogPost({ slug, allPosts, navigate }) {
     <div style={{ minHeight: '60vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
       <div style={{ fontSize: 48 }}>📭</div>
       <div style={{ fontFamily: 'var(--font-head)', fontSize: 22, fontWeight: 700 }}>Guide not found</div>
-      <button onClick={() => navigate('blog')} style={{ background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 10, padding: '10px 24px', cursor: 'pointer', fontWeight: 600 }}>Back to guides</button>
+      <button onClick={() => navigate('guides')} style={{ background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 10, padding: '10px 24px', cursor: 'pointer', fontWeight: 600 }}>Back to guides</button>
     </div>
   );
 
@@ -195,7 +195,7 @@ function BlogPost({ slug, allPosts, navigate }) {
       {/* Nav breadcrumb */}
       <div style={{ padding: isMobile ? '80px 20px 0' : '100px 48px 0' }}>
         <div style={{ maxWidth: 760, margin: '0 auto' }}>
-          <button onClick={() => navigate('blog')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: 'var(--accent)', fontWeight: 600, padding: 0, marginBottom: 24, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <button onClick={() => navigate('guides')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: 'var(--accent)', fontWeight: 600, padding: 0, marginBottom: 24, display: 'flex', alignItems: 'center', gap: 6 }}>
             ← Back to guides
           </button>
         </div>
@@ -333,13 +333,13 @@ export function GuidesStrip({ posts, navigate, title = 'Recommended Guides', isM
           <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 800, fontSize: isMobile ? 20 : 26, letterSpacing: '-0.02em', color: 'var(--text)', margin: 0 }}>
             {title}
           </h2>
-          <button onClick={() => navigate('blog')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, color: 'var(--accent)', fontFamily: 'var(--font-body)' }}>
+          <button onClick={() => navigate('guides')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, color: 'var(--accent)', fontFamily: 'var(--font-body)' }}>
             View all guides →
           </button>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 16 }}>
           {posts.map(post => (
-            <div key={post.slug} onClick={() => navigate('blog', post.slug)} style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 14, padding: '18px 20px', cursor: 'pointer', display: 'flex', gap: 14, alignItems: 'flex-start', transition: 'all 0.2s' }}
+            <div key={post.slug} onClick={() => navigate('guides', post.slug)} style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 14, padding: '18px 20px', cursor: 'pointer', display: 'flex', gap: 14, alignItems: 'flex-start', transition: 'all 0.2s' }}
               onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 20px rgba(26,23,20,0.08)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
               onMouseLeave={e => { e.currentTarget.style.boxShadow = ''; e.currentTarget.style.transform = ''; }}
             >

@@ -72,7 +72,7 @@ const FooterComponent = ({ navigate }) => {
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <NavLink label="How It Works" target="how-it-works" />
               <NavLink label="About" target="about" />
-              <NavLink label="Blog & Guides" target="blog" />
+              <NavLink label="Guides" target="guides" />
               <NavLink label="FAQ" target="faq" />
               <NavLink label="Contact" target="contact" />
             </div>
@@ -307,7 +307,7 @@ const App = () => {
       case 'product':
         return <ProductDetailPage productId={pageParam} navigate={navigate} addToCart={addToCart} trackEvent={trackEvent} />;
 
-      case 'blog':
+      case 'guides':
         return <BlogPage navigate={navigate} postSlug={pageParam} />;
 
       case 'how-it-works':
