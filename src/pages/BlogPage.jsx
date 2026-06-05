@@ -173,9 +173,9 @@ function BlogListing({ posts, loading, navigate }) {
 }
 
 // ─── Single post ──────────────────────────────────────────────────────────────
-function BlogPost({ slug, allPosts, navigate }) {
+function BlogPost({ slug, allPosts, navigate, directPost }) {
   const isMobile = useIsMobile();
-  const post = allPosts.find(p => p.slug === slug);
+  const post = directPost || allPosts.find(p => p.slug === slug);
 
   if (!post) return (
     <div style={{ minHeight: '60vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
@@ -295,21 +295,38 @@ function BlogPost({ slug, allPosts, navigate }) {
 // ─── Main export ──────────────────────────────────────────────────────────────
 export function BlogPage({ navigate, postSlug }) {
   const [posts, setPosts] = useState([]);
+  const [singlePost, setSinglePost] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/blog?limit=200')
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (Array.isArray(data) && data.length > 0) {
-          setPosts(data.map(mapPost));
+    if (postSlug) {
+      // Fetch the specific post by slug + a small list for related guides
+      Promise.all([
+        fetch(`/api/blog/${encodeURIComponent(postSlug)}`).then(r => r.ok ? r.json() : null),
+        fetch('/api/blog?limit=20').then(r => r.ok ? r.json() : null),
+      ]).then(([postData, listData]) => {
+        if (postData) setSinglePost(mapPost(postData));
+        if (Array.isArray(listData) && listData.length > 0) {
+          setPosts(listData.map(mapPost));
         } else {
           setPosts(FALLBACK_POSTS);
         }
-      })
-      .catch(() => setPosts(FALLBACK_POSTS))
-      .finally(() => setLoading(false));
-  }, []);
+      }).catch(() => setPosts(FALLBACK_POSTS))
+        .finally(() => setLoading(false));
+    } else {
+      fetch('/api/blog?limit=200')
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (Array.isArray(data) && data.length > 0) {
+            setPosts(data.map(mapPost));
+          } else {
+            setPosts(FALLBACK_POSTS);
+          }
+        })
+        .catch(() => setPosts(FALLBACK_POSTS))
+        .finally(() => setLoading(false));
+    }
+  }, [postSlug]);
 
   if (postSlug) {
     if (loading) {
@@ -319,7 +336,7 @@ export function BlogPage({ navigate, postSlug }) {
         </div>
       );
     }
-    return <BlogPost slug={postSlug} allPosts={posts} navigate={navigate} />;
+    return <BlogPost slug={postSlug} allPosts={posts} navigate={navigate} directPost={singlePost} />;
   }
   return <BlogListing posts={posts} loading={loading} navigate={navigate} />;
 }
