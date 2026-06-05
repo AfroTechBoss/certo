@@ -3236,6 +3236,44 @@ function BlogTab({ isMobile }) {
           <div style={{ padding:'32px 0', textAlign:'center', color:'var(--text-muted)', fontSize:13 }}>Loading…</div>
         ) : posts.length === 0 ? (
           <Empty label="No blog posts yet. Create your first post."/>
+        ) : isMobile ? (
+          <div style={{ display:'flex', flexDirection:'column' }}>
+            {posts.map((post, i) => (
+              <div key={post.id} style={{ padding:'14px 16px', borderTop:i?'1px solid var(--border)':'none' }}>
+                <div style={{ display:'flex', gap:10, alignItems:'flex-start', marginBottom:10 }}>
+                  {post.image_url ? (
+                    <img src={post.image_url} alt="" style={{ width:44, height:30, objectFit:'cover', borderRadius:5, flexShrink:0 }}/>
+                  ) : (
+                    <span style={{ fontSize:22, flexShrink:0, width:44, textAlign:'center' }}>{post.emoji||'📝'}</span>
+                  )}
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontWeight:600, fontSize:13.5, color:'var(--text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{post.title}</div>
+                    <div style={{ fontSize:11, color:'var(--text-muted)', marginTop:2, fontFamily:'var(--font-mono,monospace)' }}>/{post.slug}</div>
+                  </div>
+                </div>
+                <div style={{ display:'flex', gap:6, flexWrap:'wrap', alignItems:'center', marginBottom:10 }}>
+                  <span style={{ fontSize:11.5, background:'var(--accent-tint)', color:'var(--accent)', borderRadius:100, padding:'3px 9px', fontWeight:700, whiteSpace:'nowrap' }}>{post.category}</span>
+                  <button onClick={() => toggleField(post,'published')} style={{ ...miniBtn, color:post.published?'oklch(40% 0.14 155)':'oklch(50% 0.04 0)', background:post.published?'oklch(95% 0.06 155)':'var(--bg-alt)', borderColor:post.published?'oklch(80% 0.1 155)':'var(--border)' }}>
+                    {post.published ? '● Published' : '○ Draft'}
+                  </button>
+                  <button onClick={() => toggleField(post,'featured')} style={{ ...miniBtn, color:post.featured?'var(--accent)':'var(--text-muted)', background:post.featured?'var(--accent-tint)':'transparent', borderColor:post.featured?'var(--accent)':'var(--border)' }}>
+                    {post.featured ? '★ Featured' : '☆ Normal'}
+                  </button>
+                </div>
+                <div style={{ display:'flex', gap:6, justifyContent:'flex-end' }}>
+                  <button onClick={() => { setServerError(''); setEditing(post); }} style={miniBtn}>Edit</button>
+                  {delConfirm===post.id ? (
+                    <>
+                      <button onClick={() => handleDelete(post.id)} style={{...miniBtn, color:'oklch(50% 0.18 25)', borderColor:'oklch(80% 0.12 25)'}}>Confirm</button>
+                      <button onClick={() => setDelConfirm(null)} style={miniBtn}>Cancel</button>
+                    </>
+                  ) : (
+                    <button onClick={() => setDelConfirm(post.id)} style={{...miniBtn, color:'oklch(50% 0.18 25)'}}>Delete</button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
         ) : (
           <div style={{ overflowX:'auto' }}>
             <table style={{ width:'100%', borderCollapse:'collapse', minWidth:700 }}>
@@ -3262,7 +3300,7 @@ function BlogTab({ isMobile }) {
                           <span style={{ fontSize:22, flexShrink:0, width:44, textAlign:'center' }}>{post.emoji||'📝'}</span>
                         )}
                         <div style={{ minWidth:0 }}>
-                          <div style={{ fontWeight:600, fontSize:13.5, color:'var(--text)', maxWidth:isMobile?160:300, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{post.title}</div>
+                          <div style={{ fontWeight:600, fontSize:13.5, color:'var(--text)', maxWidth:300, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{post.title}</div>
                           <div style={{ fontSize:11, color:'var(--text-muted)', marginTop:2, fontFamily:'var(--font-mono,monospace)' }}>/{post.slug}</div>
                         </div>
                       </div>
@@ -3640,6 +3678,41 @@ function RefundsTab({ isMobile, orders }) {
           <div style={{ padding:'32px 0', textAlign:'center', color:'var(--text-muted)', fontSize:13 }}>Loading…</div>
         ) : refunds.length === 0 ? (
           <Empty label="No refunds recorded yet."/>
+        ) : isMobile ? (
+          <div style={{ display:'flex', flexDirection:'column' }}>
+            {refunds.map((r, i) => (
+              <div key={r.id} style={{ padding:'14px 16px', borderTop:i?'1px solid var(--border)':'none' }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:6 }}>
+                  <div style={{ flex:1, minWidth:0, marginRight:10 }}>
+                    <div style={{ fontWeight:600, fontSize:13, color:'var(--text)' }}>{r.customer_name}</div>
+                    {r.customer_email && <div style={{ fontSize:11, color:'var(--text-muted)', marginTop:1 }}>{r.customer_email}</div>}
+                  </div>
+                  <span style={{ ...miniBtn, ...refundStatusStyle(r.status), fontWeight:700, cursor:'default', flexShrink:0 }}>{r.status}</span>
+                </div>
+                <div style={{ fontSize:12.5, color:'var(--text)', marginBottom:6, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                  {r.product_name || '—'}
+                </div>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+                  <div>
+                    <div style={{ fontWeight:600, fontSize:13, color:'var(--text)' }}>₦{Number(r.amount_ngn||0).toLocaleString()}</div>
+                    {r.amount_usd > 0 && <div style={{ fontSize:11, color:'var(--text-muted)' }}>${Number(r.amount_usd||0).toLocaleString()}</div>}
+                  </div>
+                  {r.order_id && <div style={{ fontFamily:'var(--font-mono,monospace)', fontSize:11, color:'var(--text-muted)' }}>{r.order_id}</div>}
+                </div>
+                <div style={{ display:'flex', gap:6, justifyContent:'flex-end' }}>
+                  <button onClick={() => { setServerError(''); setEditing(r); }} style={miniBtn}>Edit</button>
+                  {delConfirm===r.id ? (
+                    <>
+                      <button onClick={() => handleDelete(r.id)} style={{...miniBtn, color:'oklch(50% 0.18 25)', borderColor:'oklch(80% 0.12 25)'}}>Confirm</button>
+                      <button onClick={() => setDelConfirm(null)} style={miniBtn}>Cancel</button>
+                    </>
+                  ) : (
+                    <button onClick={() => setDelConfirm(r.id)} style={{...miniBtn, color:'oklch(50% 0.18 25)'}}>Delete</button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
         ) : (
           <div style={{ overflowX:'auto' }}>
             <table style={{ width:'100%', borderCollapse:'collapse', minWidth:760 }}>

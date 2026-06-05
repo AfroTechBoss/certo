@@ -204,7 +204,7 @@ function BlogPost({ slug, allPosts, navigate, directPost }) {
       {/* Article header */}
       <div style={{ padding: isMobile ? '0 20px 40px' : '0 48px 48px' }}>
         <div style={{ maxWidth: 760, margin: '0 auto' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
             <span style={{ background: 'var(--accent-tint)', color: 'var(--accent)', fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '4px 10px', borderRadius: 100 }}>{post.category}</span>
             <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{post.readTime}</span>
             <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>·</span>
@@ -261,7 +261,7 @@ function BlogPost({ slug, allPosts, navigate, directPost }) {
           </div>
 
           {/* CTA */}
-          <div style={{ marginTop: 48, padding: 32, background: 'var(--accent-tint)', borderRadius: 20, border: '1px solid var(--accent-tint2,#f5d9cc)' }}>
+          <div style={{ marginTop: 48, padding: isMobile ? '24px 20px' : 32, background: 'var(--accent-tint)', borderRadius: 20, border: '1px solid var(--accent-tint2,#f5d9cc)' }}>
             <div style={{ fontFamily: 'var(--font-head)', fontWeight: 800, fontSize: 20, letterSpacing: '-0.02em', color: 'var(--text)', marginBottom: 8 }}>
               Ready to buy genuine Apple?
             </div>
@@ -439,7 +439,8 @@ function GuideCard({ post, navigate, compact = false }) {
 }
 
 // ─── Guides strip (homepage + product pages) — self-fetches live from API ──────
-export function GuidesStrip({ navigate, productType = null, title = 'Guides & Resources', subtitle = 'Honest answers about buying Apple in Nigeria — written by us, not a marketing team.', isMobile }) {
+export function GuidesStrip({ navigate, productType = null, title = 'Guides & Resources', subtitle = 'Honest answers about buying Apple in Nigeria — written by us, not a marketing team.' }) {
+  const isMobile = useIsMobile();
   const [posts, setPosts] = useState([]);
   const [ready, setReady] = useState(false);
 

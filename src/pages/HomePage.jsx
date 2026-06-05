@@ -1269,7 +1269,7 @@ const HomePage = ({ navigate }) => {
         <SectionFounder />
       </div>
       <div data-screen-label="08 Guides" data-certo-reveal>
-        <GuidesStrip navigate={navigate} isMobile={false} />
+        <GuidesStrip navigate={navigate} />
       </div>
       <div data-screen-label="09 Final CTA" data-certo-reveal>
         <SectionFinalCTA navigate={navigate} />

@@ -837,7 +837,6 @@ const ProductDetailPage = ({ productId, navigate, addToCart, trackEvent }) => {
         navigate={navigate}
         productType={product.type}
         title="Helpful Guides"
-        isMobile={isMobile}
       />
 
     </div>
