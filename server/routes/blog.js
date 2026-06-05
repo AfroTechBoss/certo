@@ -46,6 +46,7 @@ router.get('/admin', adminAuth, async (req, res) => {
     const { rows } = await pool.queryR(
       `SELECT * FROM blog_posts ORDER BY created_at DESC`
     );
+    res.set('Cache-Control', 'no-store');
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch posts' });

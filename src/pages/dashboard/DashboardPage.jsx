@@ -2641,7 +2641,9 @@ function ForexTab({ isMobile, liveRate, rateFetched, onRateChange, products }) {
   // raw market rate (= display rate − 100 markup) — only set after an explicit fetch
   const [marketRate, setMarketRate] = useState(null);
   // whether the current rate is an override (vs. auto-fetched)
-  const [isOverride, setIsOverride] = useState(false);
+  const [isOverride, setIsOverride] = useState(() => {
+    try { return localStorage.getItem('certo_rate_override') === '1'; } catch(_) { return false; }
+  });
 
   // Keep display rate in sync with prop (e.g. auto-refresh in App.jsx)
   useEffect(() => {
@@ -2652,6 +2654,20 @@ function ForexTab({ isMobile, liveRate, rateFetched, onRateChange, products }) {
   }, [liveRate]);
 
   useEffect(() => { if (rateFetched) setFetchedAt(rateFetched); }, [rateFetched]);
+
+  // Keep a ref to fetchLive so the interval always calls the latest version
+  const fetchLiveRef = React.useRef(null);
+  useEffect(() => { fetchLiveRef.current = fetchLive; });
+
+  // Auto-fetch on mount + every 5 min — skipped when override is active
+  useEffect(() => {
+    if (localStorage.getItem('certo_rate_override') === '1') return;
+    fetchLiveRef.current?.();
+    const t = setInterval(() => {
+      if (localStorage.getItem('certo_rate_override') !== '1') fetchLiveRef.current?.();
+    }, 5 * 60 * 1000);
+    return () => clearInterval(t);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchLive = async () => {
     setFetching(true);
@@ -2666,6 +2682,7 @@ function ForexTab({ isMobile, liveRate, rateFetched, onRateChange, products }) {
       setDisplayRate(withMarkup);
       setOverrideInput(String(withMarkup));
       setIsOverride(false);
+      try { localStorage.removeItem('certo_rate_override'); } catch(_) {}
       setFetchedAt(new Date());
       if (onRateChange) onRateChange(withMarkup);
     } catch(e) {
@@ -2679,6 +2696,7 @@ function ForexTab({ isMobile, liveRate, rateFetched, onRateChange, products }) {
     if (!n || n < 100) return;
     setDisplayRate(n);
     setIsOverride(true);
+    try { localStorage.setItem('certo_rate_override', '1'); } catch(_) {}
     setMarketRate(null);
     setOverrideSaved(true);
     setTimeout(() => setOverrideSaved(false), 2000);
@@ -3829,7 +3847,7 @@ function LoginScreen({ onLogin }) {
         </div>
         <form onSubmit={submit}>
           <label style={{ fontSize:11, fontWeight:700, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:8 }}>Password</label>
-          <input type="password" value={pw} onChange={e => setPw(e.target.value)} placeholder="Enter admin password" autoFocus style={{ ...inputS, width:'100%', boxSizing:'border-box', marginBottom:16, fontSize:15, padding:'13px 16px' }}/>
+          <input type="password" value={pw} onChange={e => setPw(e.target.value)} placeholder="Enter admin password" autoComplete="current-password" autoFocus style={{ ...inputS, width:'100%', boxSizing:'border-box', marginBottom:16, fontSize:15, padding:'13px 16px' }}/>
           {err && <div style={{ fontSize:12.5, color:'oklch(50% 0.18 25)', marginBottom:14, padding:'10px 14px', background:'oklch(97% 0.03 25)', borderRadius:9, border:'1px solid oklch(85% 0.1 25)' }}>{err}</div>}
           <button type="submit" disabled={busy} style={{ ...primaryBtn, width:'100%', padding:'13px', fontSize:15, opacity:busy?0.7:1 }}>{busy?'Signing in…':'Sign in'}</button>
         </form>
