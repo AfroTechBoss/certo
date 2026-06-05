@@ -691,7 +691,7 @@ const SHOP_CATEGORIES = [
     param: 'iPad',
     gradient: 'linear-gradient(145deg, #e4faf0 0%, #c6f2db 100%)',
     icon: 'ipad',
-    imgSrc: '/cat-ipad.jpg',
+    imgSrc: '/cat-ipad.png',
   },
 ];
 
