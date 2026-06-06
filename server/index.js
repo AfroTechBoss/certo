@@ -740,18 +740,29 @@ app.get('/sitemap.xml', async (req, res) => {
       pool.queryR(`SELECT id, updated_at FROM products ORDER BY updated_at DESC`),
     ]);
 
+    const today = new Date().toISOString().split('T')[0];
     const staticPages = [
-      { path: '/',             priority: '1.0', freq: 'weekly'  },
-      { path: '/shop',         priority: '0.9', freq: 'daily'   },
-      { path: '/guides',       priority: '0.8', freq: 'weekly'  },
-      { path: '/how-it-works', priority: '0.7', freq: 'monthly' },
-      { path: '/about',        priority: '0.6', freq: 'monthly' },
-      { path: '/faq',          priority: '0.6', freq: 'monthly' },
-      { path: '/contact',      priority: '0.5', freq: 'monthly' },
-      { path: '/verify',       priority: '0.5', freq: 'monthly' },
-      { path: '/privacy',      priority: '0.3', freq: 'yearly'  },
-      { path: '/terms',        priority: '0.3', freq: 'yearly'  },
-      { path: '/refund',       priority: '0.4', freq: 'monthly' },
+      { path: '/',                        priority: '1.0', freq: 'weekly',  lastmod: today },
+      { path: '/shop',                    priority: '0.9', freq: 'daily',   lastmod: today },
+      { path: '/shop/iPhone',             priority: '0.9', freq: 'daily',   lastmod: today },
+      { path: '/shop/MacBook',            priority: '0.9', freq: 'daily',   lastmod: today },
+      { path: '/shop/iMac',               priority: '0.8', freq: 'weekly',  lastmod: today },
+      { path: '/shop/iPad',               priority: '0.8', freq: 'weekly',  lastmod: today },
+      { path: '/shop/AirPods',            priority: '0.7', freq: 'weekly',  lastmod: today },
+      { path: '/shop/Watch',              priority: '0.7', freq: 'weekly',  lastmod: today },
+      { path: '/shop/Apple%20TV',         priority: '0.6', freq: 'monthly', lastmod: today },
+      { path: '/shop/HomePod',            priority: '0.6', freq: 'monthly', lastmod: today },
+      { path: '/shop/Accessories',        priority: '0.6', freq: 'monthly', lastmod: today },
+      { path: '/guides',                  priority: '0.8', freq: 'weekly',  lastmod: today },
+      { path: '/how-it-works',            priority: '0.7', freq: 'monthly' },
+      { path: '/about',                   priority: '0.6', freq: 'monthly' },
+      { path: '/faq',                     priority: '0.6', freq: 'monthly' },
+      { path: '/contact',                 priority: '0.5', freq: 'monthly' },
+      { path: '/track',                   priority: '0.5', freq: 'monthly' },
+      { path: '/verify',                  priority: '0.5', freq: 'monthly' },
+      { path: '/privacy',                 priority: '0.3', freq: 'yearly'  },
+      { path: '/terms',                   priority: '0.3', freq: 'yearly'  },
+      { path: '/refund',                  priority: '0.4', freq: 'monthly' },
     ];
 
     const urlXml = (loc, lastmod, freq, priority) => [
@@ -764,7 +775,7 @@ app.get('/sitemap.xml', async (req, res) => {
     ].filter(Boolean).join('\n');
 
     const urls = [
-      ...staticPages.map(p => urlXml(`${base}${p.path}`, '', p.freq, p.priority)),
+      ...staticPages.map(p => urlXml(`${base}${p.path}`, p.lastmod || '', p.freq, p.priority)),
       ...products.rows.map(r => urlXml(`${base}/product/${r.id}`, toDate(r.updated_at), 'weekly', '0.8')),
       ...posts.rows.map(r => urlXml(`${base}/blog/${r.slug}`, toDate(r.updated_at), 'monthly', '0.7')),
     ];
