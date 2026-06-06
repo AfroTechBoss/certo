@@ -11,6 +11,7 @@ import { CheckoutFlow } from './pages/Checkout.jsx';
 import { DashboardPage } from './pages/dashboard/DashboardPage.jsx';
 import { NotFoundPage } from './pages/NotFoundPage.jsx';
 import { BlogPage } from './pages/BlogPage.jsx';
+import { ThankYouPage } from './pages/ThankYouPage.jsx';
 
 const FooterComponent = ({ navigate }) => {
   const { isMobile } = useResponsive();
@@ -139,6 +140,7 @@ const parsePath = () => {
   if (route === 'track')     return { page: 'track',   param };
   if (route === 'verify')    return { page: 'verify',  param };
   if (route === 'blog' || route === 'guides') return { page: 'guides', param };
+  if (route === 'thank-you') return { page: 'thank-you', param: rest.length ? decodeURIComponent(rest.join('/')) : null };
   if (route === 'dashboard') return { page: param ? `dashboard-${param}` : 'dashboard', param: null };
   const known = ['home', 'how-it-works', 'about', 'faq', 'contact', 'cart', 'checkout', 'privacy', 'terms', 'refund', 'verify'];
   if (known.includes(route)) return { page: route, param: null };
@@ -152,6 +154,7 @@ const toPath = (page, param) => {
   if (page === 'track')   return param ? `/track/${encodeURIComponent(param)}` : '/track';
   if (page === 'verify')  return param ? `/verify/${encodeURIComponent(param)}` : '/verify';
   if (page === 'blog' || page === 'guides') return param ? `/blog/${encodeURIComponent(param)}` : '/blog';
+  if (page === 'thank-you') return param ? `/thank-you/${encodeURIComponent(param)}` : '/thank-you';
   if (page.startsWith('dashboard')) {
     const sub = page.replace('dashboard-', '');
     return sub === 'dashboard' ? '/dashboard' : `/dashboard/${sub}`;
@@ -340,6 +343,9 @@ const App = () => {
       case 'cart':
       case 'checkout':
         return <CheckoutFlow cart={cart} navigate={navigate} clearCart={clearCart} updateCartItemQty={updateCartItemQty} />;
+
+      case 'thank-you':
+        return <ThankYouPage orderId={pageParam} navigate={navigate} />;
 
       case 'dashboard':
       case 'dashboard-overview':

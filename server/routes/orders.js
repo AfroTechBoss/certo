@@ -196,6 +196,7 @@ router.get('/:id', async (req, res) => {
       `SELECT id, customer_name, product_name, product_subtitle, product_image_url,
               status, created_at, updated_at, applecare, qty, items,
               variant_color, variant_storage, variant_color_hex,
+              ngn_price, usd_price, forex_rate, payment_method,
               COALESCE(status_timeline, '[]'::jsonb) AS status_timeline
        FROM orders WHERE id = $1`,
       [req.params.id],

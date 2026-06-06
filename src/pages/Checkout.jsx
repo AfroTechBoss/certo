@@ -63,7 +63,6 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
   const [payConfig, setPayConfig] = React.useState({ flutterwaveKey: '', helioPayLink: '', moonpayKey: '', moonpayWallet: '', moonpaySandbox: true, testMode: false });
   const [moonpayUrl, setMoonpayUrl] = React.useState('');
   const [showMoonpay, setShowMoonpay] = React.useState(false);
-  const [confirmedItems, setConfirmedItems] = React.useState([]); // snapshot of cart at time of order
   const orderIdRef = React.useRef(''); // stable ref for postMessage handler
 
   React.useEffect(() => {
@@ -88,7 +87,7 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
         }
         setShowMoonpay(false);
         clearCart && clearCart();
-        setStep(4);
+        navigate('thank-you', orderIdRef.current);
       }
     };
     window.addEventListener('message', onMessage);
@@ -173,7 +172,7 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
   const totalUsd = itemsSubtotal + SERVICE_FEE + dangerousFee + deliveryFeeUsd - couponDiscount;
   const totalNgn = totalUsd * CERTO_RATE;
 
-  const STEPS = ['Cart', 'Delivery', 'Forex', 'Payment', 'Confirmed'];
+  const STEPS = ['Cart', 'Delivery', 'Forex', 'Payment'];
 
   const StepDot = ({ i }) => (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -473,7 +472,6 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
       const newOrderId = data.id;
       setOrderId(newOrderId);
       orderIdRef.current = newOrderId;
-      setConfirmedItems([...cartItems]); // snapshot before cart is cleared
 
       if (payConfig.testMode) {
         // TEST MODE — directly confirm the order without going through a payment gateway
@@ -484,7 +482,7 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
         });
         clearCart && clearCart();
         setSubmitting(false);
-        setStep(4);
+        navigate('thank-you', newOrderId);
       } else {
         // Open Flutterwave inline popup
         if (typeof window.FlutterwaveCheckout !== 'function') throw new Error('Flutterwave failed to load — check your connection and try again');
@@ -518,7 +516,7 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
                 if (!vRes.ok) throw new Error(vData.error || 'Payment verification failed');
                 clearCart && clearCart();
                 setSubmitting(false);
-                setStep(4);
+                navigate('thank-you', newOrderId);
               } catch (verifyErr) {
                 setSubmitError(`Payment received but verification failed: ${verifyErr.message}. Please contact us with your order ID: ${newOrderId}`);
                 setSubmitting(false);
@@ -594,15 +592,13 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
       const newOrderId = data.id;
       setOrderId(newOrderId);
       orderIdRef.current = newOrderId;
-      setPayMethod('whatsapp');
-      setConfirmedItems([...cartItems]);
       clearCart && clearCart();
 
       // Open WhatsApp with order ID + total pre-filled
       const msg = `Hi, I'd like to pay in USD/Crypto for my Certo order.\n\nOrder ID: ${newOrderId}\nTotal: $${totalUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD\n\nPlease let me know how to proceed.`;
       window.open(`https://wa.me/2348057575906?text=${encodeURIComponent(msg)}`, '_blank');
 
-      setStep(4);
+      navigate('thank-you', newOrderId);
     } catch (err) {
       setSubmitError(err.message || 'Something went wrong. Please try again.');
     } finally {
@@ -703,101 +699,17 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
     </div>
   );
 
-  const ConfirmationStep = () => (
-    <div style={{ textAlign: 'center' }}>
-      <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'oklch(50% 0.18 145)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
-        <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-          <path d="M8 16l6 6 10-12" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-      </div>
-      <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 32, letterSpacing: '-0.02em', color: 'var(--text)', marginBottom: 8 }}>
-        {payMethod === 'whatsapp' ? 'Order Created' : 'Order Confirmed'}
-      </h2>
-      <p style={{ fontFamily: 'var(--font-body)', fontSize: 16, color: 'var(--text-muted)', lineHeight: 1.7, marginBottom: 32, maxWidth: 420, margin: '0 auto 32px' }}>
-        {payMethod === 'whatsapp'
-          ? 'Your order is saved and pending payment. We\'ve opened WhatsApp with your order ID — complete the payment there and we\'ll confirm your order manually.'
-          : 'Your payment has been received. We\'re starting procurement within 24 hours.'}
-      </p>
-      {payMethod === 'whatsapp' && (
-        <div style={{ maxWidth: 420, margin: '0 auto 24px', padding: '14px 18px', borderRadius: 12, background: 'oklch(97% 0.015 65)', border: '1px solid oklch(88% 0.03 65)', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text)', lineHeight: 1.6, textAlign: 'left' }}>
-          ⏳ <strong>Status: Payment Pending</strong> — your order will be confirmed once we receive your payment via WhatsApp.
-        </div>
-      )}
-
-      <div style={{ background: 'var(--bg-alt)', borderRadius: 16, padding: 24, border: '1px solid var(--border)', marginBottom: 28, maxWidth: 420, margin: '0 auto 28px', textAlign: 'left' }}>
-        <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 8, textAlign: 'center' }}>Your Order ID</div>
-        <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 28, color: 'var(--text)', letterSpacing: '0.02em', textAlign: 'center' }}>{orderId}</div>
-        <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)', marginTop: 8, marginBottom: 20, textAlign: 'center' }}>Save this — you'll use it to track your order</div>
-        {confirmedItems.length > 0 && (
-          <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16 }}>
-            <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 12 }}>
-              {confirmedItems.length === 1 ? 'Your item' : `Your ${confirmedItems.length} items`}
-            </div>
-            {confirmedItems.map((item, i) => {
-              const qty = item.qty || 1;
-              const itemDevicePriceConf = item.variant?.price_usd ?? item.product.usdPrice;
-              const unitPrice = itemDevicePriceConf + (item.applecare?.annualUsd || 0);
-              return (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, paddingBottom: i < confirmedItems.length - 1 ? 12 : 0, marginBottom: i < confirmedItems.length - 1 ? 12 : 0, borderBottom: i < confirmedItems.length - 1 ? '1px solid var(--border)' : 'none' }}>
-                  <div style={{ width: 48, height: 48, background: 'var(--bg)', borderRadius: 8, border: '1px solid var(--border)', flexShrink: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {item.product.images && item.product.images[0] ? (
-                      <img src={item.product.images[0]} alt={item.product.name} style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 4 }} onError={e => e.target.style.display = 'none'} />
-                    ) : (
-                      <ProductIcon type={(item.product.type || 'iphone').toLowerCase()} size={32} color="var(--accent)" />
-                    )}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600, color: 'var(--text)', lineHeight: 1.3 }}>
-                      {qty > 1 ? `${qty}× ` : ''}{item.product.name}
-                    </div>
-                    {item.product.subtitle && <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginTop: 1 }}>{item.product.subtitle}</div>}
-                    {item.applecare?.name && item.applecare.name !== 'None' && <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--accent)', marginTop: 2 }}>+ {item.applecare.name}</div>}
-                  </div>
-                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <div style={{ fontFamily: 'var(--font-head)', fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>
-                      ${(unitPrice * qty).toLocaleString()}
-                    </div>
-                    {qty > 1 && (
-                      <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--text-muted)' }}>
-                        {qty} × ${unitPrice.toLocaleString()}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 420, margin: '0 auto' }}>
-        <button onClick={() => navigate('track', orderId)} style={{ padding: '14px', borderRadius: 12, border: 'none', background: 'var(--accent)', color: 'white', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 700 }}>
-          Track My Order →
-        </button>
-        <button onClick={() => navigate('shop')} style={{ padding: '14px', borderRadius: 12, border: '1.5px solid var(--border)', background: 'transparent', color: 'var(--text)', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 15 }}>
-          Continue Shopping
-        </button>
-      </div>
-
-      <div style={{ marginTop: 32, maxWidth: 420, margin: '32px auto 0' }}>
-        <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.7 }}>
-          <strong style={{ color: 'var(--text)' }}>What happens next:</strong> A confirmation email is on its way to {delivery.email}. We'll also send you a WhatsApp message within 2 hours confirming receipt.
-        </p>
-      </div>
-    </div>
-  );
-
-  const steps = [CartStep, DeliveryStep, ForexStep, PaymentStep, ConfirmationStep];
+  const steps = [CartStep, DeliveryStep, ForexStep, PaymentStep];
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', paddingTop: 80 }}>
       <div style={{ maxWidth: 680, margin: '0 auto', padding: isMobile ? '24px 20px 80px' : '40px 24px 80px' }}>
-        {step < 4 && (
+        {(
           <div style={{ display: 'flex', gap: isMobile ? 12 : 24, marginBottom: 32, alignItems: 'center' }}>
-            {STEPS.slice(0, 5).map((_, i) => (
+            {STEPS.slice(0, 4).map((_, i) => (
               <React.Fragment key={i}>
                 <StepDot i={i} />
-                {i < 4 && <div style={{ flex: 1, height: 1, background: i < step ? 'oklch(50% 0.18 145)' : 'var(--border)' }} />}
+                {i < 3 && <div style={{ flex: 1, height: 1, background: i < step ? 'oklch(50% 0.18 145)' : 'var(--border)' }} />}
               </React.Fragment>
             ))}
           </div>
