@@ -76,9 +76,11 @@ router.post('/', adminAuth, async (req, res) => {
     if (rows[0].customer_email) {
       try {
         await sendRefundInitiatedEmail(rows[0]);
-        console.log(`[email] Refund initiated email sent to ${rows[0].customer_email}`);
+        // Log only the refund id, not the customer email (PII).
+        console.log(`[email] Refund initiated email sent for refund ${rows[0].id}`);
       } catch (err) {
-        console.error('[email] Refund initiated email failed:', err);
+        // err.message only — full err object includes SQL params with PII.
+        console.error('[email] Refund initiated email failed:', err.message);
       }
     } else {
       console.warn('[email] Refund initiated — no customer_email, skipping email');
@@ -124,9 +126,9 @@ router.patch('/:id', adminAuth, async (req, res) => {
       if (rows[0].customer_email) {
         try {
           await sendRefundCompletedEmail(rows[0]);
-          console.log(`[email] Refund completed email sent to ${rows[0].customer_email}`);
+          console.log(`[email] Refund completed email sent for refund ${rows[0].id}`);
         } catch (err) {
-          console.error('[email] Refund completed email failed:', err);
+          console.error('[email] Refund completed email failed:', err.message);
         }
       } else {
         console.warn('[email] Refund completed — no customer_email, skipping email');

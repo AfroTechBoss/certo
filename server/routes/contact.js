@@ -26,7 +26,9 @@ router.post('/', async (req, res) => {
 
     res.status(201).json({ ok: true, id: rows[0].id });
   } catch (err) {
-    console.error('POST /contact:', err);
+    // Log only the message — the full Postgres error object includes SQL
+    // parameters (the user's name/email/message), which we don't want in logs.
+    console.error('POST /contact:', err.message);
     res.status(500).json({ error: 'Failed to save message' });
   }
 });
