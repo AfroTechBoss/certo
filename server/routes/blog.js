@@ -40,16 +40,50 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET /api/blog/admin  (admin — all posts including unpublished)
+// GET /api/blog/admin  (admin — slim list of all posts including unpublished)
+//
+// IMPORTANT: this endpoint deliberately OMITS:
+//   - sections (very large JSONB per post)
+//   - image_url body when it is a base64 data URI (can be 1-2MB per post;
+//     just send a placeholder marker — the editor fetches the full row separately)
+// Including either makes the Blog tab in admin take 5-30+ seconds to load
+// when posts have uploaded cover images.
 router.get('/admin', adminAuth, async (req, res) => {
   try {
     const { rows } = await pool.queryR(
-      `SELECT * FROM blog_posts ORDER BY created_at DESC`
+      `SELECT
+         id, slug, title, excerpt, category, read_time, post_date,
+         featured, published, emoji, tags, related_categories,
+         created_at, updated_at,
+         CASE
+           WHEN image_url LIKE 'data:%' THEN NULL
+           ELSE image_url
+         END AS image_url,
+         (image_url IS NOT NULL AND image_url <> '') AS has_image
+       FROM blog_posts
+       ORDER BY created_at DESC`
     );
     res.set('Cache-Control', 'no-store');
     res.json(rows);
   } catch (err) {
+    console.error('GET /blog/admin:', err.message);
     res.status(500).json({ error: 'Failed to fetch posts' });
+  }
+});
+
+// GET /api/blog/admin/:id  (admin — single full post by id, for the editor)
+router.get('/admin/:id', adminAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.queryR(
+      `SELECT * FROM blog_posts WHERE id = $1`,
+      [req.params.id],
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Post not found' });
+    res.set('Cache-Control', 'no-store');
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('GET /blog/admin/:id:', err.message);
+    res.status(500).json({ error: 'Failed to fetch post' });
   }
 });
 

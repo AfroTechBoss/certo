@@ -201,13 +201,16 @@ function PostEditor({ post, onSave, onCancel, saving, serverError, isMobile }) {
 }
 
 export function BlogTab({ isMobile }) {
-  const [posts,      setPosts]      = useState([]);
-  const [loading,    setLoading]    = useState(true);
-  const [editing,    setEditing]    = useState(null); // null=list, 'new'=create, object=edit
-  const [delConfirm, setDelConfirm] = useState(null);
-  const [saving,     setSaving]     = useState(false);
-  const [serverError,setServerError]= useState('');
+  const [posts,        setPosts]        = useState([]);
+  const [loading,      setLoading]      = useState(true);
+  const [editing,      setEditing]      = useState(null);  // null=list, 'new'=create, object=edit
+  const [editorLoading,setEditorLoading]= useState(false); // fetching full post for editor
+  const [delConfirm,   setDelConfirm]   = useState(null);
+  const [saving,       setSaving]       = useState(false);
+  const [serverError,  setServerError]  = useState('');
 
+  // List load: hits the slim /admin endpoint (no sections, no base64 image_url body).
+  // The full row is fetched separately when entering the editor.
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -219,6 +222,23 @@ export function BlogTab({ isMobile }) {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  // Click Edit → fetch the full post (sections + image_url) before opening the editor.
+  // Keeps the list response small + fast while still letting the editor work as expected.
+  const openEditor = async (postSlim) => {
+    setServerError('');
+    setEditorLoading(true);
+    try {
+      const res  = await authFetch(`/api/blog/admin/${postSlim.id}`);
+      const full = res.ok ? await res.json() : postSlim;
+      setEditing(full);
+    } catch(e) {
+      // If the full fetch fails, fall back to the slim row so the editor still opens
+      setEditing(postSlim);
+      setServerError('Could not load full post; some fields may be missing.');
+    }
+    setEditorLoading(false);
+  };
 
   const toggleField = async (post, field) => {
     try {
@@ -295,6 +315,9 @@ export function BlogTab({ isMobile }) {
                 <div style={{ display:'flex', gap:10, alignItems:'flex-start', marginBottom:10 }}>
                   {post.image_url ? (
                     <img src={post.image_url} alt="" style={{ width:44, height:30, objectFit:'cover', borderRadius:5, flexShrink:0 }}/>
+                  ) : post.has_image ? (
+                    // Uploaded image (base64) — list omits the body for perf; placeholder until Edit
+                    <span title="Has uploaded cover image" style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', width:44, height:30, flexShrink:0, borderRadius:5, background:'var(--bg-alt)', border:'1px solid var(--border)', fontSize:14 }}>🖼️</span>
                   ) : (
                     <span style={{ fontSize:22, flexShrink:0, width:44, textAlign:'center' }}>{post.emoji||'📝'}</span>
                   )}
@@ -313,7 +336,7 @@ export function BlogTab({ isMobile }) {
                   </button>
                 </div>
                 <div style={{ display:'flex', gap:6, justifyContent:'flex-end' }}>
-                  <button onClick={() => { setServerError(''); setEditing(post); }} style={miniBtn}>Edit</button>
+                  <button onClick={() => openEditor(post)} disabled={editorLoading} style={{ ...miniBtn, opacity: editorLoading ? 0.5 : 1 }}>{editorLoading ? 'Loading…' : 'Edit'}</button>
                   {delConfirm===post.id ? (
                     <>
                       <button onClick={() => handleDelete(post.id)} style={{...miniBtn, color:'oklch(50% 0.18 25)', borderColor:'oklch(80% 0.12 25)'}}>Confirm</button>
@@ -348,6 +371,8 @@ export function BlogTab({ isMobile }) {
                       <div style={{ display:'flex', alignItems:'center', gap:10 }}>
                         {post.image_url ? (
                           <img src={post.image_url} alt="" style={{ width:44, height:30, objectFit:'cover', borderRadius:5, flexShrink:0 }}/>
+                        ) : post.has_image ? (
+                          <span title="Has uploaded cover image" style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', width:44, height:30, flexShrink:0, borderRadius:5, background:'var(--bg-alt)', border:'1px solid var(--border)', fontSize:14 }}>🖼️</span>
                         ) : (
                           <span style={{ fontSize:22, flexShrink:0, width:44, textAlign:'center' }}>{post.emoji||'📝'}</span>
                         )}
@@ -373,7 +398,7 @@ export function BlogTab({ isMobile }) {
                     <td style={{...tdS, color:'var(--text-muted)', fontSize:12.5, whiteSpace:'nowrap'}}>{post.post_date||'—'}</td>
                     <td style={{...tdS, textAlign:'right'}}>
                       <div style={{ display:'flex', gap:6, justifyContent:'flex-end', flexWrap:'nowrap' }}>
-                        <button onClick={() => { setServerError(''); setEditing(post); }} style={miniBtn}>Edit</button>
+                        <button onClick={() => openEditor(post)} disabled={editorLoading} style={{ ...miniBtn, opacity: editorLoading ? 0.5 : 1 }}>{editorLoading ? 'Loading…' : 'Edit'}</button>
                         {delConfirm===post.id ? (
                           <>
                             <button onClick={() => handleDelete(post.id)} style={{...miniBtn, color:'oklch(50% 0.18 25)', borderColor:'oklch(80% 0.12 25)'}}>Confirm</button>
