@@ -1,0 +1,54 @@
+name: CI
+
+# Run on every push and PR to the long-lived branches. preview is where new
+# work lands first, master is the production branch.
+on:
+  push:
+    branches: [preview, master, main]
+  pull_request:
+    branches: [preview, master, main]
+
+# Cancel an in-progress run if the same branch gets a newer push.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test + Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Syntax-check server entry points
+        # Catches the `await` outside async, missing-brace style errors
+        # I introduced twice — would have failed every PR with them.
+        run: |
+          node --check server/index.js
+          node --check server/db.js
+          node --check server/email.js
+
+      - name: Run tests
+        # Runs the Vitest suite (pricing, productCode, mappers).
+        # 38 tests at last count.
+        run: npm test
+
+      - name: Build production bundle
+        # Catches missing imports, JSX errors, dead modules.
+        # The bundle size is also a useful signal — print it.
+        run: |
+          npm run build
+          echo "--- dist/ contents ---"
+          ls -lh dist/assets/
