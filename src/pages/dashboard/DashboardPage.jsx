@@ -1,155 +1,9 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-
-// ─── Auth helpers ─────────────────────────────────────────────────────────────
-const TOKEN_KEY = 'certo_admin_token';
-const NAME_KEY  = 'certo_admin_name';
-const getToken  = () => sessionStorage.getItem(TOKEN_KEY);
-const getName   = () => sessionStorage.getItem(NAME_KEY) || 'Admin';
-
-async function authFetch(url, opts = {}) {
-  const token = getToken();
-  const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-  const res = await fetch(url, { ...opts, headers });
-  if (res.status === 401) {
-    sessionStorage.removeItem(TOKEN_KEY);
-    sessionStorage.removeItem(NAME_KEY);
-    window.location.reload();
-    throw new Error('Session expired');
-  }
-  return res;
-}
-
-// ─── Mobile hook ─────────────────────────────────────────────────────────────
-function useIsMobile(breakpoint = 640) {
-  const [isMobile, setIsMobile] = useState(() => window.innerWidth < breakpoint);
-  useEffect(() => {
-    const onResize = () => setIsMobile(window.innerWidth < breakpoint);
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, [breakpoint]);
-  return isMobile;
-}
-
-// ─── Data mapping ─────────────────────────────────────────────────────────────
-function mapOrder(r) {
-  return {
-    id: r.id,
-    customer: r.customer_name,
-    phone: r.customer_phone,
-    email: r.customer_email,
-    product: r.product_name,
-    product_subtitle: r.product_subtitle || '',
-    apple_url: r.apple_url || '',
-    product_image_url: r.product_image_url || '',
-    items: Array.isArray(r.items) && r.items.length
-      ? r.items
-      : [{ name: r.product_name, subtitle: r.product_subtitle, usd_price: Number(r.usd_price), qty: r.qty || 1, applecare: r.applecare,
-           variant_color: r.variant_color || null, variant_storage: r.variant_storage || null, variant_color_hex: r.variant_color_hex || null }],
-    variant_color:     r.variant_color     || null,
-    variant_storage:   r.variant_storage   || null,
-    variant_color_hex: r.variant_color_hex || null,
-    status: r.status,
-    payment_method: r.payment_method || 'Paystack',
-    flag: r.flagged || false,
-    flag_reason: r.flag_reason || '',
-    flag_by: r.flag_by || '',
-    admin_hidden: r.admin_hidden || false,
-    ngn: Number(r.ngn_price) || 0,
-    usd: Number(r.usd_price) || 0,
-    date: r.created_at ? new Date(r.created_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' }) : '—',
-    address: [r.address, r.state].filter(Boolean).join(', ') || '—',
-  };
-}
-
-function mapProduct(r) {
-  return {
-    id: r.id,
-    name: r.name,
-    subtitle: r.subtitle || '',
-    type: r.category || r.type || '',
-    condition: r.condition || 'New',
-    conditionNote: r.condition_note || '',
-    usdPrice: Number(r.usd_price) || 0,
-    ngnPrice: Number(r.ngn_price) || 0,
-    stock: Number(r.stock_count) ?? 0,
-    inStock: r.in_stock !== false,
-    listingStatus: r.listing_status || 'live',
-    featured: r.featured || false,
-    badge: r.badge || '',
-    deliveryDays: r.delivery_days || '',
-    appleUrl: r.apple_url || '',
-    sortOrder: Number(r.sort_order) || 0,
-    variants: r.variants || null,
-    code: r.code ? String(r.code) : null,
-  };
-}
-
-function mapCert(r) {
-  const d = r.issued_at || r.created_at;
-  return {
-    id: r.id,
-    order_id: r.order_id,
-    product_name: r.product_name,
-    serial_number: r.serial_number || '',
-    status: r.status || 'draft',
-    date: d ? new Date(d).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' }) : '—',
-  };
-}
-
-function mapMessage(r) {
-  const d = r.created_at;
-  return {
-    id: r.id,
-    name: r.name,
-    email: r.email,
-    message: r.message,
-    read: r.read || false,
-    created_at: d ? new Date(d).toLocaleString('en-NG', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—',
-  };
-}
-
-function mapCoupon(r) {
-  return {
-    id:          r.id,
-    code:        r.code,
-    description: r.description || '',
-    type:        r.discount_type  || 'percent',
-    value:       Number(r.discount_value) || 0,
-    applies_to:  r.applies_to || 'all',
-    active:      r.is_active !== false,
-    expires:     r.expires_at ? new Date(r.expires_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' }) : 'No expiry',
-    expires_raw: r.expires_at || null,
-    uses:        Number(r.used_count) || 0,
-    max_uses:    r.max_uses != null ? Number(r.max_uses) : null,
-  };
-}
-
-function mapLog(r) {
-  const d = r.created_at;
-  return {
-    action: r.action,
-    details: r.details,
-    admin: r.admin_name,
-    ts: d ? new Date(d).toLocaleString('en-NG', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—',
-  };
-}
-
-function buildRevenueSeries(rawOrders) {
-  const days = {};
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    const key = d.toLocaleDateString('en-NG', { month: 'short', day: 'numeric' });
-    days[key] = { day: key, ngn: 0 };
-  }
-  (rawOrders || []).forEach(o => {
-    if (!o.created_at) return;
-    const key = new Date(o.created_at).toLocaleDateString('en-NG', { month: 'short', day: 'numeric' });
-    if (days[key]) days[key].ngn += Number(o.ngn_price || 0);
-  });
-  return Object.values(days);
-}
+import { TOKEN_KEY, NAME_KEY, getToken, getName, authFetch } from './lib/auth.js';
+import { useIsMobile } from './lib/useIsMobile.js';
+import { mapOrder, mapProduct, mapCert, mapMessage, mapCoupon, mapLog, buildRevenueSeries } from './lib/mappers.js';
+import { fmtN, fmtU } from './lib/format.js';
+import { inputS, thS, tdS, primaryBtn, actionBtn, miniBtn, linkBtn } from './lib/styles.js';
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 const Icon = ({ name, size = 18, c = 'currentColor', sw = 1.6 }) => {
@@ -412,16 +266,7 @@ const Segmented = ({ options, value, onChange, size='md' }) => (
   </div>
 );
 
-// ─── Shared style atoms ───────────────────────────────────────────────────────
-const inputS    = { padding:'9px 13px', borderRadius:9, border:'1px solid var(--border)', background:'var(--bg)', fontFamily:'var(--font-body)', fontSize:13, color:'var(--text)', outline:'none' };
-const thS       = { padding:'12px 18px', fontFamily:'var(--font-body)', fontSize:11.5, fontWeight:700, color:'var(--text-muted)', textAlign:'left', whiteSpace:'nowrap', textTransform:'uppercase', letterSpacing:'0.04em' };
-const tdS       = { padding:'13px 18px', fontFamily:'var(--font-body)', fontSize:13.5, color:'var(--text)', verticalAlign:'middle' };
-const primaryBtn = { background:'var(--accent)', color:'white', border:'none', borderRadius:10, padding:'10px 18px', cursor:'pointer', fontFamily:'var(--font-body)', fontSize:13, fontWeight:600, whiteSpace:'nowrap' };
-const actionBtn  = { display:'inline-flex', alignItems:'center', gap:6, padding:'9px 16px', borderRadius:10, border:'1px solid var(--border)', background:'var(--bg)', color:'var(--text-muted)', fontFamily:'var(--font-body)', fontSize:13, fontWeight:600, cursor:'pointer' };
-const miniBtn    = { background:'none', border:'1px solid var(--border)', borderRadius:7, padding:'5px 12px', cursor:'pointer', fontFamily:'var(--font-body)', fontSize:12, color:'var(--text-muted)', fontWeight:600 };
-const linkBtn    = { background:'none', border:'none', cursor:'pointer', fontFamily:'var(--font-body)', fontSize:13, fontWeight:600, color:'var(--accent)' };
-const fmtN = n => '₦' + Number(n).toLocaleString();
-const fmtU = n => '$' + Number(n).toLocaleString();
+// Shared style atoms, mappers, auth, fmtN/fmtU — imported from ./lib/* at top of file.
 
 // ─── TAB: Overview ────────────────────────────────────────────────────────────
 function OverviewTab({ isMobile, setTab, orders, revenueSeries, messages, products }) {
