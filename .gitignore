@@ -1,6 +1,38 @@
+# Claude Code state
 .claude/
 
+# Dependencies
 node_modules/
+
+# Build output
 dist/
+
+# Environment
 .env
+.env.local
+.env.*.local
+
+# Local-only scripts
 parse-sheets.js
+
+# Logs (including the weird Windows-temp-path log files we accidentally tracked)
+*.log
+*Temp*.log
+**/AppData/Local/Temp/**
+
+# OS / Editor noise
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/
+
+# Documents and binary blobs that shouldn't be in source control
+*.pdf
+*.docx
+*.xlsx
+
+# Build / coverage artifacts
+coverage/
+.nyc_output/
+.vite/

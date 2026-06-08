@@ -1,3 +1,15 @@
+// ─── Certo Express server ────────────────────────────────────────────────────
+// Routing strategy (see also vercel.json):
+//   • Static files in /dist (built React SPA) — served by Vercel CDN directly.
+//   • /api/*       — Express handles via routes in ./routes/*.
+//   • /product/:id, /blog/:slug, /guides/:slug, /sitemap.xml — server-rendered
+//     for SEO (OG/meta tags). Add a new SSR route by:
+//       1. Defining the handler below (app.get('/your-route/:id', …))
+//       2. Adding 'your-route' to the regex group in vercel.json rewrites:
+//          "/(product|blog|guides|sitemap\\.xml|your-route)(/.*)?"
+//   • Everything else falls through to /index.html (the SPA).
+// ─────────────────────────────────────────────────────────────────────────────
+
 require('dotenv').config();
 const express   = require('express');
 const cors      = require('cors');
@@ -11,22 +23,42 @@ const { generateToken, parseAccounts } = require('./adminAuth');
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
-// CORS — allow the live site, any *.certo.ng subdomain (covers preview/beta/oma/etc.), and local dev
+// CORS — allow the live site, any *.certo.ng subdomain (preview/beta/oma/etc.), and local dev.
+//
+// IMPORTANT: when the cors middleware rejects an origin via cb(new Error()), Express turns that
+// into a generic 500. We intentionally signal rejection by passing a tagged error and catch it
+// in a dedicated error handler below (returns a proper 403 with a useful message instead).
 const allowedOrigins = [
   'https://certo.ng',
   'https://www.certo.ng',
   'http://localhost:3000',
   'http://localhost:5173',
 ];
+const CORS_REJECTED = 'CORS_ORIGIN_NOT_ALLOWED';
+
 app.use(cors({
   origin: (origin, cb) => {
-    // Allow server-to-server (no origin), known exact origins, and any *.certo.ng subdomain
-    if (!origin) return cb(null, true);
+    if (!origin) return cb(null, true); // server-to-server / curl
     if (allowedOrigins.includes(origin)) return cb(null, true);
     if (/^https:\/\/[a-z0-9-]+\.certo\.ng$/.test(origin)) return cb(null, true);
-    cb(new Error('CORS: origin not allowed'));
+    const err = new Error(`Origin ${origin} is not allowed by CORS policy`);
+    err.code = CORS_REJECTED;
+    cb(err);
   },
 }));
+
+// CORS-aware error handler. Must be registered AFTER app.use(cors()) but BEFORE any route
+// handlers that depend on json body parsing — placing it just after cors makes the order obvious.
+app.use((err, req, res, next) => {
+  if (err && err.code === CORS_REJECTED) {
+    return res.status(403).json({
+      error: 'CORS: origin not allowed',
+      message: err.message,
+      hint: 'If this is a legitimate Certo domain, add it to allowedOrigins in server/index.js.',
+    });
+  }
+  next(err);
+});
 
 app.use(express.json({ limit: '10mb' }));
 
@@ -145,6 +177,18 @@ async function runMigrations() {
 
     // Add status_timeline JSONB column to orders (tracks a timestamped log of every status change)
     await pool.queryR(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS status_timeline JSONB DEFAULT '[]'`);
+
+    // Variant columns on orders (moved from server/db.js so all migrations live in one place)
+    await pool.queryR(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS variant_id        TEXT`);
+    await pool.queryR(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS variant_color     TEXT`);
+    await pool.queryR(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS variant_storage   TEXT`);
+    await pool.queryR(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS variant_color_hex TEXT`);
+
+    // Soft-delete flag on orders (admin "hide" without losing the row)
+    await pool.queryR(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS admin_hidden BOOLEAN DEFAULT false`);
+
+    // Variants column on products (JSONB shape: { colors: [...], storages: [...] })
+    await pool.queryR(`ALTER TABLE products ADD COLUMN IF NOT EXISTS variants JSONB DEFAULT '[]'`);
 
     // Add sort_order to products for manual drag-to-reorder
     await pool.queryR(`ALTER TABLE products ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0`);

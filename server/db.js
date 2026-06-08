@@ -47,16 +47,13 @@ async function query(sql, params) {
 
 pool.queryR = query;
 
-// Auto-migrate: add variants column if it doesn't exist
-pool.queryR(`ALTER TABLE products ADD COLUMN IF NOT EXISTS variants JSONB DEFAULT '[]'`).catch(() => {});
-
-// Auto-migrate: add variant columns to orders if they don't exist
-pool.queryR(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS variant_id TEXT`).catch(() => {});
-pool.queryR(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS variant_color TEXT`).catch(() => {});
-pool.queryR(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS variant_storage TEXT`).catch(() => {});
-pool.queryR(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS variant_color_hex TEXT`).catch(() => {});
-
-// Auto-migrate: admin soft-delete (hide) for orders
-pool.queryR(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS admin_hidden BOOLEAN DEFAULT false`).catch(() => {});
+// ⚠️  NO MIGRATIONS HERE.
+//
+// Schema migrations all live in `runMigrations()` inside server/index.js so that
+// (1) we can see the full schema in one place, (2) failures are logged with
+// context, and (3) we don't pay 6 round-trips on every cold start.
+//
+// If you need a new column or table, add it to runMigrations() — don't
+// drive-by ALTER from here.
 
 module.exports = pool;
