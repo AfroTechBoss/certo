@@ -90,6 +90,13 @@
       -moz-osx-font-smoothing: grayscale;
     }
 
+    /* Form elements don't inherit body font by default — set them once here
+       so inline `fontFamily: 'var(--font-body)'` props become unnecessary. */
+    button, input, select, textarea {
+      font-family: inherit;
+      color: inherit;
+    }
+
     #root { min-height: 100vh; }
 
     /* Scrollbar */
