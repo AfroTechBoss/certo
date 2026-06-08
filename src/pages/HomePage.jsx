@@ -4,6 +4,9 @@
 import React, { useEffect, useState } from 'react';
 import { CERTO_RATE } from '../data.js';
 import { GuidesStrip } from './BlogPage.jsx';
+// Public-page style atoms (see src/lib/styles.js). Use spread + overrides to
+// keep pixel-perfect output, e.g. { ...eyebrow, marginBottom: 28 }.
+import { eyebrow, container, sectionPadding, darkButton, primaryButton } from '../lib/styles.js';
 
 // ─── Mobile hook (via matchMedia — works with CSS viewport emulation) ─────────
 
@@ -44,15 +47,11 @@ const PROOF_DATA = {
 // ─── Shared sub-components ───────────────────────────────────────────────────
 
 function PrimaryCTA({ label, dark = true, onClick }) {
+  // Use the shared button atom, swap the bg colour for the dark variant,
+  // and override padding to keep the existing pixel-perfect 17×30 size.
+  const base = dark ? darkButton : primaryButton;
   return (
-    <button onClick={onClick} style={{
-      display: 'inline-flex', alignItems: 'center', gap: 10,
-      background: dark ? 'var(--ink)' : 'var(--accent)',
-      color: 'white', textDecoration: 'none',
-      border: 'none', cursor: 'pointer',
-      borderRadius: 12, padding: '17px 30px',
-      fontSize: 15, fontWeight: 600, letterSpacing: '0.01em',
-    }}>
+    <button onClick={onClick} style={{ ...base, padding: '17px 30px' }}>
       {label}
       <span>→</span>
     </button>
@@ -209,14 +208,11 @@ function SectionHero({ navigate }) {
   return (
     <section style={{ minHeight: '100vh', background: 'var(--cream)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
       <div style={{
-        flex: 1, maxWidth: 1440, width: '100%', margin: '0 auto',
+        ...container, flex: 1,
         padding: isMobile ? '112px 20px 64px' : '136px 48px 64px',
         display: 'flex', flexDirection: 'column',
       }}>
-        <div style={{
-          fontSize: 11, fontWeight: 700, letterSpacing: '0.18em',
-          color: 'var(--accent)', textTransform: 'uppercase', marginBottom: 28,
-        }}>
+        <div style={{ ...eyebrow, marginBottom: 28 }}>
           A manifesto · Lagos, 2026
         </div>
 
@@ -346,7 +342,7 @@ function SectionCertificate({ navigate }) {
   return (
     <section id="certificate" style={{
       background: 'var(--cream)',
-      padding: isMobile ? '64px 20px' : '120px 48px',
+      ...sectionPadding(isMobile),
       borderTop: '1px solid var(--hairline)', position: 'relative', overflow: 'hidden',
     }}>
       <div style={{
@@ -357,17 +353,14 @@ function SectionCertificate({ navigate }) {
       }} />
 
       <div style={{
-        maxWidth: 1440, margin: '0 auto', position: 'relative',
+        ...container, position: 'relative',
         display: 'grid',
         gridTemplateColumns: isMobile ? '1fr' : '0.85fr 1.15fr',
         gap: isMobile ? 48 : 80,
         alignItems: 'center',
       }}>
         <div>
-          <div style={{
-            fontSize: 11, fontWeight: 700, letterSpacing: '0.18em',
-            color: 'var(--accent)', textTransform: 'uppercase', marginBottom: 28,
-          }}>Chapter II · The Proof</div>
+          <div style={{ ...eyebrow, marginBottom: 28 }}>Chapter II · The Proof</div>
 
           <h2 style={{
             fontFamily: 'var(--font-head)', fontWeight: 800,
@@ -449,7 +442,7 @@ function SectionChainOfCustody() {
   return (
     <section style={{
       background: 'var(--ink)', color: 'white',
-      padding: isMobile ? '64px 20px' : '120px 48px',
+      ...sectionPadding(isMobile),
       position: 'relative', overflow: 'hidden',
     }}>
       {/* Grid overlay */}
@@ -459,7 +452,7 @@ function SectionChainOfCustody() {
         backgroundSize: '40px 40px',
       }} />
 
-      <div style={{ maxWidth: 1440, margin: '0 auto', position: 'relative' }}>
+      <div style={{ ...container, position: 'relative' }}>
         {/* Section header */}
         <div style={{
           display: 'grid',
@@ -469,10 +462,7 @@ function SectionChainOfCustody() {
           marginBottom: isMobile ? 48 : 80,
         }}>
           <div>
-            <div style={{
-              fontSize: 11, fontWeight: 700, letterSpacing: '0.18em',
-              color: 'var(--accent)', textTransform: 'uppercase', marginBottom: 24,
-            }}>Chapter III · Chain of Custody</div>
+            <div style={{ ...eyebrow, marginBottom: 24 }}>Chapter III · Chain of Custody</div>
             <h2 style={{
               fontFamily: 'var(--font-head)', fontWeight: 800,
               fontSize: isMobile ? 'clamp(28px, 8vw, 48px)' : 'clamp(32px, 5vw, 64px)',
@@ -791,10 +781,10 @@ function SectionCategories({ navigate }) {
   return (
     <section style={{
       background: 'var(--cream)',
-      padding: isMobile ? '64px 20px' : '120px 48px',
+      ...sectionPadding(isMobile),
       borderTop: '1px solid var(--hairline)',
     }}>
-      <div style={{ maxWidth: 1440, margin: '0 auto' }}>
+      <div style={container}>
         <div style={{
           display: 'grid',
           gridTemplateColumns: isMobile ? '1fr' : '1fr auto',
@@ -803,10 +793,7 @@ function SectionCategories({ navigate }) {
           marginBottom: isMobile ? 36 : 56,
         }}>
           <div>
-            <div style={{
-              fontSize: 11, fontWeight: 700, letterSpacing: '0.18em',
-              color: 'var(--accent)', textTransform: 'uppercase', marginBottom: 20,
-            }}>Browse the Range</div>
+            <div style={{ ...eyebrow, marginBottom: 20 }}>Browse the Range</div>
             <h2 style={{
               fontFamily: 'var(--font-head)', fontWeight: 800,
               fontSize: isMobile ? 'clamp(28px, 8vw, 48px)' : 'clamp(32px, 5vw, 64px)',
@@ -855,10 +842,10 @@ function SectionCatalog({ navigate }) {
   return (
     <section style={{
       background: 'var(--cream)',
-      padding: isMobile ? '64px 20px' : '120px 48px',
+      ...sectionPadding(isMobile),
       borderTop: '1px solid var(--hairline)',
     }}>
-      <div style={{ maxWidth: 1440, margin: '0 auto' }}>
+      <div style={container}>
         <div style={{
           display: 'grid',
           gridTemplateColumns: isMobile ? '1fr' : '1fr auto',
@@ -867,10 +854,7 @@ function SectionCatalog({ navigate }) {
           marginBottom: 48,
         }}>
           <div>
-            <div style={{
-              fontSize: 11, fontWeight: 700, letterSpacing: '0.18em',
-              color: 'var(--accent)', textTransform: 'uppercase', marginBottom: 20,
-            }}>Chapter IV · The Catalog</div>
+            <div style={{ ...eyebrow, marginBottom: 20 }}>Chapter IV · The Catalog</div>
             <h2 style={{
               fontFamily: 'var(--font-head)', fontWeight: 800,
               fontSize: isMobile ? 'clamp(28px, 8vw, 48px)' : 'clamp(32px, 5vw, 64px)',
@@ -1002,7 +986,7 @@ function SectionForex() {
   return (
     <section style={{
       background: 'var(--cream)',
-      padding: isMobile ? '64px 20px' : '120px 48px',
+      ...sectionPadding(isMobile),
       borderTop: '1px solid var(--hairline)', position: 'relative', overflow: 'hidden',
     }}>
       <div style={{
@@ -1020,10 +1004,7 @@ function SectionForex() {
         alignItems: 'center',
       }}>
         <div>
-          <div style={{
-            fontSize: 11, fontWeight: 700, letterSpacing: '0.18em',
-            color: 'var(--accent)', textTransform: 'uppercase', marginBottom: 24,
-          }}>Chapter V · The Forex Promise</div>
+          <div style={{ ...eyebrow, marginBottom: 24 }}>Chapter V · The Forex Promise</div>
           <h2 style={{
             fontFamily: 'var(--font-head)', fontWeight: 800,
             fontSize: isMobile ? 'clamp(28px, 8vw, 48px)' : 'clamp(32px, 4.5vw, 56px)',
@@ -1156,15 +1137,12 @@ function SectionVoices() {
   return (
     <section style={{
       background: 'var(--cream)',
-      padding: isMobile ? '64px 20px' : '120px 48px',
+      ...sectionPadding(isMobile),
       borderTop: '1px solid var(--hairline)',
     }}>
-      <div style={{ maxWidth: 1440, margin: '0 auto' }}>
+      <div style={container}>
         <div style={{ marginBottom: isMobile ? 40 : 64 }}>
-          <div style={{
-            fontSize: 11, fontWeight: 700, letterSpacing: '0.18em',
-            color: 'var(--accent)', textTransform: 'uppercase', marginBottom: 20,
-          }}>Chapter VI · The People</div>
+          <div style={{ ...eyebrow, marginBottom: 20 }}>Chapter VI · The People</div>
           <h2 style={{
             fontFamily: 'var(--font-head)', fontWeight: 800,
             fontSize: isMobile ? 'clamp(28px, 8vw, 48px)' : 'clamp(32px, 5vw, 64px)',
@@ -1272,15 +1250,13 @@ function SectionFounder() {
   return (
     <section style={{
       background: 'var(--cream)',
-      padding: isMobile ? '64px 20px' : '120px 48px',
+      ...sectionPadding(isMobile),
       borderTop: '1px solid var(--hairline)', position: 'relative',
     }}>
       <div style={{ maxWidth: 720, margin: '0 auto', position: 'relative' }}>
-        <div style={{
-          fontSize: 11, fontWeight: 700, letterSpacing: '0.18em',
-          color: 'var(--accent)', textTransform: 'uppercase',
-          marginBottom: 32, textAlign: 'center',
-        }}>Chapter VII · A note from the founder</div>
+        <div style={{ ...eyebrow, marginBottom: 32, textAlign: 'center' }}>
+          Chapter VII · A note from the founder
+        </div>
 
         <div style={{
           fontFamily: 'var(--font-head)', fontStyle: 'italic',
