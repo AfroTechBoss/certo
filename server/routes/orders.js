@@ -13,7 +13,35 @@ function generateOrderId() {
   return `CRT-${mmdd}${now.getFullYear().toString().slice(2)}-${rand}`;
 }
 
+// Build a flat (product_id → qty) list from the order body.
+// Handles the multi-item cart shape (items[]) as well as the legacy single-product
+// shape (top-level product_id + qty). Skips items without a product_id (manual
+// admin entries) since we have nothing to decrement.
+function buildStockClaim({ items, product_id, qty }) {
+  const tally = new Map();
+  if (Array.isArray(items) && items.length) {
+    for (const it of items) {
+      if (!it?.product_id) continue;
+      const n = Number(it.qty) || 1;
+      tally.set(it.product_id, (tally.get(it.product_id) || 0) + n);
+    }
+  } else if (product_id) {
+    tally.set(product_id, Number(qty) || 1);
+  }
+  return Array.from(tally, ([id, q]) => ({ product_id: id, qty: q }));
+}
+
 // POST /api/orders  (create new order)
+//
+// Inventory is checked + decremented atomically inside a transaction so two
+// customers buying the last unit at the same time can't both succeed. Steps:
+//   1. BEGIN
+//   2. SELECT … FOR UPDATE on every product in the cart (locks the rows)
+//   3. Verify each product has stock_count >= requested qty
+//   4. UPDATE … SET stock_count = stock_count - qty
+//   5. INSERT the order
+//   6. COMMIT
+// Any failure ROLLs BACK and returns 409 with the offending product.
 router.post('/', async (req, res) => {
   const {
     customer_name, customer_email, customer_phone,
@@ -37,10 +65,49 @@ router.post('/', async (req, res) => {
   const orderStatus = initial_status === 'Payment Pending' ? 'Payment Pending' : 'Order Confirmed';
 
   const id = generateOrderId();
+  const stockClaim = buildStockClaim({ items, product_id, qty });
 
+  let client;
   try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+
+    // 1. Lock + verify stock for every product we know about
+    for (const { product_id: pid, qty: needed } of stockClaim) {
+      const { rows: prodRows } = await client.query(
+        'SELECT id, name, stock_count FROM products WHERE id = $1 FOR UPDATE',
+        [pid],
+      );
+      if (!prodRows.length) {
+        // Product was deleted between client and now (rare). Skip — manual catch from admin.
+        console.warn('[orders] stock claim references missing product', pid);
+        continue;
+      }
+      const p = prodRows[0];
+      const available = Number(p.stock_count) || 0;
+      if (available < needed) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'Out of stock',
+          message: `"${p.name}" only has ${available} available (you requested ${needed}).`,
+          product_id: pid,
+          available,
+          requested: needed,
+        });
+      }
+    }
+
+    // 2. Decrement stock_count on every locked product
+    for (const { product_id: pid, qty: needed } of stockClaim) {
+      await client.query(
+        'UPDATE products SET stock_count = GREATEST(stock_count - $1, 0), updated_at = NOW() WHERE id = $2',
+        [needed, pid],
+      );
+    }
+
+    // 3. Insert the order
     const now = new Date().toISOString();
-    const { rows } = await pool.queryR(`
+    const { rows } = await client.query(`
       INSERT INTO orders (
         id, customer_name, customer_email, customer_phone,
         address, state,
@@ -69,6 +136,8 @@ router.post('/', async (req, res) => {
       variant_id || null, variant_color || null, variant_storage || null, variant_color_hex || null,
       JSON.stringify([{ status: orderStatus, timestamp: now }]),
     ]);
+
+    await client.query('COMMIT');
 
     const order = rows[0];
 
@@ -109,8 +178,17 @@ router.post('/', async (req, res) => {
 
     res.status(201).json({ id: order.id, order });
   } catch (err) {
-    console.error('POST /orders:', err);
+    // Roll back the inventory/order transaction if we got that far
+    if (client) {
+      try { await client.query('ROLLBACK'); }
+      catch (rbErr) { console.error('[orders] rollback failed:', rbErr.message); }
+    }
+    console.error('POST /orders:', err.message);
     res.status(500).json({ error: 'Failed to create order' });
+  } finally {
+    // Always return the pooled client. Without this we leak DB connections
+    // on every error path and eventually exhaust the pool.
+    if (client) client.release();
   }
 });
 

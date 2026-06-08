@@ -460,7 +460,11 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Order submission failed');
+      if (!res.ok) {
+        // Prefer the friendly message (e.g. "iPhone 15 Pro only has 0 available")
+        // over the generic error code ("Out of stock"). 409 = inventory rejection.
+        throw new Error(data.message || data.error || 'Order submission failed');
+      }
       const newOrderId = data.id;
       setOrderId(newOrderId);
       orderIdRef.current = newOrderId;
@@ -580,7 +584,7 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Order creation failed');
+      if (!res.ok) throw new Error(data.message || data.error || 'Order creation failed');
       const newOrderId = data.id;
       setOrderId(newOrderId);
       orderIdRef.current = newOrderId;
