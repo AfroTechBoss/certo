@@ -391,7 +391,7 @@ const FAQPage = () => {
       title: 'About Certo',
       items: [
         { q: 'Who runs Certo?', a: 'Certo is run by a single founder based in Lagos. Every order is personally overseen. There\'s no call center — you reach the person who runs the business.' },
-        { q: 'How do I reach you?', a: 'WhatsApp is fastest. Our number is on the contact page. We also respond to email and DMs on Twitter and Instagram within 24 hours on business days.' },
+        { q: 'How do I reach you?', a: 'WhatsApp is fastest. Our number is on the contact page. We also respond to email and DMs on Twitter (@certo_ng), Instagram (@certo.ng), and TikTok (@certo.ng) within 24 hours on business days.' },
         { q: 'What happens if something goes wrong?', a: 'We fix it. If your device arrives damaged, failed, or with a serial that doesn\'t check out — you get a refund or replacement. We\'ve built our business on not having to argue about this.' },
         { q: 'Is Certo a registered business?', a: 'Yes. Certo Technologies is a registered business in Nigeria under the Corporate Affairs Commission (CAC).' },
       ]
@@ -484,6 +484,13 @@ const EmailIcon = ({ size = 20, color = 'currentColor' }) => (
 const TwitterIcon = ({ size = 20, color = 'currentColor' }) => (
   <svg width={size} height={size} viewBox="0 0 20 20" fill="none" aria-hidden="true">
     <path d="M14.5 3h2.6l-5.7 6.5L18 17h-5.3l-4.1-5.4L3.7 17H1.1l6.1-7-5.8-7h5.4l3.7 4.9L14.5 3Zm-.9 12.5h1.5L6.5 4.4H4.9l8.7 11.1Z" fill={color}/>
+  </svg>
+);
+
+const TikTokIcon = ({ size = 20, color = 'currentColor' }) => (
+  <svg width={size} height={size} viewBox="0 0 20 20" fill="none" aria-hidden="true">
+    {/* Minimal TikTok glyph — a music-note shape with the brand fork */}
+    <path d="M12.5 2v8.7a2.3 2.3 0 11-2.3-2.3v2a.3.3 0 00-.3.3.3.3 0 10.6 0V2h2zm.5 0a3.5 3.5 0 003.5 3.5v2A5.5 5.5 0 0113 5.6z" fill={color}/>
   </svg>
 );
 
@@ -702,8 +709,9 @@ const ContactPage = () => {
             <div style={{ border: '1px solid var(--border)', borderRadius: 18, background: 'var(--bg)', overflow: 'hidden' }}>
               {[
                 { Icon: EmailIcon,     label: 'Email',       val: 'hello@certo.ng',  sub: 'Replies within 24 hours on business days', href: 'mailto:hello@certo.ng' },
-                { Icon: TwitterIcon,   label: 'Twitter / X', val: '@certong',        sub: 'DMs open · public questions welcome',      href: 'https://x.com/certong' },
+                { Icon: TwitterIcon,   label: 'Twitter / X', val: '@certo_ng',       sub: 'DMs open · public questions welcome',      href: 'https://x.com/certo_ng' },
                 { Icon: InstagramIcon, label: 'Instagram',   val: '@certo.ng',       sub: 'DMs open · behind-the-scenes content',     href: 'https://instagram.com/certo.ng' },
+                { Icon: TikTokIcon,    label: 'TikTok',      val: '@certo.ng',       sub: 'Unboxings, real device tests, customer wins', href: 'https://www.tiktok.com/@certo.ng' },
               ].map((c, i, arr) => (
                 <a
                   key={c.label}

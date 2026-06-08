@@ -14,7 +14,9 @@ import { inputS, primaryBtn, actionBtn } from '../lib/styles.js';
 // onDone receives the raw API row (the new order).
 
 const APPLECARE_OPTIONS = ['none', 'AppleCare+', 'AppleCare+ with Theft and Loss'];
-const PAYMENT_METHODS   = ['Cash / Bank Transfer', 'Flutterwave', 'WhatsApp (USD/Crypto)', 'MoonPay', 'Other'];
+// Note: 'MoonPay' was removed from this list when Certo switched to manual WhatsApp USD/crypto.
+// Historical orders with payment_method = 'MoonPay' still display correctly (see PayPill).
+const PAYMENT_METHODS   = ['Cash / Bank Transfer', 'Flutterwave', 'WhatsApp (USD/Crypto)', 'Other'];
 
 export function CreateOrderModal({ onClose, onDone, products, rate }) {
   const [form, setForm] = useState({

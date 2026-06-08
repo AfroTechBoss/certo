@@ -20,6 +20,9 @@ import { WhatsAppModal }    from '../modals/WhatsAppModal.jsx';
 import { FlagModal }        from '../modals/FlagModal.jsx';
 import { CertModal }        from '../modals/CertModal.jsx';
 
+// PayPill keeps a purple variant for historical 'MoonPay' orders so they render
+// correctly in the admin list, even though MoonPay is no longer offered to new
+// customers. Everything else gets the default green pill.
 export function PayPill({ method }) {
   const m = method==='MoonPay'
     ? { bg:'oklch(94% 0.05 280)', fg:'oklch(42% 0.16 280)' }

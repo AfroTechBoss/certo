@@ -57,46 +57,14 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
   const [step, setStep] = React.useState(0);
   const [delivery, setDelivery] = React.useState({ name: '', email: '', phone: '', address: '', state: '' });
   const [forexConfirmed, setForexConfirmed] = React.useState(false);
-  const [payMethod, setPayMethod] = React.useState('naira');
   const [orderId, setOrderId] = React.useState('');
   const [submitting, setSubmitting] = React.useState(false);
   const [submitError, setSubmitError] = React.useState('');
-  const [payConfig, setPayConfig] = React.useState({ flutterwaveKey: '', helioPayLink: '', moonpayKey: '', moonpayWallet: '', moonpaySandbox: true, testMode: false });
-  const [moonpayUrl, setMoonpayUrl] = React.useState('');
-  const [showMoonpay, setShowMoonpay] = React.useState(false);
-  const orderIdRef = React.useRef(''); // stable ref for postMessage handler
+  const [payConfig, setPayConfig] = React.useState({ flutterwaveKey: '', helioPayLink: '', testMode: false });
+  const orderIdRef = React.useRef(''); // stable ref kept in case it's needed across handlers
 
   React.useEffect(() => {
     fetch('/api/config').then(r => r.json()).then(d => setPayConfig(d)).catch(() => {});
-  }, []);
-
-  // Listen for MoonPay widget completion via postMessage.
-  // NOTE: the previous version PATCHed /api/orders/:id directly, which is
-  // adminAuth-protected — the call always 401'd and the `.catch(() => {})`
-  // swallowed it, leaving MoonPay orders stuck in "Payment Pending" forever.
-  // The new public endpoint (/moonpay-confirm) is narrowly scoped: only flips
-  // Payment Pending → Order Confirmed when payment_method is MoonPay.
-  React.useEffect(() => {
-    const onMessage = (e) => {
-      if (!['https://buy-sandbox.moonpay.com', 'https://buy.moonpay.com'].includes(e.origin)) return;
-      const type = e.data?.type;
-      // Only confirm on 'completed' — 'created' fires when user submits card but payment hasn't cleared yet
-      if (type === 'moonpay_transaction_completed') {
-        const id = orderIdRef.current;
-        if (id) {
-          fetch(`/api/orders/${id}/moonpay-confirm`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ source: 'widget_postMessage' }),
-          }).catch(() => {});
-        }
-        setShowMoonpay(false);
-        clearCart && clearCart();
-        navigate('thank-you', orderIdRef.current);
-      }
-    };
-    window.addEventListener('message', onMessage);
-    return () => window.removeEventListener('message', onMessage);
   }, []);
 
   const cartItems = cart || [];
@@ -713,34 +681,6 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
         {steps[step]()}
       </div>
 
-      {/* MoonPay payment modal */}
-      {showMoonpay && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 2000, display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', padding: isMobile ? 0 : 20 }}>
-          <div style={{ width: '100%', maxWidth: 480, height: isMobile ? '92vh' : '82vh', background: 'white', borderRadius: isMobile ? '20px 20px 0 0' : 20, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-            {/* Modal header */}
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-              <div>
-                <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 16, color: 'var(--text)' }}>Pay in USD / Crypto</div>
-                <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Powered by MoonPay · ${totalUsd.toLocaleString()} USD</div>
-              </div>
-              <button
-                onClick={() => {
-                  setShowMoonpay(false);
-                  setSubmitError(`Payment window closed. Your order ${orderId} is saved — contact us anytime to complete payment.`);
-                }}
-                style={{ background: 'none', border: '1.5px solid var(--border)', borderRadius: 8, width: 34, height: 34, cursor: 'pointer', fontSize: 16, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
-              >✕</button>
-            </div>
-            {/* MoonPay iframe */}
-            <iframe
-              src={moonpayUrl}
-              style={{ flex: 1, border: 'none', width: '100%' }}
-              allow="accelerometer; autoplay; camera; gyroscope; payment"
-              title="MoonPay Payment"
-            />
-          </div>
-        </div>
-      )}
     </div>
   );
 };

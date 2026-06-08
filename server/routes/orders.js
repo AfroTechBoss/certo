@@ -61,7 +61,8 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
-  // Only allow 'Payment Pending' as an explicit override (e.g. MoonPay/crypto orders awaiting confirmation)
+  // Only allow 'Payment Pending' as an explicit override (e.g. WhatsApp USD/crypto orders
+  // awaiting manual confirmation by the admin after the customer pays out-of-band).
   const orderStatus = initial_status === 'Payment Pending' ? 'Payment Pending' : 'Order Confirmed';
 
   const id = generateOrderId();
