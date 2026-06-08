@@ -3,6 +3,7 @@
 import React from 'react';
 import { CERTO_RATE, useResponsive } from '../data.js';
 import { ProductIcon, fmt } from './HomePage.jsx';
+import { calcCouponDiscount, calcOrderTotal, SERVICE_FEE, DANGEROUS_FEE_UNIT } from '../lib/pricing.js';
 
 // Defined outside CheckoutFlow so the component identity stays stable across re-renders
 const CheckoutInput = ({ label, value, onChange, placeholder, type = 'text', inputId }) => {
@@ -95,8 +96,7 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
   }, []);
 
   const cartItems = cart || [];
-  const SERVICE_FEE        = 35;
-  const DANGEROUS_FEE_UNIT = 40;
+  // SERVICE_FEE + DANGEROUS_FEE_UNIT are imported from ../lib/pricing.js (single source of truth)
 
   const getItemWeightKg = (product) => {
     if (product.weight_kg) return Number(product.weight_kg);
@@ -154,23 +154,11 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
   const totalQty = cartItems.reduce((sum, item) => sum + (item.qty || 1), 0);
   const dangerousFee = totalQty * DANGEROUS_FEE_UNIT;
 
-  const couponDiscount = couponData ? (() => {
-    const at   = couponData.applies_to;
-    const base = at === 'product'  ? itemsSubtotal
-               : at === 'delivery' ? deliveryFeeUsd
-               : at === 'service'  ? SERVICE_FEE
-               : at === 'fees'     ? SERVICE_FEE + deliveryFeeUsd
-               /* 'all' or legacy fallback */ : itemsSubtotal + SERVICE_FEE + dangerousFee + deliveryFeeUsd;
-    if (couponData.discount_type === 'fixed') {
-      // discount_value is stored in NGN — convert to USD at the locked rate before applying
-      const discountUsd = CERTO_RATE > 0 ? Number(couponData.discount_value) / CERTO_RATE : 0;
-      return Math.min(discountUsd, base);
-    }
-    return base * (Number(couponData.discount_value) / 100);
-  })() : 0;
-
-  const totalUsd = itemsSubtotal + SERVICE_FEE + dangerousFee + deliveryFeeUsd - couponDiscount;
-  const totalNgn = totalUsd * CERTO_RATE;
+  // Pricing math lives in src/lib/pricing.js so it can be unit-tested.
+  // See tests in src/lib/__tests__/pricing.test.js.
+  const _priceParts = { itemsSubtotal, dangerousFee, deliveryFeeUsd };
+  const couponDiscount = calcCouponDiscount(couponData, _priceParts, CERTO_RATE);
+  const { totalUsd, totalNgn } = calcOrderTotal(_priceParts, couponData, CERTO_RATE);
 
   const STEPS = ['Cart', 'Delivery', 'Forex', 'Payment'];
 

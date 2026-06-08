@@ -6,16 +6,15 @@ const logAdminAction = require('../logAdminAction');
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-// Returns the lowest available 5-digit code (10000–99999) not currently in use
+const { pickNextCode } = require('../lib/productCode');
+
+// Returns the lowest available 5-digit code (10000–99999) not currently in use.
+// Pure logic lives in lib/productCode.js so it can be unit-tested.
 async function nextAvailableCode() {
   const { rows } = await pool.queryR(
     'SELECT code FROM products WHERE code IS NOT NULL ORDER BY code ASC'
   );
-  const used = new Set(rows.map(r => Number(r.code)));
-  for (let c = 10000; c <= 99999; c++) {
-    if (!used.has(c)) return c;
-  }
-  throw new Error('No available 5-digit product codes');
+  return pickNextCode(rows.map(r => r.code));
 }
 
 // GET /api/products
