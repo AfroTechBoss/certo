@@ -532,6 +532,77 @@ app.get('/api/moonpay-sign', (req, res) => {
   res.json({ signature });
 });
 
+// POST /api/orders/:id/moonpay-confirm  (public — called from the checkout flow when
+// MoonPay's iframe fires the `moonpay_transaction_completed` postMessage event)
+//
+// This is the ONLY way for an unauthenticated customer to flip their own
+// MoonPay order from Payment Pending → Order Confirmed. It is intentionally
+// narrow:
+//
+//   1. The order must currently be in 'Payment Pending'.
+//   2. The order's payment_method must contain 'MoonPay'.
+//   3. It is idempotent — calling it on an already-confirmed order is a no-op.
+//
+// Attack surface: a malicious user could call this on any other customer's
+// MoonPay order to skip ahead to "Order Confirmed" and trigger a confirmation
+// email. They cannot extract money. Mitigations:
+//   - Telegram + activity log notify on every confirmation, so we'd catch a
+//     non-genuine confirmation when the MoonPay funds never settle.
+//   - The admin can flip the order back to Payment Pending if anything looks off.
+//
+// TODO: harden by calling MoonPay's transaction-verification REST API server-side
+// (GET https://api.moonpay.com/v1/transactions/:txId with Api-Key) to confirm
+// the transaction actually completed before promoting the order.
+app.post('/api/orders/:id/moonpay-confirm', async (req, res) => {
+  const { id } = req.params;
+  if (!id) return res.status(400).json({ error: 'Order id required' });
+
+  try {
+    const { rows } = await pool.queryR(
+      `UPDATE orders
+       SET status = 'Order Confirmed',
+           status_timeline = COALESCE(status_timeline, '[]'::jsonb) ||
+             jsonb_build_array(jsonb_build_object('status', 'Order Confirmed', 'timestamp', NOW()::text)),
+           updated_at = NOW()
+       WHERE id = $1
+         AND status = 'Payment Pending'
+         AND payment_method ILIKE '%MoonPay%'
+       RETURNING *`,
+      [id],
+    );
+
+    if (!rows.length) {
+      // Either the order doesn't exist, is already confirmed, or isn't a MoonPay order.
+      // Always 200 so the customer flow keeps moving — admins can audit via the log.
+      console.log('[moonpay] confirm: no row updated for', id, '(already confirmed, not MoonPay, or not found)');
+      return res.json({ ok: true, updated: false });
+    }
+
+    // Send the confirmation email + Telegram alert
+    const order = rows[0];
+    try {
+      const { sendOrderConfirmation, sendWhatsAppNotification } = require('./email');
+      await sendOrderConfirmation(order);
+      await pool.queryR('UPDATE orders SET email_sent = true WHERE id = $1', [id]);
+      const waText = `💰 MoonPay order confirmed!\n\nOrder: ${order.id}\nCustomer: ${order.customer_name}\nAmount: $${Number(order.usd_price).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+      await sendWhatsAppNotification(waText).catch(err => console.error('[notify] Telegram MoonPay confirm failed:', err.message));
+    } catch (err) {
+      console.error('[moonpay] confirm: email/notify failed for', id, ':', err.message);
+    }
+
+    try {
+      const log = require('./logAdminAction');
+      await log('System', 'MoonPay order confirmed', `${id} — $${Number(order.usd_price).toLocaleString('en-US', { minimumFractionDigits: 2 })}`);
+    } catch (_) {}
+
+    console.log('[moonpay] confirmed order', id);
+    res.json({ ok: true, updated: true });
+  } catch (err) {
+    console.error('[moonpay] confirm error for', id, ':', err.message);
+    res.status(500).json({ error: 'Failed to confirm order' });
+  }
+});
+
 // Image proxy — proxies any https:// image URL; adds Apple Referer for Apple CDN URLs
 // In-memory cache: avoids re-fetching on every request / server restart
 const imgCache = new Map(); // normalizedUrl → { buf, ct, ts }

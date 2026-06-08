@@ -70,20 +70,24 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
     fetch('/api/config').then(r => r.json()).then(d => setPayConfig(d)).catch(() => {});
   }, []);
 
-  // Listen for MoonPay widget completion via postMessage
+  // Listen for MoonPay widget completion via postMessage.
+  // NOTE: the previous version PATCHed /api/orders/:id directly, which is
+  // adminAuth-protected — the call always 401'd and the `.catch(() => {})`
+  // swallowed it, leaving MoonPay orders stuck in "Payment Pending" forever.
+  // The new public endpoint (/moonpay-confirm) is narrowly scoped: only flips
+  // Payment Pending → Order Confirmed when payment_method is MoonPay.
   React.useEffect(() => {
     const onMessage = (e) => {
       if (!['https://buy-sandbox.moonpay.com', 'https://buy.moonpay.com'].includes(e.origin)) return;
       const type = e.data?.type;
       // Only confirm on 'completed' — 'created' fires when user submits card but payment hasn't cleared yet
       if (type === 'moonpay_transaction_completed') {
-        // Upgrade order from 'Payment Pending' → 'Order Confirmed' (triggers confirmation email)
         const id = orderIdRef.current;
         if (id) {
-          fetch(`/api/orders/${id}`, {
-            method: 'PATCH',
+          fetch(`/api/orders/${id}/moonpay-confirm`, {
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status: 'Order Confirmed' }),
+            body: JSON.stringify({ source: 'widget_postMessage' }),
           }).catch(() => {});
         }
         setShowMoonpay(false);
