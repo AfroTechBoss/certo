@@ -8,7 +8,12 @@ import { ShopPage, ProductDetailPage } from './pages/ShopPage.jsx';
 import { HowItWorksPage, TrackOrderPage, AboutPage, FAQPage, ContactPage, PrivacyPolicyPage, TermsOfServicePage, RefundPolicyPage } from './pages/Pages.jsx';
 import { VerifyPage } from './pages/VerifyPage.jsx';
 import { CheckoutFlow } from './pages/Checkout.jsx';
-import { DashboardPage } from './pages/dashboard/DashboardPage.jsx';
+// DashboardPage is lazy-loaded so the admin bundle (~250KB of charts, modals, and
+// tab editors) never reaches customers. Only fetched when a logged-in admin
+// visits /dashboard.
+const DashboardPage = React.lazy(() =>
+  import('./pages/dashboard/DashboardPage.jsx').then(m => ({ default: m.DashboardPage }))
+);
 import { NotFoundPage } from './pages/NotFoundPage.jsx';
 import { BlogPage } from './pages/BlogPage.jsx';
 import { ThankYouPage } from './pages/ThankYouPage.jsx';
@@ -373,7 +378,15 @@ const App = () => {
             localStorage.setItem('certo_rate_ts', String(Date.now()));
           } catch(_) {}
         };
-        return <DashboardPage navigate={navigate} subPage={subPage} liveRate={liveRate} rateFetched={rateFetched} onRateChange={handleRateChange} />;
+        return (
+          <React.Suspense fallback={
+            <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontFamily: 'var(--font-body)', fontSize: 14 }}>
+              Loading dashboard…
+            </div>
+          }>
+            <DashboardPage navigate={navigate} subPage={subPage} liveRate={liveRate} rateFetched={rateFetched} onRateChange={handleRateChange} />
+          </React.Suspense>
+        );
       }
 
       default:
