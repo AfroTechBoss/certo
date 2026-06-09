@@ -3,7 +3,7 @@ const router  = express.Router();
 const pool    = require('../db');
 const { adminAuth } = require('../adminAuth');
 const logAdminAction = require('../logAdminAction');
-const { getCreditTransactions, getToken } = require('../lib/kuda');
+const { getCreditTransactions, getToken, getMainAccountTrackingRef } = require('../lib/kuda');
 
 // All routes here require an admin session
 router.use(adminAuth);
@@ -16,18 +16,18 @@ router.get('/diagnostic', async (req, res) => {
     env: {
       KUDA_EMAIL:        process.env.KUDA_EMAIL        ? 'set ✓' : 'MISSING ✗',
       KUDA_API_KEY:      process.env.KUDA_API_KEY      ? 'set ✓' : 'MISSING ✗',
-      KUDA_TRACKING_REF: process.env.KUDA_TRACKING_REF ? 'set ✓' : 'MISSING ✗',
+      KUDA_TRACKING_REF: process.env.KUDA_TRACKING_REF ? 'set ✓' : '(optional — will auto-discover)',
       KUDA_BASE_URL:     process.env.KUDA_BASE_URL     || '(default: live)',
     },
-    login:    null,
-    nextStep: null,
+    login:           null,
+    trackingRef:     null,
+    nextStep:        null,
   };
 
-  // Step 1: are the env vars present?
-  const missing = ['KUDA_EMAIL', 'KUDA_API_KEY', 'KUDA_TRACKING_REF']
-    .filter(k => !process.env[k]);
-  if (missing.length) {
-    report.nextStep = `Add ${missing.join(', ')} to Vercel Environment Variables, then redeploy.`;
+  // Step 1: required env vars present?
+  const missingRequired = ['KUDA_EMAIL', 'KUDA_API_KEY'].filter(k => !process.env[k]);
+  if (missingRequired.length) {
+    report.nextStep = `Add ${missingRequired.join(', ')} to Vercel Environment Variables, then redeploy.`;
     return res.json(report);
   }
 
@@ -35,12 +35,29 @@ router.get('/diagnostic', async (req, res) => {
   try {
     const token = await getToken();
     report.login = token ? `ok (token length ${token.length})` : 'no token returned';
-    report.nextStep = token
-      ? 'All looks good. Try Sync now.'
-      : 'Kuda returned no token — check that the API key matches the email.';
+    if (!token) {
+      report.nextStep = 'Kuda returned no token — check that the API key matches the email.';
+      return res.json(report);
+    }
   } catch (err) {
-    report.login = `FAILED — ${err.message}`;
+    report.login    = `FAILED — ${err.message}`;
     report.nextStep = 'Kuda rejected our login. Double-check KUDA_EMAIL + KUDA_API_KEY.';
+    return res.json(report);
+  }
+
+  // Step 3: can we resolve the main-account tracking reference?
+  // If the env var isn't set, this tries Kuda's RETRIEVE_MAIN_ACCOUNT and
+  // surfaces whatever it returns so the admin can copy it into env vars
+  // (optional — the sync also auto-discovers, so this is purely informational).
+  try {
+    const ref = await getMainAccountTrackingRef();
+    report.trackingRef = `ok — ${ref}`;
+    report.nextStep    = process.env.KUDA_TRACKING_REF
+      ? 'All looks good. Try Sync now.'
+      : `All looks good. (Tip: pin the tracking ref by adding KUDA_TRACKING_REF=${ref} to env vars so we don't have to discover it every cold start.) Try Sync now.`;
+  } catch (err) {
+    report.trackingRef = `FAILED — ${err.message}`;
+    report.nextStep    = 'Login worked but we could not get the main account tracking reference. Check that the Business API has main-account access enabled.';
   }
 
   res.json(report);

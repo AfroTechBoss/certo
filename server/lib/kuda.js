@@ -87,11 +87,33 @@ async function getToken() {
   return token;
 }
 
+// Auto-discover the tracking reference for the main account if the env var
+// isn't set. Cached in memory after first successful call so we don't hit
+// Kuda for it on every sync.
+let _cachedMainRef = null;
+async function getMainAccountTrackingRef() {
+  if (process.env.KUDA_TRACKING_REF) return process.env.KUDA_TRACKING_REF;
+  if (_cachedMainRef) return _cachedMainRef;
+
+  const token = await getToken();
+  // RETRIEVE_MAIN_ACCOUNT returns the main pool account info, including its tracking reference.
+  const json = await _call('RETRIEVE_MAIN_ACCOUNT', {}, token);
+  const ref =
+    json?.Data?.trackingReference ||
+    json?.data?.trackingReference ||
+    json?.Data?.TrackingReference ||
+    json?.data?.TrackingReference ||
+    json?.trackingReference;
+  if (!ref) throw new Error('Kuda RETRIEVE_MAIN_ACCOUNT succeeded but no trackingReference in response');
+  _cachedMainRef = ref;
+  return ref;
+}
+
 // Fetch credit transactions for the main account between two ISO timestamps.
 // Returns a normalised array (see normaliseTransaction below).
 async function getCreditTransactions({ startDate, endDate, pageSize = 100 } = {}) {
-  const trackingReference = process.env.KUDA_TRACKING_REF;
-  if (!trackingReference) throw new Error('KUDA_TRACKING_REF env var missing');
+  // Use env var if set, otherwise auto-discover (and cache) from Kuda.
+  const trackingReference = await getMainAccountTrackingRef();
 
   const token = await getToken();
 
@@ -157,6 +179,7 @@ function normaliseTransaction(t) {
 module.exports = {
   getToken,
   getCreditTransactions,
+  getMainAccountTrackingRef,
   // Exposed for tests/dev — never call directly in routes
   _internals: { normaliseTransaction },
 };

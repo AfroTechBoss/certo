@@ -299,6 +299,11 @@ export function BankAlertsTab({ isMobile }) {
                   Login: {diagnostic.login}
                 </div>
               )}
+              {diagnostic.trackingRef !== undefined && diagnostic.trackingRef !== null && (
+                <div style={{ marginTop: 4, paddingLeft: 0, color: String(diagnostic.trackingRef).startsWith('ok') ? 'oklch(40% 0.16 145)' : 'oklch(50% 0.18 25)', wordBreak: 'break-all' }}>
+                  Tracking ref: {diagnostic.trackingRef}
+                </div>
+              )}
               {diagnostic.nextStep && (
                 <div style={{ marginTop: 10, padding: '8px 12px', borderRadius: 8, background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)', fontFamily: 'var(--font-body)' }}>
                   → {diagnostic.nextStep}
