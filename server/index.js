@@ -429,6 +429,20 @@ async function runMigrations() {
     await pool.queryR(`CREATE INDEX IF NOT EXISTS bank_alerts_matched_idx  ON bank_alerts (matched_order_id)`);
     await pool.queryR(`CREATE INDEX IF NOT EXISTS bank_alerts_amount_idx   ON bank_alerts (amount_ngn)`);
 
+    // One-time data fix: early bank_alerts rows were stored in KOBO because
+    // we hadn't realised Kuda sends amounts in the smallest currency unit.
+    // Divide existing values by 100 so they're in NGN, then mark the
+    // migration done so this never runs twice.
+    const { rows: koboFixDone } = await pool.queryR(
+      `SELECT 1 FROM schema_migrations WHERE key = 'bank_alerts_kobo_fix_v1'`,
+    );
+    if (!koboFixDone.length) {
+      await pool.queryR(`UPDATE bank_alerts SET amount_ngn = amount_ngn / 100`);
+      await pool.queryR(`UPDATE bank_alerts SET balance_after = balance_after / 100 WHERE balance_after IS NOT NULL`);
+      await pool.queryR(`INSERT INTO schema_migrations (key) VALUES ('bank_alerts_kobo_fix_v1')`);
+      console.log('[migrations] ✓ bank_alerts kobo→NGN fix applied');
+    }
+
     console.log('[migrations] ✓ schema up to date');
   } catch (err) {
     console.error('[migrations] error:', err.message);

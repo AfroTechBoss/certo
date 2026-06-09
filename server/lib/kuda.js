@@ -191,6 +191,11 @@ async function getCreditTransactions({ startDate, endDate, pageSize = 100 } = {}
 // Normalise a Kuda transaction record to our canonical shape used by the DB.
 // Kuda's field names aren't consistent across the docs vs the live API, so
 // we try both Camel and Pascal versions of each field.
+//
+// IMPORTANT: Kuda sends monetary values in KOBO (1 NGN = 100 kobo), the same
+// convention Flutterwave and Paystack use. We divide by 100 so the DB stores
+// values in NGN — confirmed empirically: a ₦100 test transfer arrived as
+// 10000 and was displayed as ₦10,000 before this fix.
 function normaliseTransaction(t) {
   const pick = (...keys) => {
     for (const k of keys) {
@@ -198,16 +203,15 @@ function normaliseTransaction(t) {
     }
     return null;
   };
+  const koboToNgn = (raw) => raw === null ? null : Number(raw) / 100;
   return {
     transaction_ref: String(pick('transactionReference', 'TransactionReference', 'reference', 'Reference') || ''),
-    amount_ngn:      Number(pick('amount', 'Amount', 'transactionAmount') || 0),
+    amount_ngn:      koboToNgn(pick('amount', 'Amount', 'transactionAmount')) || 0,
     narration:       String(pick('narration', 'Narration', 'remarks', 'Remarks') || ''),
     sender_name:     String(pick('senderName', 'SenderName', 'originatorName') || ''),
     sender_account:  String(pick('senderAccount', 'SenderAccount', 'originatorAccountNumber') || ''),
     sender_bank:     String(pick('senderBank', 'SenderBank', 'originatorBank') || ''),
-    balance_after:   pick('balance', 'Balance', 'balanceAfter') !== null
-                     ? Number(pick('balance', 'Balance', 'balanceAfter'))
-                     : null,
+    balance_after:   koboToNgn(pick('balance', 'Balance', 'balanceAfter')),
     transaction_at:  new Date(pick('transactionDate', 'TransactionDate', 'date') || Date.now()),
     raw:             t,
   };
