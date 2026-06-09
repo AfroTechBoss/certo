@@ -1038,7 +1038,7 @@ const PrivacyPolicyPage = ({ navigate }) => {
             <Li><Bold>Right to lodge a complaint</Bold> with the Nigeria Data Protection Commission (NDPC) — see §11</Li>
           </Ul>
           <P>
-            To exercise any of these rights, email us at <Bold>dpo@certo.ng</Bold> with the subject
+            To exercise any of these rights, email us at <Bold>hello@certo.ng</Bold> with the subject
             line "Data Request". We will respond within <Bold>14 days</Bold> as required by the
             NDPA, and free of charge. We may ask for proof of identity before acting on the request.
           </P>
@@ -1120,7 +1120,7 @@ const PrivacyPolicyPage = ({ navigate }) => {
             data-subject requests, breach response, and internal compliance.
           </P>
           <P>
-            Contact: <Bold>dpo@certo.ng</Bold> (we will respond within 14 days)
+            Contact: <Bold>hello@certo.ng</Bold> (we will respond within 14 days)
           </P>
           <P>
             If you are unsatisfied with our handling of your data, you have the right to lodge a
@@ -1136,7 +1136,7 @@ const PrivacyPolicyPage = ({ navigate }) => {
           <P>
             Certo's services are intended for adults aged 18 and over. We do not knowingly collect
             personal data from children. If you believe a child has provided personal data to us,
-            contact <Bold>dpo@certo.ng</Bold> and we will delete the data and any associated
+            contact <Bold>hello@certo.ng</Bold> and we will delete the data and any associated
             account.
           </P>
         </Section>
@@ -1152,8 +1152,10 @@ const PrivacyPolicyPage = ({ navigate }) => {
         <Section title="14. Contact">
           <P>
             Certo Technologies is incorporated in Nigeria under the Companies and Allied Matters
-            Act. General privacy queries go to <Bold>dpo@certo.ng</Bold>. AML/CFT/CPF queries go to
-            <Bold> compliance@certo.ng</Bold>. All other contact details are on our
+            Act. All privacy, AML/CFT/CPF, and general queries go to
+            <Bold> hello@certo.ng</Bold>. Mark the subject line with the relevant policy area
+            (e.g. "Data Request", "AML Query") so we can route it quickly. Other contact details
+            are on our
             <a onClick={(e) => { e.preventDefault(); navigate('contact'); }} href="/contact" style={{ color: 'var(--accent)', marginLeft: 4 }}>contact page</a>.
           </P>
         </Section>
@@ -1550,7 +1552,7 @@ const AmlPolicyPage = ({ navigate }) => {
             <Li>Maintaining the integrity of the Certo customer record</Li>
           </Ul>
           <P>
-            The Compliance Officer can be reached at <Bold>compliance@certo.ng</Bold>. All Certo
+            The Compliance Officer can be reached at <Bold>hello@certo.ng</Bold>. All Certo
             employees and contractors are required to escalate any concern to the Compliance
             Officer without delay and without notifying the customer.
           </P>
@@ -1603,7 +1605,7 @@ const AmlPolicyPage = ({ navigate }) => {
           <P>
             If you are a customer, supplier, employee, or member of the public with information
             concerning a possible breach of this policy, contact us in confidence at
-            <Bold> compliance@certo.ng</Bold>. We do not retaliate against good-faith reporters.
+            <Bold> hello@certo.ng</Bold>. We do not retaliate against good-faith reporters.
           </P>
           <P>
             If you believe you have been the target of money laundering, terrorist financing, or
