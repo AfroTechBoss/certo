@@ -825,6 +825,7 @@ app.get('/sitemap.xml', async (req, res) => {
       { path: '/privacy',                 priority: '0.3', freq: 'yearly'  },
       { path: '/terms',                   priority: '0.3', freq: 'yearly'  },
       { path: '/refund',                  priority: '0.4', freq: 'monthly' },
+      { path: '/aml',                     priority: '0.3', freq: 'yearly'  },
     ];
 
     const urlXml = (loc, lastmod, freq, priority) => [

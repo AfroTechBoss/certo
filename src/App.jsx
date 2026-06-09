@@ -5,7 +5,7 @@ import { CERTO_RATE, setCERTO_RATE, useResponsive } from './data.js';
 import { NavComponent } from './components/Nav.jsx';
 import { HomePage } from './pages/HomePage.jsx';
 import { ShopPage, ProductDetailPage } from './pages/ShopPage.jsx';
-import { HowItWorksPage, TrackOrderPage, AboutPage, FAQPage, ContactPage, PrivacyPolicyPage, TermsOfServicePage, RefundPolicyPage } from './pages/Pages.jsx';
+import { HowItWorksPage, TrackOrderPage, AboutPage, FAQPage, ContactPage, PrivacyPolicyPage, TermsOfServicePage, RefundPolicyPage, AmlPolicyPage } from './pages/Pages.jsx';
 import { VerifyPage } from './pages/VerifyPage.jsx';
 import { CheckoutFlow } from './pages/Checkout.jsx';
 // DashboardPage is lazy-loaded so the admin bundle (~250KB of charts, modals, and
@@ -118,6 +118,7 @@ const FooterComponent = ({ navigate }) => {
               { label: 'Privacy Policy',   target: 'privacy' },
               { label: 'Terms of Service', target: 'terms'   },
               { label: 'Refund Policy',    target: 'refund'  },
+              { label: 'AML / CFT / CPF',  target: 'aml'     },
             ].map(({ label, target }) => (
               <button key={label} onClick={() => navigate(target)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--font-body)', fontSize: isMobile ? 10 : 12, color: 'rgba(255,255,255,0.55)' }}
                 onMouseEnter={e => e.target.style.color = 'white'}
@@ -147,7 +148,7 @@ const parsePath = () => {
   if (route === 'blog' || route === 'guides') return { page: 'guides', param };
   if (route === 'thank-you') return { page: 'thank-you', param: rest.length ? decodeURIComponent(rest.join('/')) : null };
   if (route === 'dashboard') return { page: param ? `dashboard-${param}` : 'dashboard', param: null };
-  const known = ['home', 'how-it-works', 'about', 'faq', 'contact', 'cart', 'checkout', 'privacy', 'terms', 'refund', 'verify'];
+  const known = ['home', 'how-it-works', 'about', 'faq', 'contact', 'cart', 'checkout', 'privacy', 'terms', 'refund', 'aml', 'verify'];
   if (known.includes(route)) return { page: route, param: null };
   return { page: 'not-found', param: null };
 };
@@ -344,6 +345,9 @@ const App = () => {
 
       case 'refund':
         return <RefundPolicyPage navigate={navigate} />;
+
+      case 'aml':
+        return <AmlPolicyPage navigate={navigate} />;
 
       case 'cart':
       case 'checkout':

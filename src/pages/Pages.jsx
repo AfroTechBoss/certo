@@ -925,46 +925,243 @@ const PrivacyPolicyPage = ({ navigate }) => {
   );
 
   const P = ({ children }) => <p style={{ marginBottom: 16 }}>{children}</p>;
+  const Ul = ({ children }) => <ul style={{ marginBottom: 16, paddingLeft: 22, lineHeight: 1.85 }}>{children}</ul>;
+  const Li = ({ children }) => <li style={{ marginBottom: 6 }}>{children}</li>;
+  const Bold = ({ children }) => <strong style={{ color: 'var(--text)' }}>{children}</strong>;
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', paddingTop: 80 }}>
       <div style={{ maxWidth: 960, margin: '0 auto', padding: isMobile ? '40px 20px 80px' : '60px 48px 100px' }}>
         <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 16 }}>Legal</div>
         <h1 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: isMobile ? 36 : 52, letterSpacing: '-0.03em', color: 'var(--text)', marginBottom: 12 }}>Privacy Policy</h1>
-        <p style={{ fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--text-muted)', marginBottom: 56 }}>Last updated: April 2026</p>
+        <p style={{ fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--text-muted)', marginBottom: 56 }}>Last updated: June 2026 · Version 2.0</p>
 
-        <Section title="What we collect">
-          <P>When you place an order, we collect your name, phone number, delivery address, and email address. This is the minimum we need to process and deliver your order.</P>
-          <P>When you make a naira payment via Flutterwave, your card details go directly to Flutterwave — we never see, store, or have access to your card number, CVV, or any banking credentials. Flutterwave is PCI-DSS compliant.</P>
-          <P>We also collect your order history and communication history (WhatsApp messages, emails) to support ongoing service and dispute resolution.</P>
+        <Section title="1. About this policy">
+          <P>
+            This policy explains how Certo Technologies ("Certo", "we", "us") collects, uses, stores,
+            and protects your personal data. It is written to comply with the
+            <Bold> Nigeria Data Protection Act 2023</Bold> ("NDPA") and the
+            <Bold> Nigeria Data Protection Regulation 2019</Bold> ("NDPR"), as supplemented by
+            guidance from the <Bold>Nigeria Data Protection Commission (NDPC)</Bold>.
+          </P>
+          <P>
+            Certo is the <Bold>data controller</Bold> of your personal data. The point of contact
+            for all data protection matters is our Data Protection Officer
+            (see §10).
+          </P>
         </Section>
 
-        <Section title="How we use your data">
-          <P>We use your information to fulfil your order, send you delivery updates, and provide customer support. We do not use your data for advertising. We do not sell your data. We do not share it with third parties except those directly involved in delivering your order (our logistics partner and Flutterwave).</P>
-          <P>We may contact you after delivery to ask how your device is working. That is the full extent of our marketing — and you can opt out by asking us not to contact you again.</P>
+        <Section title="2. What we collect">
+          <P>When you place an order, we collect:</P>
+          <Ul>
+            <Li>Your full legal name</Li>
+            <Li>Your phone number (for delivery + WhatsApp support)</Li>
+            <Li>Your delivery address and state</Li>
+            <Li>Your email address</Li>
+            <Li>For orders above ₦1,000,000: government-issued ID as required by our AML/CFT/CPF Policy</Li>
+          </Ul>
+          <P>
+            When you pay in naira via Flutterwave, your card details go directly to Flutterwave —
+            we never see, store, or have access to your card number, CVV, or any banking
+            credentials. Flutterwave is PCI-DSS compliant. We retain only the Flutterwave
+            transaction reference for reconciliation.
+          </P>
+          <P>
+            We also retain your order history, the messages you exchange with us via WhatsApp or
+            email, and basic technical information (IP address used at order time, browser type) for
+            security and fraud-prevention purposes.
+          </P>
         </Section>
 
-        <Section title="Data storage">
-          <P>Order records are stored securely and retained for seven years for accounting and regulatory compliance. After seven years, your personal data is deleted unless there is an unresolved legal or warranty matter.</P>
-          <P>WhatsApp conversations are on the WhatsApp platform (Meta's privacy policy applies). Emails are retained for three years.</P>
+        <Section title="3. Lawful basis for processing">
+          <P>
+            Under section 25 of the NDPA, we must identify a lawful basis for each processing
+            activity. Our bases are:
+          </P>
+          <Ul>
+            <Li><Bold>Performance of a contract</Bold> — to process your order, take payment, arrange delivery, and provide warranty/refund service.</Li>
+            <Li><Bold>Legal obligation</Bold> — to retain transaction records and identification information under the NDPA, the Money Laundering (Prevention and Prohibition) Act 2022, and the Companies and Allied Matters Act.</Li>
+            <Li><Bold>Legitimate interests</Bold> — to prevent fraud, secure our systems, and improve our service. Where we rely on legitimate interests, you may object (see §6).</Li>
+            <Li><Bold>Consent</Bold> — for any optional communications (e.g. post-purchase follow-up). You may withdraw consent at any time without affecting any prior lawful processing.</Li>
+          </Ul>
         </Section>
 
-        <Section title="Your rights">
-          <P>You can request a copy of all personal data we hold on you. You can request correction of any incorrect data. You can request deletion of your data at any time — subject to our legal obligation to retain transaction records for seven years.</P>
-          <P>To exercise any of these rights, email us at hello@certo.ng with the subject line "Data Request" and we will respond within 5 business days.</P>
+        <Section title="4. How we use your data">
+          <P>We use your information to:</P>
+          <Ul>
+            <Li>Process, fulfil, and deliver your order</Li>
+            <Li>Send you order, delivery, and warranty updates</Li>
+            <Li>Provide customer support and resolve disputes</Li>
+            <Li>Comply with our anti-money-laundering, tax, and accounting obligations</Li>
+            <Li>Detect and prevent fraud, abuse, and security incidents</Li>
+            <Li>With your separate consent, send you post-purchase product feedback requests</Li>
+          </Ul>
+          <P>
+            We <Bold>do not</Bold> sell your personal data. We <Bold>do not</Bold> use it for
+            third-party advertising. We <Bold>do not</Bold> profile you for automated
+            decision-making that produces legal or similarly significant effects.
+          </P>
         </Section>
 
-        <Section title="Cookies">
-          <P>This website does not use advertising cookies, tracking pixels, or third-party analytics services. The exchange rate we fetch from ExchangeRate-API and the admin session token are stored in your browser's localStorage — this data never leaves your device and is not accessible to anyone but you.</P>
+        <Section title="5. Who we share data with">
+          <P>We share the minimum data necessary with the following categories of processor:</P>
+          <Ul>
+            <Li><Bold>Flutterwave</Bold> — for naira payment processing (PCI-DSS, Nigeria & global)</Li>
+            <Li><Bold>Our logistics partner</Bold> — for last-mile delivery (Nigeria)</Li>
+            <Li><Bold>Kuda Bank</Bold> — when you pay via bank transfer to our Kuda business account</Li>
+            <Li><Bold>SMTP provider</Bold> — for transactional emails (servers located in Germany)</Li>
+            <Li><Bold>Vercel Inc.</Bold> — our website hosting partner (global edge network)</Li>
+            <Li><Bold>Neon Inc.</Bold> — our database hosting provider (servers located in the EU)</Li>
+          </Ul>
+          <P>
+            We may also disclose your data to law-enforcement agencies (EFCC, NPF, NFIU, NDPC,
+            FIRS) where required by a valid Nigerian legal order or where disclosure is required
+            for the prevention or detection of crime.
+          </P>
         </Section>
 
-        <Section title="Contact">
-          <P>All privacy queries go to hello@certo.ng. Certo Technologies is registered in Nigeria under the Corporate Affairs Commission (CAC) and operates under Nigerian data protection law (NDPA 2023).</P>
+        <Section title="6. Your rights as a data subject">
+          <P>
+            Under Part V of the NDPA, you have the following rights with respect to your personal
+            data:
+          </P>
+          <Ul>
+            <Li><Bold>Right to be informed</Bold> about how your data is processed (this policy)</Li>
+            <Li><Bold>Right of access</Bold> — request a copy of the personal data we hold on you</Li>
+            <Li><Bold>Right to rectification</Bold> — correct inaccurate or incomplete data</Li>
+            <Li><Bold>Right to erasure</Bold> ("right to be forgotten") — subject to our legal record-keeping obligations</Li>
+            <Li><Bold>Right to restrict processing</Bold> while a complaint or query is investigated</Li>
+            <Li><Bold>Right to data portability</Bold> — receive your data in a structured, commonly-used machine-readable format</Li>
+            <Li><Bold>Right to object</Bold> to processing carried out on the basis of legitimate interests, or for direct marketing</Li>
+            <Li><Bold>Right to withdraw consent</Bold> at any time where consent is the basis for processing</Li>
+            <Li><Bold>Right not to be subject to automated decision-making</Bold> that produces legal or similarly significant effects</Li>
+            <Li><Bold>Right to lodge a complaint</Bold> with the Nigeria Data Protection Commission (NDPC) — see §11</Li>
+          </Ul>
+          <P>
+            To exercise any of these rights, email us at <Bold>dpo@certo.ng</Bold> with the subject
+            line "Data Request". We will respond within <Bold>14 days</Bold> as required by the
+            NDPA, and free of charge. We may ask for proof of identity before acting on the request.
+          </P>
+        </Section>
+
+        <Section title="7. Data retention">
+          <P>
+            We retain different categories of data for different periods, based on the purpose and
+            applicable legal obligations:
+          </P>
+          <Ul>
+            <Li><Bold>Order and transaction records</Bold> — 7 years (Companies and Allied Matters Act, FIRS, AML record-keeping)</Li>
+            <Li><Bold>Customer identification documents</Bold> — 5 years from the end of the relationship (MLPPA 2022 s. 7)</Li>
+            <Li><Bold>Warranty and certificate-of-authenticity records</Bold> — indefinitely (the certificate is a living public record)</Li>
+            <Li><Bold>Email correspondence</Bold> — 3 years</Li>
+            <Li><Bold>WhatsApp conversation history</Bold> — held on the WhatsApp platform; subject to Meta's privacy terms</Li>
+            <Li><Bold>Marketing-consent records</Bold> — until consent is withdrawn, plus 1 year for audit purposes</Li>
+          </Ul>
+          <P>
+            After the applicable retention period expires, your personal data is securely deleted
+            or fully anonymised unless there is an unresolved legal, regulatory, or warranty matter.
+          </P>
+        </Section>
+
+        <Section title="8. Cross-border data transfers">
+          <P>
+            Some of our processors operate outside Nigeria. We transfer personal data
+            internationally only where:
+          </P>
+          <Ul>
+            <Li>The destination country has been recognised by the NDPC as providing an adequate level of protection (e.g. EU member states under the GDPR), or</Li>
+            <Li>The processor has signed standard contractual clauses providing equivalent protection, or</Li>
+            <Li>You have given your explicit consent to the transfer.</Li>
+          </Ul>
+          <P>
+            Specifically, your data may be processed in: <Bold>Nigeria</Bold> (Certo, Flutterwave,
+            Kuda), <Bold>Germany</Bold> (SMTP / email infrastructure), <Bold>European Union</Bold>
+            (database hosting via Neon), and <Bold>multiple Vercel edge regions</Bold> (website
+            hosting). All transfers outside Nigeria are made under contractual safeguards
+            consistent with section 41 of the NDPA.
+          </P>
+        </Section>
+
+        <Section title="9. Security & breach notification">
+          <P>We protect your personal data using:</P>
+          <Ul>
+            <Li>TLS / HTTPS encryption for all data in transit</Li>
+            <Li>Encryption at rest in our database</Li>
+            <Li>Role-based access control to admin systems</Li>
+            <Li>HMAC-signed admin session tokens</Li>
+            <Li>Rate limiting on login and public endpoints</Li>
+            <Li>Server-side webhook signature verification for payment provider events</Li>
+            <Li>PII-redaction in all production server logs</Li>
+          </Ul>
+          <P>
+            In the event of a personal data breach likely to result in harm to any data subject, we
+            will notify the <Bold>Nigeria Data Protection Commission (NDPC)</Bold> within
+            <Bold> 72 hours</Bold> of becoming aware of the breach, and will notify affected data
+            subjects without undue delay, in accordance with section 40 of the NDPA.
+          </P>
+        </Section>
+
+        <Section title="10. Cookies & local storage">
+          <P>
+            This website does not use advertising cookies, tracking pixels, cross-site identifiers,
+            or third-party analytics. We use only essential, first-party storage:
+          </P>
+          <Ul>
+            <Li>Admin session token (sessionStorage; cleared when the tab closes)</Li>
+            <Li>Locked exchange rate (localStorage; cached for 24 hours)</Li>
+            <Li>Cart contents (localStorage; cleared when you complete or cancel an order)</Li>
+          </Ul>
+          <P>None of this data is transmitted to third parties.</P>
+        </Section>
+
+        <Section title="11. Data Protection Officer & complaints">
+          <P>
+            Our Data Protection Officer is responsible for all NDPA / NDPR matters, including
+            data-subject requests, breach response, and internal compliance.
+          </P>
+          <P>
+            Contact: <Bold>dpo@certo.ng</Bold> (we will respond within 14 days)
+          </P>
+          <P>
+            If you are unsatisfied with our handling of your data, you have the right to lodge a
+            complaint with the Nigeria Data Protection Commission:
+          </P>
+          <Ul>
+            <Li>Nigeria Data Protection Commission (NDPC) — <a href="https://ndpc.gov.ng" target="_blank" rel="noreferrer" style={{ color: 'var(--accent)' }}>ndpc.gov.ng</a></Li>
+            <Li>Address: 18 Bobo Street, off Gimbiya Street, Garki II, Abuja, FCT</Li>
+          </Ul>
+        </Section>
+
+        <Section title="12. Children">
+          <P>
+            Certo's services are intended for adults aged 18 and over. We do not knowingly collect
+            personal data from children. If you believe a child has provided personal data to us,
+            contact <Bold>dpo@certo.ng</Bold> and we will delete the data and any associated
+            account.
+          </P>
+        </Section>
+
+        <Section title="13. Changes to this policy">
+          <P>
+            We will publish a new version of this policy whenever there is a material change to how
+            we process personal data. The "Last updated" date at the top of this page reflects the
+            most recent version. Historical versions are available on request.
+          </P>
+        </Section>
+
+        <Section title="14. Contact">
+          <P>
+            Certo Technologies is incorporated in Nigeria under the Companies and Allied Matters
+            Act. General privacy queries go to <Bold>dpo@certo.ng</Bold>. AML/CFT/CPF queries go to
+            <Bold> compliance@certo.ng</Bold>. All other contact details are on our
+            <a onClick={(e) => { e.preventDefault(); navigate('contact'); }} href="/contact" style={{ color: 'var(--accent)', marginLeft: 4 }}>contact page</a>.
+          </P>
         </Section>
 
         <div style={{ borderTop: '1px solid var(--border)', paddingTop: 32, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           <button onClick={() => navigate('terms')} style={{ background: 'none', border: '1.5px solid var(--border)', borderRadius: 10, padding: '12px 22px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text)' }}>Terms of Service →</button>
           <button onClick={() => navigate('refund')} style={{ background: 'none', border: '1.5px solid var(--border)', borderRadius: 10, padding: '12px 22px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text)' }}>Refund Policy →</button>
+          <button onClick={() => navigate('aml')} style={{ background: 'none', border: '1.5px solid var(--border)', borderRadius: 10, padding: '12px 22px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text)' }}>AML / CFT / CPF Policy →</button>
         </div>
       </div>
     </div>
@@ -1027,6 +1224,7 @@ const TermsOfServicePage = ({ navigate }) => {
         <div style={{ borderTop: '1px solid var(--border)', paddingTop: 32, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           <button onClick={() => navigate('privacy')} style={{ background: 'none', border: '1.5px solid var(--border)', borderRadius: 10, padding: '12px 22px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text)' }}>Privacy Policy →</button>
           <button onClick={() => navigate('refund')} style={{ background: 'none', border: '1.5px solid var(--border)', borderRadius: 10, padding: '12px 22px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text)' }}>Refund Policy →</button>
+          <button onClick={() => navigate('aml')} style={{ background: 'none', border: '1.5px solid var(--border)', borderRadius: 10, padding: '12px 22px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text)' }}>AML / CFT / CPF Policy →</button>
         </div>
       </div>
     </div>
@@ -1130,10 +1328,302 @@ const RefundPolicyPage = ({ navigate }) => {
         <div style={{ borderTop: '1px solid var(--border)', paddingTop: 32, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           <button onClick={() => navigate('privacy')} style={{ background: 'none', border: '1.5px solid var(--border)', borderRadius: 10, padding: '12px 22px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text)' }}>Privacy Policy →</button>
           <button onClick={() => navigate('terms')} style={{ background: 'none', border: '1.5px solid var(--border)', borderRadius: 10, padding: '12px 22px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text)' }}>Terms of Service →</button>
+          <button onClick={() => navigate('aml')} style={{ background: 'none', border: '1.5px solid var(--border)', borderRadius: 10, padding: '12px 22px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text)' }}>AML / CFT / CPF Policy →</button>
         </div>
       </div>
     </div>
   );
 };
 
-export { HowItWorksPage, TrackOrderPage, AboutPage, FAQPage, ContactPage, PrivacyPolicyPage, TermsOfServicePage, RefundPolicyPage };
+// ─── AML / CFT / CPF Policy ──────────────────────────────────────────────────
+// Anti-Money Laundering, Countering the Financing of Terrorism, and Countering
+// Proliferation Financing Policy. Based on:
+//   • Money Laundering (Prevention and Prohibition) Act 2022
+//   • Terrorism (Prevention and Prohibition) Act 2022
+//   • Counter-Terrorism Financing Regulations
+//   • NFIU (Nigerian Financial Intelligence Unit) reporting thresholds
+//   • SCUML guidance for Designated Non-Financial Businesses & Professions (DNFBPs)
+//
+// IMPORTANT: this page is a starting template. Have it reviewed by a Nigerian
+// lawyer experienced in AML/CFT/CPF compliance before publishing — particularly
+// the SCUML registration status claim and the named compliance officer.
+const AmlPolicyPage = ({ navigate }) => {
+  const { isMobile } = useResponsive();
+
+  const Section = ({ title, children }) => (
+    <div style={{ marginBottom: 48 }}>
+      <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 22, color: 'var(--text)', marginBottom: 16, paddingBottom: 12, borderBottom: '2px solid var(--accent)' }}>{title}</h2>
+      <div style={{ fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--text-muted)', lineHeight: 1.85 }}>{children}</div>
+    </div>
+  );
+
+  const P = ({ children }) => <p style={{ marginBottom: 16 }}>{children}</p>;
+  const Ul = ({ children }) => <ul style={{ marginBottom: 16, paddingLeft: 22, lineHeight: 1.85 }}>{children}</ul>;
+  const Li = ({ children }) => <li style={{ marginBottom: 6 }}>{children}</li>;
+  const Bold = ({ children }) => <strong style={{ color: 'var(--text)' }}>{children}</strong>;
+
+  return (
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', paddingTop: 80 }}>
+      <div style={{ maxWidth: 960, margin: '0 auto', padding: isMobile ? '40px 20px 80px' : '60px 48px 100px' }}>
+        <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 16 }}>Legal · Compliance</div>
+        <h1 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: isMobile ? 32 : 46, letterSpacing: '-0.03em', color: 'var(--text)', marginBottom: 12, lineHeight: 1.1 }}>
+          AML / CFT / CPF Policy
+        </h1>
+        <p style={{ fontFamily: 'var(--font-body)', fontSize: 16, color: 'var(--text-muted)', marginBottom: 12, lineHeight: 1.6 }}>
+          Anti-Money Laundering, Countering the Financing of Terrorism, and Countering Proliferation Financing.
+        </p>
+        <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)', marginBottom: 56 }}>Last updated: June 2026 · Version 1.0</p>
+
+        <Section title="1. Purpose & Commitment">
+          <P>
+            Certo Technologies ("Certo", "we", "us") is committed to the highest standards of
+            anti-money laundering (AML), countering the financing of terrorism (CFT), and countering
+            proliferation financing (CPF) compliance. We have a zero-tolerance approach to financial
+            crime and will refuse, terminate, or report any business relationship that we reasonably
+            suspect involves the proceeds of unlawful activity.
+          </P>
+          <P>
+            This policy sets out how Certo identifies, manages, and reports money laundering,
+            terrorist financing, and proliferation financing risks across all aspects of our
+            business — from accepting customer orders to processing payments and shipping devices.
+          </P>
+        </Section>
+
+        <Section title="2. Regulatory Framework">
+          <P>This policy is designed to comply with the following Nigerian laws and regulations:</P>
+          <Ul>
+            <Li><Bold>Money Laundering (Prevention and Prohibition) Act, 2022</Bold> ("MLPPA 2022")</Li>
+            <Li><Bold>Terrorism (Prevention and Prohibition) Act, 2022</Bold> ("TPPA 2022")</Li>
+            <Li>The <Bold>Nigerian Financial Intelligence Unit (NFIU) Act, 2018</Bold> and NFIU reporting regulations</Li>
+            <Li><Bold>Counter-Terrorism Financing Regulations, 2022</Bold></Li>
+            <Li><Bold>Targeted Financial Sanctions Regulations</Bold> (UN Security Council Resolutions 1267, 1373, 1540)</Li>
+            <Li>Guidance issued by <Bold>SCUML (Special Control Unit Against Money Laundering)</Bold> for Designated Non-Financial Businesses and Professions (DNFBPs)</Li>
+            <Li>The <Bold>Economic and Financial Crimes Commission (Establishment) Act, 2004</Bold></Li>
+          </Ul>
+          <P>
+            As a dealer in high-value consumer electronics, Certo treats itself as a
+            DNFBP-equivalent for compliance purposes and applies risk-based AML/CFT/CPF controls
+            even where statutory thresholds are not strictly triggered.
+          </P>
+        </Section>
+
+        <Section title="3. Risk-Based Approach">
+          <P>
+            We apply a risk-based approach — meaning the depth of due diligence is proportionate
+            to the assessed risk of the transaction. Risk indicators include:
+          </P>
+          <Ul>
+            <Li><Bold>Transaction value</Bold> — orders above ₦5,000,000 trigger Enhanced Due Diligence (see §5).</Li>
+            <Li><Bold>Payment method</Bold> — cryptocurrency and out-of-band USD payments require additional verification.</Li>
+            <Li><Bold>Customer profile</Bold> — Politically Exposed Persons (PEPs), high-risk jurisdictions, and corporate structures with unclear beneficial owners.</Li>
+            <Li><Bold>Order pattern</Bold> — repeat orders for high-value items by the same customer/address in a short period; orders structured just below reporting thresholds.</Li>
+            <Li><Bold>Geography</Bold> — delivery to addresses in jurisdictions listed by the FATF as high-risk or non-cooperative.</Li>
+            <Li><Bold>Behaviour</Bold> — reluctance to provide identity information, unusual urgency, or refusal to disclose source of funds for very large orders.</Li>
+          </Ul>
+        </Section>
+
+        <Section title="4. Customer Due Diligence (CDD)">
+          <P>For every order, we collect and retain at minimum:</P>
+          <Ul>
+            <Li>Full legal name</Li>
+            <Li>Phone number (verified by WhatsApp contact)</Li>
+            <Li>Delivery address</Li>
+            <Li>Email address</Li>
+            <Li>Payment trail (Flutterwave transaction ID for naira payments; bank reference for transfers)</Li>
+          </Ul>
+          <P>
+            For orders <Bold>above ₦1,000,000</Bold> we may additionally request a valid
+            government-issued ID (NIN slip, driver's licence, voter card, or international passport)
+            and proof of address before dispatch.
+          </P>
+          <P>
+            We rely on regulated third parties (Flutterwave) to complete their own customer
+            identification on payment instruments. We do not waive CDD on the basis of payment
+            processor verification alone.
+          </P>
+        </Section>
+
+        <Section title="5. Enhanced Due Diligence (EDD)">
+          <P>EDD applies when one or more of the following apply:</P>
+          <Ul>
+            <Li>The transaction value exceeds <Bold>₦5,000,000</Bold> in a single order or across
+                multiple related orders within a 30-day period.</Li>
+            <Li>The customer is identified as a Politically Exposed Person (PEP), a close associate
+                of a PEP, or a family member of a PEP.</Li>
+            <Li>Payment is made in cryptocurrency or by a third party other than the named customer.</Li>
+            <Li>The delivery address is outside Nigeria, or to a freight forwarder.</Li>
+            <Li>Other risk factors identified during the order's review.</Li>
+          </Ul>
+          <P>EDD measures include any combination of:</P>
+          <Ul>
+            <Li>Verifying the customer's identity using two independent documents</Li>
+            <Li>Establishing the source of funds and source of wealth</Li>
+            <Li>Senior-management approval before processing the order</Li>
+            <Li>Ongoing monitoring of the customer relationship</Li>
+            <Li>Refusing the transaction and, where required, filing a Suspicious Transaction Report (STR)</Li>
+          </Ul>
+        </Section>
+
+        <Section title="6. Sanctions & PEP Screening">
+          <P>
+            Before fulfilling any order over ₦1,000,000, Certo screens the customer's name and,
+            where relevant, the delivery address against:
+          </P>
+          <Ul>
+            <Li>The <Bold>United Nations Security Council Consolidated Sanctions List</Bold></Li>
+            <Li>The <Bold>OFAC SDN list</Bold> (Office of Foreign Assets Control, U.S. Department of the Treasury)</Li>
+            <Li>The <Bold>EU consolidated sanctions list</Bold></Li>
+            <Li>The <Bold>Nigeria Sanctions List</Bold> issued under the TPPA 2022</Li>
+            <Li>Publicly available PEP databases</Li>
+          </Ul>
+          <P>
+            A positive sanctions match results in an immediate order suspension and, where required,
+            asset freezing and disclosure to the NFIU and the relevant security agency. We will not
+            "tip off" the screened individual.
+          </P>
+        </Section>
+
+        <Section title="7. Suspicious Transaction Reporting (STR)">
+          <P>
+            Certo will file a Suspicious Transaction Report (STR) with the
+            <Bold> Nigerian Financial Intelligence Unit (NFIU)</Bold> within the timelines required
+            by law whenever we form a reasonable suspicion that a transaction or attempted
+            transaction may involve:
+          </P>
+          <Ul>
+            <Li>The proceeds of any unlawful activity</Li>
+            <Li>Money laundering as defined in section 18 of the MLPPA 2022</Li>
+            <Li>Terrorism financing as defined in the TPPA 2022</Li>
+            <Li>Proliferation financing as defined in the Counter-Terrorism Financing Regulations</Li>
+          </Ul>
+          <P>
+            STRs are filed regardless of the transaction amount and regardless of whether the
+            transaction was completed. We will not notify the customer that an STR has been or may
+            be filed ("anti-tipping-off" rule, MLPPA 2022 s. 16).
+          </P>
+        </Section>
+
+        <Section title="8. Cash & High-Value Transaction Reporting">
+          <P>
+            In compliance with the MLPPA 2022 and NFIU reporting thresholds, Certo:
+          </P>
+          <Ul>
+            <Li>Does <Bold>not accept cash payments above ₦5,000,000 from an individual</Bold>, nor
+                above ₦10,000,000 from a body corporate, in a single transaction or in aggregate
+                over a 7-day period (MLPPA 2022 s. 2).</Li>
+            <Li>Files a Currency Transaction Report (CTR) where applicable for any cash transaction
+                exceeding the statutory threshold.</Li>
+            <Li>Does not engage in structured transactions ("smurfing") and will refuse orders that
+                appear to be structured below reporting thresholds.</Li>
+          </Ul>
+        </Section>
+
+        <Section title="9. Record Keeping">
+          <P>
+            Certo retains the following records for a minimum of <Bold>five (5) years</Bold> from
+            the date of the relevant transaction, in line with MLPPA 2022 s. 7:
+          </P>
+          <Ul>
+            <Li>Customer identification information and supporting documents</Li>
+            <Li>Order and transaction details (amount, parties, dates, payment method, delivery route)</Li>
+            <Li>Communications relating to the order (email, WhatsApp transcripts)</Li>
+            <Li>Internal STR / CTR records and their NFIU receipt acknowledgements</Li>
+            <Li>Records of sanctions screening and risk-assessment decisions</Li>
+          </Ul>
+          <P>
+            Records are kept in a secure, access-controlled electronic store and are produced on
+            lawful request from competent authorities including the EFCC, NFIU, ICPC, CBN, and SCUML.
+          </P>
+        </Section>
+
+        <Section title="10. Designated Compliance Officer">
+          <P>
+            The day-to-day implementation of this policy is owned by Certo's
+            <Bold> Compliance Officer</Bold>, who is responsible for:
+          </P>
+          <Ul>
+            <Li>Reviewing transactions flagged for AML/CFT/CPF risk</Li>
+            <Li>Approving or rejecting orders requiring EDD</Li>
+            <Li>Filing STRs and CTRs with the NFIU</Li>
+            <Li>Maintaining sanctions screening procedures</Li>
+            <Li>Training all Certo staff on AML/CFT/CPF obligations at least annually</Li>
+            <Li>Maintaining the integrity of the Certo customer record</Li>
+          </Ul>
+          <P>
+            The Compliance Officer can be reached at <Bold>compliance@certo.ng</Bold>. All Certo
+            employees and contractors are required to escalate any concern to the Compliance
+            Officer without delay and without notifying the customer.
+          </P>
+        </Section>
+
+        <Section title="11. Staff Training">
+          <P>
+            All Certo personnel — including the founder, employees, and contracted logistics
+            partners — receive training on:
+          </P>
+          <Ul>
+            <Li>How to identify suspicious customer behaviour and red flags</Li>
+            <Li>The CDD and EDD procedures in this policy</Li>
+            <Li>How to escalate concerns to the Compliance Officer</Li>
+            <Li>The prohibition on "tipping off" customers about reports made under MLPPA 2022</Li>
+            <Li>Personal criminal liability for failure to comply with the MLPPA 2022 / TPPA 2022</Li>
+          </Ul>
+          <P>Training is documented and refreshed at least once every twelve (12) months.</P>
+        </Section>
+
+        <Section title="12. Refused Customers & Prohibited Transactions">
+          <P>Certo will not knowingly do business with, and will refuse orders from:</P>
+          <Ul>
+            <Li>Any individual or entity on a UN, EU, OFAC, or Nigeria sanctions list</Li>
+            <Li>Any customer providing materially false identification information</Li>
+            <Li>Any transaction where the source of funds cannot be reasonably established for high-value orders</Li>
+            <Li>Customers requesting delivery to anonymising freight services with no clear end recipient</Li>
+            <Li>Customers refusing CDD/EDD information requests that we are required by law to obtain</Li>
+          </Ul>
+          <P>
+            A refusal under this section is not a denial of service for arbitrary reasons — it is a
+            compliance obligation. We will refund any payment already received from a refused
+            customer through the same channel it was paid, after retaining records as required by §9.
+          </P>
+        </Section>
+
+        <Section title="13. Periodic Review">
+          <P>
+            This policy is reviewed at least annually, and immediately upon any of the following:
+          </P>
+          <Ul>
+            <Li>Amendment to the MLPPA 2022, TPPA 2022, or other applicable legislation</Li>
+            <Li>Updated guidance from the NFIU, SCUML, FATF, or CBN</Li>
+            <Li>A material change to Certo's business model or risk profile</Li>
+            <Li>A material AML/CFT/CPF incident</Li>
+          </Ul>
+        </Section>
+
+        <Section title="14. Contact & Reporting">
+          <P>
+            If you are a customer, supplier, employee, or member of the public with information
+            concerning a possible breach of this policy, contact us in confidence at
+            <Bold> compliance@certo.ng</Bold>. We do not retaliate against good-faith reporters.
+          </P>
+          <P>
+            If you believe you have been the target of money laundering, terrorist financing, or
+            other financial crime involving Certo, you may also report directly to:
+          </P>
+          <Ul>
+            <Li>Nigerian Financial Intelligence Unit (NFIU) — <a href="https://www.nfiu.gov.ng" target="_blank" rel="noreferrer" style={{ color: 'var(--accent)' }}>nfiu.gov.ng</a></Li>
+            <Li>Economic and Financial Crimes Commission (EFCC) — <a href="https://www.efcc.gov.ng" target="_blank" rel="noreferrer" style={{ color: 'var(--accent)' }}>efcc.gov.ng</a></Li>
+            <Li>Special Control Unit Against Money Laundering (SCUML) — <a href="https://www.scuml.org" target="_blank" rel="noreferrer" style={{ color: 'var(--accent)' }}>scuml.org</a></Li>
+          </Ul>
+        </Section>
+
+        <div style={{ borderTop: '1px solid var(--border)', paddingTop: 32, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          <button onClick={() => navigate('privacy')} style={{ background: 'none', border: '1.5px solid var(--border)', borderRadius: 10, padding: '12px 22px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text)' }}>Privacy Policy →</button>
+          <button onClick={() => navigate('terms')} style={{ background: 'none', border: '1.5px solid var(--border)', borderRadius: 10, padding: '12px 22px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text)' }}>Terms of Service →</button>
+          <button onClick={() => navigate('refund')} style={{ background: 'none', border: '1.5px solid var(--border)', borderRadius: 10, padding: '12px 22px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text)' }}>Refund Policy →</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export { HowItWorksPage, TrackOrderPage, AboutPage, FAQPage, ContactPage, PrivacyPolicyPage, TermsOfServicePage, RefundPolicyPage, AmlPolicyPage };
