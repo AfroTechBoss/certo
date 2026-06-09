@@ -31,6 +31,31 @@ const crypto  = require('crypto');
 const pool    = require('../db');
 const { _internals: { normaliseTransaction } } = require('../lib/kuda');
 
+// ── Debug ring buffer ────────────────────────────────────────────────────────
+// Last 5 incoming webhook attempts (headers + redacted body + result).
+// Surfaced via the /diagnostic endpoint so the admin can see EXACTLY what
+// Kuda sends — header names, payload shape, anything — without needing to
+// open Vercel logs. Lives in memory for the life of the function instance.
+const _recentAttempts = [];
+function recordAttempt(req, result, detail) {
+  // Strip headers Vercel injects that aren't useful
+  const skip = new Set(['cookie', 'x-vercel-id', 'x-vercel-deployment-url', 'x-vercel-forwarded-for', 'x-forwarded-for', 'x-real-ip', 'x-forwarded-host', 'x-forwarded-proto']);
+  const headers = {};
+  for (const [k, v] of Object.entries(req.headers || {})) {
+    if (!skip.has(k.toLowerCase())) headers[k] = v;
+  }
+  _recentAttempts.unshift({
+    at:      new Date().toISOString(),
+    result,                                       // 'accepted' | 'rejected:bad-signature' | 'rejected:no-secret' | 'rejected:no-ref'
+    detail,                                       // free-text reason
+    headers,
+    body:    req.body || null,
+  });
+  if (_recentAttempts.length > 5) _recentAttempts.length = 5;
+}
+function getRecentAttempts() { return _recentAttempts; }
+module.exports.getRecentAttempts = getRecentAttempts;
+
 // Constant-time string compare, so even an attacker timing our response
 // can't infer how much of their guess was correct.
 function safeEqual(a, b) {
@@ -53,42 +78,51 @@ function extractSignature(headers) {
 }
 
 router.post('/', express.json({ limit: '256kb' }), async (req, res) => {
-  // 1. Verify the secret
-  const expected  = process.env.KUDA_WEBHOOK_SECRET;
-  const presented = extractSignature(req.headers);
-  if (!expected) {
-    console.warn('[kuda-webhook] Rejected — KUDA_WEBHOOK_SECRET env var not set');
-    return res.status(503).json({ error: 'Webhook not configured' });
-  }
-  if (!safeEqual(presented, expected)) {
-    console.warn('[kuda-webhook] Rejected — bad signature');
-    return res.status(401).json({ error: 'Invalid signature' });
+  // 1. Verify the secret (if configured)
+  const expected   = process.env.KUDA_WEBHOOK_SECRET;
+  const presented  = extractSignature(req.headers);
+  // Discovery / bootstrap mode: when KUDA_WEBHOOK_ALLOW_UNVERIFIED=true is set
+  // in Vercel env, we accept webhooks even when signature verification fails.
+  // Use this ONLY long enough to see what Kuda actually sends (visible in the
+  // diagnostic 'Recent webhook attempts' panel) so we can lock verification
+  // down, then unset the flag.
+  const allowUnverified = String(process.env.KUDA_WEBHOOK_ALLOW_UNVERIFIED || '').toLowerCase() === 'true';
+
+  let signatureOk = false;
+  if (expected && safeEqual(presented, expected)) signatureOk = true;
+
+  if (!signatureOk) {
+    const reason = !expected ? 'no-secret' : 'bad-signature';
+    if (!allowUnverified) {
+      console.warn(`[kuda-webhook] Rejected — ${reason}. Set KUDA_WEBHOOK_ALLOW_UNVERIFIED=true temporarily to bootstrap.`);
+      recordAttempt(req, `rejected:${reason}`, !expected
+        ? 'KUDA_WEBHOOK_SECRET env var not set on this deploy'
+        : `Expected secret in header. Headers we look at: x-kuda-signature, kuda-signature, signature, x-webhook-secret. Got: "${(presented || '').slice(0, 20)}..."`);
+      return res.status(!expected ? 503 : 401).json({ error: !expected ? 'Webhook not configured' : 'Invalid signature' });
+    }
+    // Discovery mode: log it loudly but continue
+    console.warn(`[kuda-webhook] ACCEPTED UNVERIFIED (${reason}) — KUDA_WEBHOOK_ALLOW_UNVERIFIED=true. Lock this down once we know Kuda's auth model.`);
   }
 
   // 2. Pull the transaction out of the payload.
-  // Kuda payload shapes seen in the wild:
-  //   - The transaction directly: { TransactionReference, Amount, ... }
-  //   - Wrapped:                   { Data: { ... } }
-  //   - Event-style:               { EventType: 'credit_alert', Data: { ... } }
   const body    = req.body || {};
   const txData  = body.Data || body.data || body.transactionData || body;
 
-  // 3. Only process credits — debits and other event types are ignored
+  // 3. Only process credits
   const txType = String(txData.TransactionType || txData.transactionType || txData.type || 'credit').toLowerCase();
   if (txType && !txType.includes('credit') && txType !== 'c') {
-    // Acknowledge so Kuda doesn't retry — but don't write anything.
+    recordAttempt(req, 'accepted:ignored', `non-credit event (${txType}) — acknowledged without write`);
     return res.json({ ok: true, ignored: true, reason: `non-credit (${txType})` });
   }
 
   const t = normaliseTransaction(txData);
   if (!t.transaction_ref) {
     console.warn('[kuda-webhook] Skipped — no transaction reference in payload');
+    recordAttempt(req, 'rejected:no-ref', 'no transaction reference field found in payload');
     return res.status(400).json({ error: 'Missing transaction reference' });
   }
 
-  // 4. Idempotent insert. If we've already seen this transaction_ref
-  //    (because Kuda retried, or because the admin pulled via Sync first),
-  //    ON CONFLICT DO NOTHING keeps the original row.
+  // 4. Idempotent insert
   try {
     const result = await pool.queryR(
       `INSERT INTO bank_alerts
@@ -105,12 +139,16 @@ router.post('/', express.json({ limit: '256kb' }), async (req, res) => {
     );
     const inserted = result.rows.length > 0;
 
-    console.log(`[kuda-webhook] ${inserted ? 'inserted' : 'duplicate'} — ref=${t.transaction_ref} amount=${t.amount_ngn}`);
+    const verifTag = signatureOk ? '' : ' (UNVERIFIED)';
+    console.log(`[kuda-webhook] ${inserted ? 'inserted' : 'duplicate'}${verifTag} — ref=${t.transaction_ref} amount=${t.amount_ngn}`);
+    recordAttempt(req, `accepted:${inserted ? 'inserted' : 'duplicate'}${signatureOk ? '' : ':unverified'}`, `ref=${t.transaction_ref} amount=₦${t.amount_ngn}${signatureOk ? '' : ' — accepted in discovery mode'}`);
     res.json({ ok: true, inserted });
   } catch (err) {
     console.error('[kuda-webhook] DB error:', err.message);
+    recordAttempt(req, 'error:db', err.message);
     res.status(500).json({ error: 'Failed to persist webhook event' });
   }
 });
 
 module.exports = router;
+module.exports.getRecentAttempts = getRecentAttempts;

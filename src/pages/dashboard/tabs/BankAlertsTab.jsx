@@ -304,6 +304,27 @@ export function BankAlertsTab({ isMobile }) {
                   Webhook: {diagnostic.webhook}
                 </div>
               )}
+              {Array.isArray(diagnostic.recentWebhookAttempts) && diagnostic.recentWebhookAttempts.length > 0 && (
+                <div style={{ marginTop: 10, padding: '10px 12px', borderRadius: 8, background: 'var(--bg)', border: '1px solid var(--border)' }}>
+                  <div style={{ fontFamily: 'var(--font-body)', fontWeight: 700, color: 'var(--text)', marginBottom: 8, fontSize: 12 }}>
+                    Recent webhook attempts (last {diagnostic.recentWebhookAttempts.length}) — what Kuda actually sent:
+                  </div>
+                  {diagnostic.recentWebhookAttempts.map((a, i) => (
+                    <div key={i} style={{ marginBottom: 10, paddingBottom: 10, borderBottom: i < diagnostic.recentWebhookAttempts.length - 1 ? '1px solid var(--border)' : 'none', fontSize: 11 }}>
+                      <div style={{ color: String(a.result).startsWith('accepted') ? 'oklch(40% 0.16 145)' : 'oklch(50% 0.18 25)', fontWeight: 700 }}>
+                        {new Date(a.at).toLocaleString('en-NG')} — {a.result}
+                      </div>
+                      {a.detail && <div style={{ color: 'var(--text-muted)', marginTop: 2 }}>{a.detail}</div>}
+                      <details style={{ marginTop: 4 }}>
+                        <summary style={{ cursor: 'pointer', color: 'var(--text-muted)', fontFamily: 'var(--font-body)' }}>headers + body</summary>
+                        <pre style={{ marginTop: 6, padding: 8, background: 'var(--bg-alt)', borderRadius: 6, overflow: 'auto', maxHeight: 200, fontSize: 10.5, lineHeight: 1.4 }}>
+{JSON.stringify({ headers: a.headers, body: a.body }, null, 2)}
+                        </pre>
+                      </details>
+                    </div>
+                  ))}
+                </div>
+              )}
               {diagnostic.trackingRef !== undefined && diagnostic.trackingRef !== null && (
                 <div style={{ marginTop: 4, paddingLeft: 0, color: String(diagnostic.trackingRef).startsWith('ok') ? 'oklch(40% 0.16 145)' : 'oklch(50% 0.18 25)', wordBreak: 'break-all' }}>
                   Tracking ref: {diagnostic.trackingRef}

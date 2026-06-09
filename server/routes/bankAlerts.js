@@ -4,6 +4,7 @@ const pool    = require('../db');
 const { adminAuth } = require('../adminAuth');
 const logAdminAction = require('../logAdminAction');
 const { getCreditTransactions, getToken, getMainAccountTrackingRef } = require('../lib/kuda');
+const kudaWebhook = require('./kudaWebhook');
 
 // All routes here require an admin session
 router.use(adminAuth);
@@ -33,10 +34,16 @@ router.get('/diagnostic', async (req, res) => {
       KUDA_TRACKING_REF:    process.env.KUDA_TRACKING_REF    ? 'set ✓' : '(optional — will auto-discover)',
       KUDA_BASE_URL:        process.env.KUDA_BASE_URL        || '(default: live)',
       KUDA_WEBHOOK_SECRET:  process.env.KUDA_WEBHOOK_SECRET  ? 'set ✓' : 'MISSING ✗ (webhooks will reject all incoming events)',
+      KUDA_WEBHOOK_ALLOW_UNVERIFIED: String(process.env.KUDA_WEBHOOK_ALLOW_UNVERIFIED || '').toLowerCase() === 'true'
+        ? 'TRUE ⚠ (discovery mode — webhooks accepted without signature)'
+        : '(default: false — strict verification)',
     },
     login:           null,
     trackingRef:     null,
     webhook:         latestWebhook,
+    // Last 5 webhook attempts (headers + body + result). Use this to see
+    // EXACTLY what Kuda sends, so we know what header to verify against.
+    recentWebhookAttempts: kudaWebhook.getRecentAttempts ? kudaWebhook.getRecentAttempts() : [],
     nextStep:        null,
   };
 
