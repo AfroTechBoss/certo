@@ -28,6 +28,7 @@ import { ForexTab }        from './tabs/ForexTab.jsx';
 import { RevenueTab }      from './tabs/RevenueTab.jsx';
 import { CustomersTab }    from './tabs/CustomersTab.jsx';
 import { BlogTab }         from './tabs/BlogTab.jsx';
+import { BankAlertsTab }   from './tabs/BankAlertsTab.jsx';
 import { RefundsTab }      from './tabs/RefundsTab.jsx';
 
 const NAV = [
@@ -44,6 +45,7 @@ const NAV = [
   { key:'customers',    label:'Customers',    icon:'users'  },
   { key:'blog',         label:'Blog',         icon:'book'   },
   { key:'refunds',      label:'Refunds',      icon:'undo'   },
+  { key:'bank-alerts',  label:'Bank Alerts',  icon:'coins'  },
 ];
 const MOBILE_PRIMARY = ['overview','orders','products','analytics','blog'];
 
@@ -212,6 +214,7 @@ export function DashboardPage({ navigate, subPage, liveRate, rateFetched, onRate
       {tab==='customers'    && <CustomersTab isMobile={isMobile} orders={orders}/>}
       {tab==='blog'         && <BlogTab isMobile={isMobile}/>}
       {tab==='refunds'      && <RefundsTab isMobile={isMobile} orders={orders}/>}
+      {tab==='bank-alerts'  && <BankAlertsTab isMobile={isMobile}/>}
     </>
   );
 

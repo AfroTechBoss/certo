@@ -133,6 +133,7 @@ app.use('/api/analytics',     publicLimiter, require('./routes/analytics'));
 app.use('/api/admin/logs',    require('./routes/adminLog'));
 app.use('/api/blog',          publicLimiter, require('./routes/blog'));
 app.use('/api/refunds',                    require('./routes/refunds'));
+app.use('/api/admin/bank-alerts',          require('./routes/bankAlerts'));
 
 // POST /api/admin/event  — lightweight client-side event logger
 // The dashboard calls this for actions that happen entirely on the frontend
@@ -398,6 +399,32 @@ async function runMigrations() {
     await pool.queryR(`CREATE INDEX IF NOT EXISTS refunds_order_idx   ON refunds (order_id)`);
     await pool.queryR(`CREATE INDEX IF NOT EXISTS refunds_status_idx  ON refunds (status)`);
     await pool.queryR(`CREATE INDEX IF NOT EXISTS refunds_created_idx ON refunds (created_at DESC)`);
+
+    // Bank Alerts — cached/synced credit transactions from the Kuda business account.
+    // Each row represents one inbound payment alert pulled from Kuda. The
+    // transaction_ref column is UNIQUE so re-syncing the same transactions is a no-op.
+    await pool.queryR(`
+      CREATE TABLE IF NOT EXISTS bank_alerts (
+        id              SERIAL PRIMARY KEY,
+        transaction_ref TEXT UNIQUE NOT NULL,
+        amount_ngn      NUMERIC NOT NULL,
+        narration       TEXT NOT NULL DEFAULT '',
+        sender_name     TEXT NOT NULL DEFAULT '',
+        sender_account  TEXT NOT NULL DEFAULT '',
+        sender_bank     TEXT NOT NULL DEFAULT '',
+        balance_after   NUMERIC,
+        transaction_at  TIMESTAMPTZ NOT NULL,
+        matched_order_id TEXT,                                   -- nullable; admin sets this manually
+        matched_by      TEXT,                                    -- admin name
+        matched_at      TIMESTAMPTZ,
+        notes           TEXT NOT NULL DEFAULT '',
+        raw             JSONB,                                   -- full original Kuda response, for audit
+        created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await pool.queryR(`CREATE INDEX IF NOT EXISTS bank_alerts_time_idx     ON bank_alerts (transaction_at DESC)`);
+    await pool.queryR(`CREATE INDEX IF NOT EXISTS bank_alerts_matched_idx  ON bank_alerts (matched_order_id)`);
+    await pool.queryR(`CREATE INDEX IF NOT EXISTS bank_alerts_amount_idx   ON bank_alerts (amount_ngn)`);
 
     console.log('[migrations] ✓ schema up to date');
   } catch (err) {

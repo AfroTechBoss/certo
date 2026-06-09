@@ -1,0 +1,162 @@
+// ─── Kuda Business Open API client ───────────────────────────────────────────
+//
+// Documentation: https://kudabank.gitbook.io/kudabank-api/
+//
+// The Open API is a single endpoint that dispatches on a `ServiceType` string.
+// Two we use:
+//   - ADMIN_LOGIN            → exchange (email + apiKey) for a JWT
+//   - ADMIN_MAIN_ACCOUNT_TRANSACTIONS → list main-account transactions
+//
+// Token caching: the JWT lives in memory for ~50 min (Kuda issues ~60-min
+// tokens). On Vercel's Fluid Compute the same function instance can serve
+// many requests, so this saves a round trip per sync. Cold start = fresh token.
+//
+// Required env:
+//   KUDA_EMAIL         the email on your Kuda Business account
+//   KUDA_API_KEY       generated in Kuda dashboard → Developer
+//   KUDA_TRACKING_REF  tracking reference for the main account
+//   KUDA_BASE_URL      (optional) override; defaults to live URL below.
+//                      Sandbox: https://kuda-openapi-uat.kudabank.com/v2.1
+// ─────────────────────────────────────────────────────────────────────────────
+
+const crypto = require('crypto');
+
+const DEFAULT_BASE = 'https://kuda-openapi.kuda.com/v2.1';
+const TOKEN_TTL_MS = 50 * 60 * 1000; // refresh shortly before Kuda's 60-min expiry
+
+let _cachedToken = null;
+let _cachedExpiry = 0;
+
+function _baseUrl() {
+  return (process.env.KUDA_BASE_URL || DEFAULT_BASE).replace(/\/+$/, '');
+}
+
+function _newRequestRef() {
+  // Kuda requires a unique-per-request reference. Their docs say 10–16 digits.
+  return crypto.randomInt(1_000_000_000, 9_999_999_999).toString();
+}
+
+// Low-level: POST to the single Open API endpoint with a ServiceType + data
+async function _call(serviceType, data = {}, token = null) {
+  const body = {
+    ServiceType: serviceType,
+    RequestRef: _newRequestRef(),
+    Data: data,
+  };
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const res = await fetch(_baseUrl() + '/', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  });
+
+  // Kuda returns JSON even on errors — try to parse, fall back to status text
+  let json;
+  try { json = await res.json(); }
+  catch (_) { throw new Error(`Kuda ${serviceType}: HTTP ${res.status} (non-JSON response)`); }
+
+  if (!res.ok || json.Status === false || json.status === false) {
+    const msg = json.Message || json.message || `HTTP ${res.status}`;
+    throw new Error(`Kuda ${serviceType}: ${msg}`);
+  }
+  return json;
+}
+
+// Get + cache the JWT
+async function getToken() {
+  const now = Date.now();
+  if (_cachedToken && now < _cachedExpiry) return _cachedToken;
+
+  const email  = process.env.KUDA_EMAIL;
+  const apiKey = process.env.KUDA_API_KEY;
+  if (!email || !apiKey) {
+    throw new Error('Kuda credentials missing (set KUDA_EMAIL + KUDA_API_KEY in env)');
+  }
+
+  // Kuda docs: POST {email, apiKey} → { Status, Message, Data: { token, ... } }
+  // Some examples use a separate /Account/GetToken endpoint; the Open API spec
+  // dispatches through the main endpoint via the ADMIN_LOGIN service type.
+  const json = await _call('ADMIN_LOGIN', { email, apiKey });
+  const token = json?.Data?.token || json?.data?.token || json?.token;
+  if (!token) throw new Error('Kuda ADMIN_LOGIN succeeded but no token in response');
+
+  _cachedToken = token;
+  _cachedExpiry = now + TOKEN_TTL_MS;
+  return token;
+}
+
+// Fetch credit transactions for the main account between two ISO timestamps.
+// Returns a normalised array (see normaliseTransaction below).
+async function getCreditTransactions({ startDate, endDate, pageSize = 100 } = {}) {
+  const trackingReference = process.env.KUDA_TRACKING_REF;
+  if (!trackingReference) throw new Error('KUDA_TRACKING_REF env var missing');
+
+  const token = await getToken();
+
+  // Kuda's ADMIN_MAIN_ACCOUNT_TRANSACTIONS expects:
+  //   { TrackingReference, StartDate, EndDate, PageNumber, PageSize }
+  // Dates are 'YYYY-MM-DD HH:mm:ss' in Kuda's docs (UTC).
+  const toKudaDate = (d) => {
+    const dt = (d instanceof Date) ? d : new Date(d);
+    return dt.toISOString().slice(0, 19).replace('T', ' ');
+  };
+
+  const json = await _call('ADMIN_MAIN_ACCOUNT_TRANSACTIONS', {
+    TrackingReference: trackingReference,
+    StartDate:         toKudaDate(startDate),
+    EndDate:           toKudaDate(endDate),
+    PageNumber:        1,
+    PageSize:          pageSize,
+  }, token);
+
+  // Response shape: { Data: { mainAccountTransactions: [...] } }
+  // Capitalisation varies between Kuda's docs and the live API; check both.
+  const list =
+    json?.Data?.mainAccountTransactions ||
+    json?.data?.mainAccountTransactions ||
+    json?.Data?.transactions ||
+    json?.data?.transactions ||
+    [];
+
+  // Filter to credits only (incoming money). Field names also vary.
+  const credits = list.filter(t => {
+    const type = (t.transactionType || t.TransactionType || t.type || '').toString().toLowerCase();
+    return type.includes('credit') || type === 'c';
+  });
+
+  return credits.map(normaliseTransaction);
+}
+
+// Normalise a Kuda transaction record to our canonical shape used by the DB.
+// Kuda's field names aren't consistent across the docs vs the live API, so
+// we try both Camel and Pascal versions of each field.
+function normaliseTransaction(t) {
+  const pick = (...keys) => {
+    for (const k of keys) {
+      if (t[k] !== undefined && t[k] !== null && t[k] !== '') return t[k];
+    }
+    return null;
+  };
+  return {
+    transaction_ref: String(pick('transactionReference', 'TransactionReference', 'reference', 'Reference') || ''),
+    amount_ngn:      Number(pick('amount', 'Amount', 'transactionAmount') || 0),
+    narration:       String(pick('narration', 'Narration', 'remarks', 'Remarks') || ''),
+    sender_name:     String(pick('senderName', 'SenderName', 'originatorName') || ''),
+    sender_account:  String(pick('senderAccount', 'SenderAccount', 'originatorAccountNumber') || ''),
+    sender_bank:     String(pick('senderBank', 'SenderBank', 'originatorBank') || ''),
+    balance_after:   pick('balance', 'Balance', 'balanceAfter') !== null
+                     ? Number(pick('balance', 'Balance', 'balanceAfter'))
+                     : null,
+    transaction_at:  new Date(pick('transactionDate', 'TransactionDate', 'date') || Date.now()),
+    raw:             t,
+  };
+}
+
+module.exports = {
+  getToken,
+  getCreditTransactions,
+  // Exposed for tests/dev — never call directly in routes
+  _internals: { normaliseTransaction },
+};
