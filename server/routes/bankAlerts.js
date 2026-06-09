@@ -57,7 +57,17 @@ router.get('/diagnostic', async (req, res) => {
       : `All looks good. (Tip: pin the tracking ref by adding KUDA_TRACKING_REF=${ref} to env vars so we don't have to discover it every cold start.) Try Sync now.`;
   } catch (err) {
     report.trackingRef = `FAILED — ${err.message}`;
-    report.nextStep    = 'Login worked but we could not get the main account tracking reference. Check that the Business API has main-account access enabled.';
+    // The "do not have permission" message is Kuda's own — pass on what they want.
+    if (/do not have permission/i.test(err.message) || /contact the api team/i.test(err.message)) {
+      report.nextStep =
+        'Kuda has not granted this API key permission to read main-account data. ' +
+        'Email api@kudabank.com (or your Kuda account manager) asking them to enable ' +
+        'RETRIEVE_MAIN_ACCOUNT and ADMIN_MAIN_ACCOUNT_TRANSACTIONS for the API key ' +
+        'tied to ' + (process.env.KUDA_EMAIL || 'your business email') + '. ' +
+        'Once they confirm, click Run diagnostic again — no redeploy needed.';
+    } else {
+      report.nextStep = 'Login worked but we could not get the main account tracking reference. Check that the Business API has main-account access enabled.';
+    }
   }
 
   res.json(report);
