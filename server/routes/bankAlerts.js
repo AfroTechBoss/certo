@@ -12,15 +12,31 @@ router.use(adminAuth);
 // Returns a per-step report so the admin can see WHICH piece is broken without
 // having to read server logs.
 router.get('/diagnostic', async (req, res) => {
+  // Latest webhook-delivered alert, if any. Tells us whether Kuda has ever
+  // successfully POSTed to /api/webhooks/kuda.
+  let latestWebhook = null;
+  try {
+    const { rows } = await pool.queryR(
+      `SELECT transaction_at, amount_ngn FROM bank_alerts ORDER BY created_at DESC LIMIT 1`,
+    );
+    if (rows.length) {
+      latestWebhook = `latest alert: ₦${Number(rows[0].amount_ngn).toLocaleString('en-NG')} at ${new Date(rows[0].transaction_at).toLocaleString('en-NG')}`;
+    } else {
+      latestWebhook = '(no alerts in the DB yet — try a small test payment)';
+    }
+  } catch (_) { /* fine — diagnostic should be resilient */ }
+
   const report = {
     env: {
-      KUDA_EMAIL:        process.env.KUDA_EMAIL        ? 'set ✓' : 'MISSING ✗',
-      KUDA_API_KEY:      process.env.KUDA_API_KEY      ? 'set ✓' : 'MISSING ✗',
-      KUDA_TRACKING_REF: process.env.KUDA_TRACKING_REF ? 'set ✓' : '(optional — will auto-discover)',
-      KUDA_BASE_URL:     process.env.KUDA_BASE_URL     || '(default: live)',
+      KUDA_EMAIL:           process.env.KUDA_EMAIL           ? 'set ✓' : 'MISSING ✗',
+      KUDA_API_KEY:         process.env.KUDA_API_KEY         ? 'set ✓' : 'MISSING ✗',
+      KUDA_TRACKING_REF:    process.env.KUDA_TRACKING_REF    ? 'set ✓' : '(optional — will auto-discover)',
+      KUDA_BASE_URL:        process.env.KUDA_BASE_URL        || '(default: live)',
+      KUDA_WEBHOOK_SECRET:  process.env.KUDA_WEBHOOK_SECRET  ? 'set ✓' : 'MISSING ✗ (webhooks will reject all incoming events)',
     },
     login:           null,
     trackingRef:     null,
+    webhook:         latestWebhook,
     nextStep:        null,
   };
 

@@ -299,6 +299,11 @@ export function BankAlertsTab({ isMobile }) {
                   Login: {diagnostic.login}
                 </div>
               )}
+              {diagnostic.webhook && (
+                <div style={{ marginTop: 4, paddingLeft: 0, color: String(diagnostic.webhook).startsWith('latest') ? 'oklch(40% 0.16 145)' : 'var(--text-muted)' }}>
+                  Webhook: {diagnostic.webhook}
+                </div>
+              )}
               {diagnostic.trackingRef !== undefined && diagnostic.trackingRef !== null && (
                 <div style={{ marginTop: 4, paddingLeft: 0, color: String(diagnostic.trackingRef).startsWith('ok') ? 'oklch(40% 0.16 145)' : 'oklch(50% 0.18 25)', wordBreak: 'break-all' }}>
                   Tracking ref: {diagnostic.trackingRef}

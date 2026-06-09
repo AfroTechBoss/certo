@@ -134,6 +134,9 @@ app.use('/api/admin/logs',    require('./routes/adminLog'));
 app.use('/api/blog',          publicLimiter, require('./routes/blog'));
 app.use('/api/refunds',                    require('./routes/refunds'));
 app.use('/api/admin/bank-alerts',          require('./routes/bankAlerts'));
+// PUBLIC — Kuda calls this directly. Auth is via HMAC-compared secret in
+// header, not our admin cookie. Must NOT go behind adminAuth.
+app.use('/api/webhooks/kuda',              require('./routes/kudaWebhook'));
 
 // POST /api/admin/event  — lightweight client-side event logger
 // The dashboard calls this for actions that happen entirely on the frontend
