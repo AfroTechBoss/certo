@@ -147,6 +147,7 @@ export function BankAlertsTab({ isMobile }) {
   const [matchOpen,   setMatchOpen]   = useState(null);      // alert id being edited
   const [matchInput,  setMatchInput]  = useState('');
   const [notesInput,  setNotesInput]  = useState('');
+  const [diagnostic,  setDiagnostic]  = useState(null);      // result of /diagnostic call
 
   const load = useCallback(async () => {
     setError('');
@@ -219,6 +220,20 @@ export function BankAlertsTab({ isMobile }) {
     setNotesInput(alert.notes || '');
   };
 
+  // Run the server-side diagnostic — shows which of (env vars / Kuda login)
+  // is failing so the admin can fix the root cause without reading server logs.
+  const runDiagnostic = async () => {
+    setError('');
+    setDiagnostic({ loading: true });
+    try {
+      const res  = await authFetch('/api/admin/bank-alerts/diagnostic');
+      const data = await res.json();
+      setDiagnostic(data);
+    } catch (e) {
+      setDiagnostic({ error: e.message });
+    }
+  };
+
   // ── Stats ────────────────────────────────────────────────────────────────
   const totalCount = alerts.length;
   const totalNgn   = alerts.reduce((s, a) => s + Number(a.amount_ngn || 0), 0);
@@ -245,8 +260,52 @@ export function BankAlertsTab({ isMobile }) {
         <div style={{
           padding: '12px 16px', borderRadius: 11, background: 'oklch(97% 0.03 25)',
           border: '1px solid oklch(85% 0.1 25)', color: 'oklch(50% 0.18 25)', fontSize: 13.5,
+          display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12,
         }}>
-          ⚠ {error}
+          <span>⚠ {error}</span>
+          <button onClick={runDiagnostic} style={{
+            background: 'oklch(50% 0.18 25)', color: 'white', border: 'none',
+            borderRadius: 8, padding: '6px 12px', cursor: 'pointer',
+            fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0,
+          }}>Run diagnostic</button>
+        </div>
+      )}
+
+      {/* Diagnostic result panel — shows EXACTLY what is set / what failed */}
+      {diagnostic && !diagnostic.loading && (
+        <div style={{
+          padding: '14px 18px', borderRadius: 11,
+          background: 'var(--bg-alt)', border: '1px solid var(--border)',
+          fontSize: 13, fontFamily: 'var(--font-mono,monospace)', lineHeight: 1.7,
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <strong style={{ fontFamily: 'var(--font-body)', color: 'var(--text)' }}>Kuda Diagnostic</strong>
+            <button onClick={() => setDiagnostic(null)} style={{
+              background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 16, lineHeight: 1, padding: 0,
+            }}>✕</button>
+          </div>
+          {diagnostic.error ? (
+            <div style={{ color: 'oklch(50% 0.18 25)' }}>diagnostic failed: {diagnostic.error}</div>
+          ) : (
+            <>
+              <div style={{ marginBottom: 4 }}>Env vars:</div>
+              {diagnostic.env && Object.entries(diagnostic.env).map(([k, v]) => (
+                <div key={k} style={{ paddingLeft: 12, color: String(v).startsWith('set') ? 'oklch(40% 0.16 145)' : 'oklch(50% 0.18 25)' }}>
+                  {k}: {v}
+                </div>
+              ))}
+              {diagnostic.login !== null && (
+                <div style={{ marginTop: 8, paddingLeft: 0, color: String(diagnostic.login).startsWith('ok') ? 'oklch(40% 0.16 145)' : 'oklch(50% 0.18 25)' }}>
+                  Login: {diagnostic.login}
+                </div>
+              )}
+              {diagnostic.nextStep && (
+                <div style={{ marginTop: 10, padding: '8px 12px', borderRadius: 8, background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)', fontFamily: 'var(--font-body)' }}>
+                  → {diagnostic.nextStep}
+                </div>
+              )}
+            </>
+          )}
         </div>
       )}
 

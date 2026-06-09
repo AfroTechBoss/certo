@@ -3,10 +3,48 @@ const router  = express.Router();
 const pool    = require('../db');
 const { adminAuth } = require('../adminAuth');
 const logAdminAction = require('../logAdminAction');
-const { getCreditTransactions } = require('../lib/kuda');
+const { getCreditTransactions, getToken } = require('../lib/kuda');
 
 // All routes here require an admin session
 router.use(adminAuth);
+
+// GET /api/admin/bank-alerts/diagnostic — what's actually wrong with the Kuda setup?
+// Returns a per-step report so the admin can see WHICH piece is broken without
+// having to read server logs.
+router.get('/diagnostic', async (req, res) => {
+  const report = {
+    env: {
+      KUDA_EMAIL:        process.env.KUDA_EMAIL        ? 'set ✓' : 'MISSING ✗',
+      KUDA_API_KEY:      process.env.KUDA_API_KEY      ? 'set ✓' : 'MISSING ✗',
+      KUDA_TRACKING_REF: process.env.KUDA_TRACKING_REF ? 'set ✓' : 'MISSING ✗',
+      KUDA_BASE_URL:     process.env.KUDA_BASE_URL     || '(default: live)',
+    },
+    login:    null,
+    nextStep: null,
+  };
+
+  // Step 1: are the env vars present?
+  const missing = ['KUDA_EMAIL', 'KUDA_API_KEY', 'KUDA_TRACKING_REF']
+    .filter(k => !process.env[k]);
+  if (missing.length) {
+    report.nextStep = `Add ${missing.join(', ')} to Vercel Environment Variables, then redeploy.`;
+    return res.json(report);
+  }
+
+  // Step 2: can we log in to Kuda?
+  try {
+    const token = await getToken();
+    report.login = token ? `ok (token length ${token.length})` : 'no token returned';
+    report.nextStep = token
+      ? 'All looks good. Try Sync now.'
+      : 'Kuda returned no token — check that the API key matches the email.';
+  } catch (err) {
+    report.login = `FAILED — ${err.message}`;
+    report.nextStep = 'Kuda rejected our login. Double-check KUDA_EMAIL + KUDA_API_KEY.';
+  }
+
+  res.json(report);
+});
 
 // GET /api/admin/bank-alerts — list the most recent N alerts.
 // Query params:
