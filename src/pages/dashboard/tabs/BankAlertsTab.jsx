@@ -12,6 +12,118 @@ const fmtTime = (iso) => iso
   ? new Date(iso).toLocaleString('en-NG', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
   : '—';
 
+// ─── Receiving account card ──────────────────────────────────────────────────
+//
+// The Certo business Kuda account. Displayed at the top of Bank Alerts so any
+// admin can quickly copy and forward to a customer who wants to pay by
+// transfer. Each field has its own copy button + a "Copy all" that produces
+// a customer-ready message.
+//
+// If the account ever changes, edit the three constants below — they're not
+// in env vars because the account number itself is non-sensitive (you'd give
+// it to anyone who asks).
+const RECEIVING_ACCOUNT = {
+  number: '3003792624',
+  name:   'CERTO TECHNOLOGIES',
+  bank:   'KUDA BANK',
+};
+
+function ReceivingAccountCard({ isMobile }) {
+  const [copied, setCopied] = React.useState(''); // 'number' | 'name' | 'bank' | 'all' | ''
+
+  const copy = async (text, key) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(key);
+      setTimeout(() => setCopied(c => (c === key ? '' : c)), 1500);
+    } catch (_) { /* clipboard may be blocked; user can fall back to manual select */ }
+  };
+
+  const allText =
+    `Bank: ${RECEIVING_ACCOUNT.bank}\n` +
+    `Account number: ${RECEIVING_ACCOUNT.number}\n` +
+    `Account name: ${RECEIVING_ACCOUNT.name}`;
+
+  const Row = ({ label, value, copyKey, mono = false }) => (
+    <div style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      gap: 12, padding: '10px 0', borderTop: '1px solid var(--border)',
+    }}>
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div style={{
+          fontSize: 10.5, fontWeight: 700, color: 'var(--text-muted)',
+          textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3,
+        }}>{label}</div>
+        <div style={{
+          fontFamily: mono ? 'var(--font-mono,monospace)' : 'var(--font-body)',
+          fontWeight: mono ? 700 : 600,
+          fontSize: mono ? 17 : 14.5,
+          color: 'var(--text)',
+          letterSpacing: mono ? '0.04em' : 'normal',
+          wordBreak: 'break-all',
+        }}>{value}</div>
+      </div>
+      <button
+        onClick={() => copy(value, copyKey)}
+        style={{
+          background: copied === copyKey ? 'oklch(93% 0.06 155)' : 'var(--bg)',
+          color: copied === copyKey ? 'oklch(35% 0.15 155)' : 'var(--text)',
+          border: `1px solid ${copied === copyKey ? 'oklch(72% 0.12 155)' : 'var(--border)'}`,
+          borderRadius: 8, padding: '6px 12px',
+          cursor: 'pointer', fontWeight: 600, fontSize: 12,
+          whiteSpace: 'nowrap', flexShrink: 0,
+          transition: 'background 0.15s, color 0.15s, border 0.15s',
+        }}
+      >
+        {copied === copyKey ? '✓ Copied' : 'Copy'}
+      </button>
+    </div>
+  );
+
+  return (
+    <div style={{
+      background: 'var(--bg)',
+      border: '1px solid var(--border)',
+      borderRadius: 16,
+      padding: isMobile ? '16px 18px' : '20px 24px',
+    }}>
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        gap: 12, marginBottom: 8, flexWrap: 'wrap',
+      }}>
+        <div>
+          <div style={{
+            fontSize: 10.5, fontWeight: 700, color: 'var(--accent)',
+            textTransform: 'uppercase', letterSpacing: '0.09em', marginBottom: 4,
+          }}>Receiving Account</div>
+          <div style={{
+            fontFamily: 'var(--font-head)', fontWeight: 800, fontSize: 16,
+            color: 'var(--text)', letterSpacing: '-0.01em',
+          }}>For naira bank transfers</div>
+        </div>
+        <button
+          onClick={() => copy(allText, 'all')}
+          style={{
+            background: copied === 'all' ? 'oklch(93% 0.06 155)' : 'var(--accent)',
+            color:      copied === 'all' ? 'oklch(35% 0.15 155)' : 'white',
+            border: 'none', borderRadius: 10,
+            padding: '10px 16px', cursor: 'pointer',
+            fontWeight: 700, fontSize: 12.5,
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            whiteSpace: 'nowrap',
+            transition: 'background 0.15s, color 0.15s',
+          }}
+        >
+          {copied === 'all' ? '✓ Copied all' : '📋 Copy all (send to customer)'}
+        </button>
+      </div>
+      <Row label="Bank"           value={RECEIVING_ACCOUNT.bank}   copyKey="bank"/>
+      <Row label="Account number" value={RECEIVING_ACCOUNT.number} copyKey="number" mono/>
+      <Row label="Account name"   value={RECEIVING_ACCOUNT.name}   copyKey="name"/>
+    </div>
+  );
+}
+
 // ─── BankAlertsTab ───────────────────────────────────────────────────────────
 //
 // Live view of incoming payments to the Kuda business account. Workflow:
@@ -115,6 +227,9 @@ export function BankAlertsTab({ isMobile }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+      {/* Receiving account — copy-friendly card for admins to forward to customers */}
+      <ReceivingAccountCard isMobile={isMobile} />
+
       {/* Stat strip */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 14 }}>
         <StatCard label="Alerts shown"  value={totalCount}              icon={<Icon name="mail" size={16}/>}/>
