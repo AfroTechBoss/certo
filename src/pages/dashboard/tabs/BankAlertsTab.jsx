@@ -85,41 +85,63 @@ function ReceivingAccountCard({ isMobile }) {
       background: 'var(--bg)',
       border: '1px solid var(--border)',
       borderRadius: 16,
-      padding: isMobile ? '16px 18px' : '20px 24px',
+      padding: isMobile ? '14px 16px' : '20px 24px',
     }}>
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         gap: 12, marginBottom: 8, flexWrap: 'wrap',
       }}>
-        <div>
+        <div style={{ minWidth: 0 }}>
           <div style={{
             fontSize: 10.5, fontWeight: 700, color: 'var(--accent)',
             textTransform: 'uppercase', letterSpacing: '0.09em', marginBottom: 4,
           }}>Receiving Account</div>
           <div style={{
-            fontFamily: 'var(--font-head)', fontWeight: 800, fontSize: 16,
+            fontFamily: 'var(--font-head)', fontWeight: 800,
+            fontSize: isMobile ? 15 : 16,
             color: 'var(--text)', letterSpacing: '-0.01em',
           }}>For naira bank transfers</div>
         </div>
-        <button
-          onClick={() => copy(allText, 'all')}
-          style={{
-            background: copied === 'all' ? 'oklch(93% 0.06 155)' : 'var(--accent)',
-            color:      copied === 'all' ? 'oklch(35% 0.15 155)' : 'white',
-            border: 'none', borderRadius: 10,
-            padding: '10px 16px', cursor: 'pointer',
-            fontWeight: 700, fontSize: 12.5,
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-            whiteSpace: 'nowrap',
-            transition: 'background 0.15s, color 0.15s',
-          }}
-        >
-          {copied === 'all' ? '✓ Copied all' : '📋 Copy all (send to customer)'}
-        </button>
+        {!isMobile && (
+          <button
+            onClick={() => copy(allText, 'all')}
+            style={{
+              background: copied === 'all' ? 'oklch(93% 0.06 155)' : 'var(--accent)',
+              color:      copied === 'all' ? 'oklch(35% 0.15 155)' : 'white',
+              border: 'none', borderRadius: 10,
+              padding: '10px 16px', cursor: 'pointer',
+              fontWeight: 700, fontSize: 12.5,
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              whiteSpace: 'nowrap',
+              transition: 'background 0.15s, color 0.15s',
+            }}
+          >
+            {copied === 'all' ? '✓ Copied all' : '📋 Copy all (send to customer)'}
+          </button>
+        )}
       </div>
       <Row label="Bank"           value={RECEIVING_ACCOUNT.bank}   copyKey="bank"/>
       <Row label="Account number" value={RECEIVING_ACCOUNT.number} copyKey="number" mono/>
       <Row label="Account name"   value={RECEIVING_ACCOUNT.name}   copyKey="name"/>
+      {isMobile && (
+        // Full-width Copy-all below the rows on mobile, easier to tap than
+        // a button squeezed into the header row.
+        <button
+          onClick={() => copy(allText, 'all')}
+          style={{
+            marginTop: 14, width: '100%',
+            background: copied === 'all' ? 'oklch(93% 0.06 155)' : 'var(--accent)',
+            color:      copied === 'all' ? 'oklch(35% 0.15 155)' : 'white',
+            border: 'none', borderRadius: 10,
+            padding: '12px 16px', cursor: 'pointer',
+            fontWeight: 700, fontSize: 13,
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            transition: 'background 0.15s, color 0.15s',
+          }}
+        >
+          {copied === 'all' ? '✓ Copied all 3 lines' : '📋 Copy all 3 lines'}
+        </button>
+      )}
     </div>
   );
 }
@@ -255,18 +277,23 @@ export function BankAlertsTab({ isMobile }) {
                   icon={<Icon name="ticket" size={16}/>}/>
       </div>
 
-      {/* Error banner */}
+      {/* Error banner — stacks vertically on mobile so the button has full width */}
       {error && (
         <div style={{
           padding: '12px 16px', borderRadius: 11, background: 'oklch(97% 0.03 25)',
           border: '1px solid oklch(85% 0.1 25)', color: 'oklch(50% 0.18 25)', fontSize: 13.5,
-          display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12,
+          display: 'flex',
+          flexDirection: isMobile ? 'column' : 'row',
+          alignItems: isMobile ? 'stretch' : 'flex-start',
+          justifyContent: 'space-between', gap: isMobile ? 10 : 12,
+          wordBreak: 'break-word',
         }}>
           <span>⚠ {error}</span>
           <button onClick={runDiagnostic} style={{
             background: 'oklch(50% 0.18 25)', color: 'white', border: 'none',
-            borderRadius: 8, padding: '6px 12px', cursor: 'pointer',
+            borderRadius: 8, padding: '8px 14px', cursor: 'pointer',
             fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0,
+            alignSelf: isMobile ? 'stretch' : 'flex-start',
           }}>Run diagnostic</button>
         </div>
       )}
@@ -274,9 +301,13 @@ export function BankAlertsTab({ isMobile }) {
       {/* Diagnostic result panel — shows EXACTLY what is set / what failed */}
       {diagnostic && !diagnostic.loading && (
         <div style={{
-          padding: '14px 18px', borderRadius: 11,
+          padding: isMobile ? '12px 14px' : '14px 18px', borderRadius: 11,
           background: 'var(--bg-alt)', border: '1px solid var(--border)',
-          fontSize: 13, fontFamily: 'var(--font-mono,monospace)', lineHeight: 1.7,
+          fontSize: isMobile ? 11.5 : 13,
+          fontFamily: 'var(--font-mono,monospace)',
+          lineHeight: 1.7,
+          wordBreak: 'break-word',
+          overflowWrap: 'anywhere',
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <strong style={{ fontFamily: 'var(--font-body)', color: 'var(--text)' }}>Kuda Diagnostic</strong>
@@ -352,53 +383,82 @@ export function BankAlertsTab({ isMobile }) {
         </div>
       )}
 
-      {/* Toolbar */}
+      {/* Toolbar — on mobile, stacks into 3 rows for thumb reach:
+            1. search (full width)
+            2. filter chips (full width, scrollable if needed)
+            3. window selector + sync button (sync grows to fill space) */}
       <Panel pad={0}>
         <div style={{
-          display: 'flex', flexWrap: 'wrap', gap: 10, padding: '14px 18px',
-          borderBottom: '1px solid var(--border)', alignItems: 'center',
+          display: 'flex',
+          flexDirection: isMobile ? 'column' : 'row',
+          flexWrap: isMobile ? 'nowrap' : 'wrap',
+          gap: 10, padding: isMobile ? '12px 14px' : '14px 18px',
+          borderBottom: '1px solid var(--border)',
+          alignItems: isMobile ? 'stretch' : 'center',
         }}>
-          <div style={{ position: 'relative', flex: '1 1 220px', minWidth: 0 }}>
+          {/* Row 1: search */}
+          <div style={{ position: 'relative', flex: isMobile ? '0 0 auto' : '1 1 220px', minWidth: 0, width: isMobile ? '100%' : 'auto' }}>
             <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', display: 'flex' }}>
               <Icon name="search" size={15}/>
             </span>
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Search sender, narration, reference…"
+              placeholder={isMobile ? 'Search sender, amount…' : 'Search sender, narration, reference…'}
               style={{ ...inputS, paddingLeft: 33, width: '100%', boxSizing: 'border-box' }}
             />
           </div>
 
-          <Segmented value={filter} onChange={setFilter} options={[
-            { key: 'all',       label: 'All' },
-            { key: 'unmatched', label: 'Unmatched' },
-            { key: 'matched',   label: 'Matched' },
-          ]}/>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'var(--text-muted)' }}>
-            <span>Window:</span>
-            <select
-              value={syncWindow}
-              onChange={e => setSyncWindow(Number(e.target.value))}
-              style={{ ...inputS, padding: '6px 10px', cursor: 'pointer' }}
-            >
-              <option value={1}>1h</option>
-              <option value={6}>6h</option>
-              <option value={24}>24h</option>
-              <option value={72}>3d</option>
-              <option value={168}>7d</option>
-            </select>
+          {/* Row 2: filter chips (horizontally scrollable on tiny screens
+              so they never wrap or get truncated) */}
+          <div style={{
+            display: 'flex', alignItems: 'center',
+            overflowX: isMobile ? 'auto' : 'visible',
+            WebkitOverflowScrolling: 'touch',
+            margin: isMobile ? '0 -14px' : 0,
+            padding: isMobile ? '0 14px' : 0,
+          }}>
+            <Segmented value={filter} onChange={setFilter} options={[
+              { key: 'all',       label: 'All' },
+              { key: 'unmatched', label: 'Unmatched' },
+              { key: 'matched',   label: 'Matched' },
+            ]}/>
           </div>
 
-          <button
-            onClick={sync}
-            disabled={syncing}
-            style={{ ...primaryBtn, display: 'flex', alignItems: 'center', gap: 6, opacity: syncing ? 0.7 : 1 }}
-          >
-            <Icon name="refresh" size={14} c="white"/>
-            {syncing ? 'Syncing…' : 'Sync now'}
-          </button>
+          {/* Row 3: window + sync side by side on mobile */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 10,
+            width: isMobile ? '100%' : 'auto',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'var(--text-muted)', flexShrink: 0 }}>
+              <span>{isMobile ? 'Win:' : 'Window:'}</span>
+              <select
+                value={syncWindow}
+                onChange={e => setSyncWindow(Number(e.target.value))}
+                style={{ ...inputS, padding: '6px 10px', cursor: 'pointer' }}
+              >
+                <option value={1}>1h</option>
+                <option value={6}>6h</option>
+                <option value={24}>24h</option>
+                <option value={72}>3d</option>
+                <option value={168}>7d</option>
+              </select>
+            </div>
+
+            <button
+              onClick={sync}
+              disabled={syncing}
+              style={{
+                ...primaryBtn,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                opacity: syncing ? 0.7 : 1,
+                flex: isMobile ? 1 : 'initial',
+              }}
+            >
+              <Icon name="refresh" size={14} c="white"/>
+              {syncing ? 'Syncing…' : 'Sync now'}
+            </button>
+          </div>
         </div>
 
         {/* Table / list */}
