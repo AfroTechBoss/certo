@@ -86,14 +86,25 @@ async function getToken() {
     body: JSON.stringify({ email, apiKey }),
   });
 
-  // 200 with the token, or non-2xx with a JSON error body. If Kuda's CDN
-  // returns an HTML error (e.g. WAF block), include the snippet for triage.
-  const text = await res.text();
+  const text = (await res.text()).trim();
+
+  // Kuda's live API returns the JWT as a PLAIN STRING body — not JSON.
+  // (Their docs and Postman collection wrap it in JSON; the live endpoint
+  //  does not. Confirmed against a real live account on 2026-06-09.)
+  // A JWT is three base64url segments separated by dots, starting with eyJ.
+  if (/^eyJ[\w-]+\.[\w-]+\.[\w-]+$/.test(text)) {
+    if (!res.ok) throw new Error(`Kuda /Account/GetToken: HTTP ${res.status} (token-shaped body but error status)`);
+    _cachedToken  = text;
+    _cachedExpiry = now + TOKEN_TTL_MS;
+    return text;
+  }
+
+  // Older / sandbox-region shape: JSON wrapper around the token.
   let json;
   try { json = JSON.parse(text); }
   catch (_) {
     const snippet = text.slice(0, 120).replace(/\s+/g, ' ');
-    throw new Error(`Kuda /Account/GetToken: HTTP ${res.status} (non-JSON: "${snippet}…")`);
+    throw new Error(`Kuda /Account/GetToken: HTTP ${res.status} (unexpected body: "${snippet}…")`);
   }
 
   if (!res.ok || json.status === false || json.Status === false) {
@@ -101,10 +112,6 @@ async function getToken() {
     throw new Error(`Kuda /Account/GetToken: ${msg}`);
   }
 
-  // Response shapes seen in the wild:
-  //   { status, message, data: { token, expirationTime } }
-  //   { Status, Message, Data: { token } }
-  //   { token } (rare)
   const token =
     json?.data?.token ||
     json?.Data?.token ||
