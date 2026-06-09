@@ -181,6 +181,19 @@ router.post('/sync', async (req, res) => {
     });
   } catch (err) {
     console.error('POST /admin/bank-alerts/sync:', err.message);
+
+    // Friendly message for the known Kuda permission gate.
+    // Kuda's wording: "You do not have permission to make use of this service. Contact the API team."
+    const isPermissionGate = /do not have permission/i.test(err.message)
+                          || /contact the api team/i.test(err.message);
+    if (isPermissionGate) {
+      return res.status(403).json({
+        error: 'Kuda has not granted polling access to this API key',
+        message: 'The Sync button uses ADMIN_MAIN_ACCOUNT_TRANSACTIONS, which Kuda denies on this account tier. Webhooks are the alternative path — they require no API permission and deliver alerts in real time. See the setup guide in the Bank Alerts panel.',
+        hint: 'Webhook setup is independent of this and should still work. If a customer has paid recently and no alert appeared, run the diagnostic and check Recent webhook attempts.',
+      });
+    }
+
     res.status(502).json({
       error: 'Kuda sync failed',
       message: err.message,
