@@ -369,7 +369,8 @@ const App = () => {
       case 'dashboard-analytics':
       case 'dashboard-activity':
       case 'dashboard-refunds':
-      case 'dashboard-blog': {
+      case 'dashboard-blog':
+      case 'dashboard-bank-alerts': {
         const subPage = page.startsWith('dashboard-') ? page.replace('dashboard-', '') : 'overview';
         const handleRateChange = (newRate) => {
           const r = Number(newRate);

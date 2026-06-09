@@ -67,6 +67,22 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
     fetch('/api/config').then(r => r.json()).then(d => setPayConfig(d)).catch(() => {});
   }, []);
 
+  // Lazily inject Flutterwave's checkout SDK only on the checkout page.
+  // Previously this script lived in index.html and loaded on every route,
+  // causing CORP/403 noise in the console on dashboard / shop / blog pages.
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (window.FlutterwaveCheckout || document.querySelector('script[data-flutterwave-sdk]')) return;
+
+    const s = document.createElement('script');
+    s.src   = 'https://checkout.flutterwave.com/v3.js';
+    s.async = true;
+    s.dataset.flutterwaveSdk = '1';
+    s.crossOrigin = 'anonymous'; // helps with CORP rejection on some networks
+    s.onerror = () => console.warn('[checkout] Flutterwave SDK failed to load');
+    document.head.appendChild(s);
+  }, []);
+
   const cartItems = cart || [];
   // SERVICE_FEE + DANGEROUS_FEE_UNIT are imported from ../lib/pricing.js (single source of truth)
 
