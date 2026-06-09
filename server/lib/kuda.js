@@ -64,7 +64,12 @@ async function _call(serviceType, data = {}, token = null) {
   return json;
 }
 
-// Get + cache the JWT
+// Get + cache the JWT.
+// CRITICAL: Kuda's auth flow is NOT the dispatcher pattern. It has its own
+// endpoint /Account/GetToken that takes { email, apiKey } directly (no
+// ServiceType wrapper). Only post-login calls go through the dispatcher.
+// Earlier versions of this client tried to log in via the dispatcher with
+// ServiceType: 'ADMIN_LOGIN', which Kuda rejects as 401 + HTML error page.
 async function getToken() {
   const now = Date.now();
   if (_cachedToken && now < _cachedExpiry) return _cachedToken;
@@ -75,14 +80,39 @@ async function getToken() {
     throw new Error('Kuda credentials missing (set KUDA_EMAIL + KUDA_API_KEY in env)');
   }
 
-  // Kuda docs: POST {email, apiKey} → { Status, Message, Data: { token, ... } }
-  // Some examples use a separate /Account/GetToken endpoint; the Open API spec
-  // dispatches through the main endpoint via the ADMIN_LOGIN service type.
-  const json = await _call('ADMIN_LOGIN', { email, apiKey });
-  const token = json?.Data?.token || json?.data?.token || json?.token;
-  if (!token) throw new Error('Kuda ADMIN_LOGIN succeeded but no token in response');
+  const res = await fetch(_baseUrl() + '/Account/GetToken', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, apiKey }),
+  });
 
-  _cachedToken = token;
+  // 200 with the token, or non-2xx with a JSON error body. If Kuda's CDN
+  // returns an HTML error (e.g. WAF block), include the snippet for triage.
+  const text = await res.text();
+  let json;
+  try { json = JSON.parse(text); }
+  catch (_) {
+    const snippet = text.slice(0, 120).replace(/\s+/g, ' ');
+    throw new Error(`Kuda /Account/GetToken: HTTP ${res.status} (non-JSON: "${snippet}…")`);
+  }
+
+  if (!res.ok || json.status === false || json.Status === false) {
+    const msg = json.message || json.Message || `HTTP ${res.status}`;
+    throw new Error(`Kuda /Account/GetToken: ${msg}`);
+  }
+
+  // Response shapes seen in the wild:
+  //   { status, message, data: { token, expirationTime } }
+  //   { Status, Message, Data: { token } }
+  //   { token } (rare)
+  const token =
+    json?.data?.token ||
+    json?.Data?.token ||
+    json?.token ||
+    json?.access_token;
+  if (!token) throw new Error('Kuda /Account/GetToken succeeded but no token in response');
+
+  _cachedToken  = token;
   _cachedExpiry = now + TOKEN_TTL_MS;
   return token;
 }

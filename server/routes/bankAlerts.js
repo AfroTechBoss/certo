@@ -151,7 +151,7 @@ router.post('/sync', async (req, res) => {
     res.status(502).json({
       error: 'Kuda sync failed',
       message: err.message,
-      hint: 'Verify KUDA_EMAIL, KUDA_API_KEY, and KUDA_TRACKING_REF env vars are set correctly.',
+      hint: 'Run the diagnostic (button in the error banner) to see which step failed.',
     });
   }
 });
