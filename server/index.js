@@ -654,7 +654,12 @@ app.get('/api/forex', async (req, res) => {
       const data = await resp.json();
       const ngn  = extract(data);
       if (ngn && Number(ngn) > 0) {
-        return res.json({ rate: Math.round(Number(ngn)) + FOREX_MARKUP_NGN });
+        const marketRate = Math.round(Number(ngn));
+        return res.json({
+          rate:       marketRate + FOREX_MARKUP_NGN, // what customers see
+          marketRate,                                // raw inter-bank rate
+          markup:     FOREX_MARKUP_NGN,              // single source of truth
+        });
       }
     } catch (err) {
       console.warn('[forex] API failed:', url, err.message);
@@ -662,7 +667,12 @@ app.get('/api/forex', async (req, res) => {
   }
   // All live APIs failed — serve the hardcoded fallback rather than a 500
   console.warn('[forex] All APIs failed — serving hardcoded fallback rate', FOREX_FALLBACK);
-  res.json({ rate: FOREX_FALLBACK, fallback: true });
+  res.json({
+    rate:       FOREX_FALLBACK,
+    marketRate: FOREX_FALLBACK - FOREX_MARKUP_NGN,
+    markup:     FOREX_MARKUP_NGN,
+    fallback:   true,
+  });
 });
 
 // Health check

@@ -25,8 +25,11 @@ export function ForexTab({ isMobile, liveRate, rateFetched, onRateChange, produc
   const [fetching,   setFetching]   = useState(false);
   const [fetchError, setFetchError] = useState('');
   const [fetchedAt,  setFetchedAt]  = useState(rateFetched || null);
-  // raw market rate (= display rate − 100 markup) — only set after an explicit fetch
+  // Raw inter-bank market rate (returned by /api/forex). Only set after a fetch.
   const [marketRate, setMarketRate] = useState(null);
+  // Markup added on top of marketRate. Server returns this — never hardcoded
+  // here, so any future change to FOREX_MARKUP_NGN propagates automatically.
+  const [markup,     setMarkup]     = useState(null);
   // whether the current rate is an override (vs. auto-fetched)
   const [isOverride, setIsOverride] = useState(() => {
     try { return localStorage.getItem('certo_rate_override') === '1'; } catch(_) { return false; }
@@ -63,9 +66,13 @@ export function ForexTab({ isMobile, liveRate, rateFetched, onRateChange, produc
       const res = await fetch('/api/forex');
       if (!res.ok) throw new Error(`Server ${res.status}`);
       const data = await res.json();
-      const withMarkup = Number(data.rate);          // already includes +₦100
-      const raw        = withMarkup - 100;            // pure market rate
-      setMarketRate(raw);
+      const withMarkup    = Number(data.rate);
+      const apiMarkup     = Number(data.markup ?? 0);
+      // Prefer the server-supplied market rate; fall back to (display − markup)
+      // for older deploys that don't return it yet.
+      const rawMarketRate = Number(data.marketRate ?? (withMarkup - apiMarkup));
+      setMarketRate(rawMarketRate);
+      setMarkup(apiMarkup);
       setDisplayRate(withMarkup);
       setOverrideInput(String(withMarkup));
       setIsOverride(false);
@@ -131,7 +138,7 @@ export function ForexTab({ isMobile, liveRate, rateFetched, onRateChange, produc
             </div>
             <div style={{ background:'rgba(52,211,153,0.15)', borderRadius:8, padding:'6px 12px', fontSize:12 }}>
               <span style={{ color:'rgba(255,255,255,0.5)' }}>+ markup  </span>
-              <span style={{ fontWeight:700, color:'#34d399' }}>₦100</span>
+              <span style={{ fontWeight:700, color:'#34d399' }}>₦{(markup ?? 0).toLocaleString()}</span>
             </div>
           </div>
         )}
@@ -156,7 +163,7 @@ export function ForexTab({ isMobile, liveRate, rateFetched, onRateChange, produc
       {/* ── Right panel ── */}
       <Panel title="Override rate">
         <p style={{ fontSize:13, color:'var(--text-muted)', lineHeight:1.6, margin:'0 0 16px' }}>
-          Click <strong>Fetch live</strong> to pull the current market rate (already including +₦100 markup). Or type a custom rate below and hit <strong>Override</strong> to lock it instantly across the whole catalog.
+          Click <strong>Fetch live</strong> to pull the current market rate (already including the server-side +₦{(markup ?? 50).toLocaleString()} markup). Or type a custom rate below and hit <strong>Override</strong> to lock it instantly across the whole catalog.
         </p>
 
         <label style={{ fontSize:11, fontWeight:700, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.05em', display:'block', marginBottom:8 }}>Custom rate (₦ per $1)</label>
