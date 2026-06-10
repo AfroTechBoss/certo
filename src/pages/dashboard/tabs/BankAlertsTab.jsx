@@ -356,9 +356,9 @@ export function BankAlertsTab({ isMobile }) {
                   ))}
                 </div>
               )}
-              {diagnostic.trackingRef !== undefined && diagnostic.trackingRef !== null && (
-                <div style={{ marginTop: 4, paddingLeft: 0, color: String(diagnostic.trackingRef).startsWith('ok') ? 'oklch(40% 0.16 145)' : 'oklch(50% 0.18 25)', wordBreak: 'break-all' }}>
-                  Tracking ref: {diagnostic.trackingRef}
+              {diagnostic.balance !== undefined && diagnostic.balance !== null && (
+                <div style={{ marginTop: 4, paddingLeft: 0, color: String(diagnostic.balance).startsWith('available') ? 'oklch(40% 0.16 145)' : 'oklch(50% 0.18 25)', wordBreak: 'break-all' }}>
+                  Balance: {diagnostic.balance}
                 </div>
               )}
               {diagnostic.nextStep && (

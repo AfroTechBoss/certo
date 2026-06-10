@@ -3,7 +3,7 @@ const router  = express.Router();
 const pool    = require('../db');
 const { adminAuth } = require('../adminAuth');
 const logAdminAction = require('../logAdminAction');
-const { getCreditTransactions, getToken, getMainAccountTrackingRef } = require('../lib/kuda');
+const { getCreditTransactions, getToken, getMainAccountBalance } = require('../lib/kuda');
 const kudaWebhook = require('./kudaWebhook');
 
 // All routes here require an admin session
@@ -31,7 +31,6 @@ router.get('/diagnostic', async (req, res) => {
     env: {
       KUDA_EMAIL:           process.env.KUDA_EMAIL           ? 'set ✓' : 'MISSING ✗',
       KUDA_API_KEY:         process.env.KUDA_API_KEY         ? 'set ✓' : 'MISSING ✗',
-      KUDA_TRACKING_REF:    process.env.KUDA_TRACKING_REF    ? 'set ✓' : '(optional — will auto-discover)',
       KUDA_BASE_URL:        process.env.KUDA_BASE_URL        || '(default: live)',
       KUDA_WEBHOOK_SECRET:  process.env.KUDA_WEBHOOK_SECRET  ? 'set ✓' : 'MISSING ✗ (webhooks will reject all incoming events)',
       KUDA_WEBHOOK_ALLOW_UNVERIFIED: String(process.env.KUDA_WEBHOOK_ALLOW_UNVERIFIED || '').toLowerCase() === 'true'
@@ -39,10 +38,8 @@ router.get('/diagnostic', async (req, res) => {
         : '(default: false — strict verification)',
     },
     login:           null,
-    trackingRef:     null,
+    balance:         null,
     webhook:         latestWebhook,
-    // Last 5 webhook attempts (headers + body + result). Use this to see
-    // EXACTLY what Kuda sends, so we know what header to verify against.
     recentWebhookAttempts: kudaWebhook.getRecentAttempts ? kudaWebhook.getRecentAttempts() : [],
     nextStep:        null,
   };
@@ -68,28 +65,24 @@ router.get('/diagnostic', async (req, res) => {
     return res.json(report);
   }
 
-  // Step 3: can we resolve the main-account tracking reference?
-  // If the env var isn't set, this tries Kuda's RETRIEVE_MAIN_ACCOUNT and
-  // surfaces whatever it returns so the admin can copy it into env vars
-  // (optional — the sync also auto-discovers, so this is purely informational).
+  // Step 3: can we hit Kuda's ADMIN_RETRIEVE_MAIN_ACCOUNT_BALANCE? This is the
+  // confirmed service type from Kuda's API team. It also doubles as proof that
+  // the admin-tier permissions are correctly attached to this key.
   try {
-    const ref = await getMainAccountTrackingRef();
-    report.trackingRef = `ok — ${ref}`;
-    report.nextStep    = process.env.KUDA_TRACKING_REF
-      ? 'All looks good. Try Sync now.'
-      : `All looks good. (Tip: pin the tracking ref by adding KUDA_TRACKING_REF=${ref} to env vars so we don't have to discover it every cold start.) Try Sync now.`;
+    const bal = await getMainAccountBalance();
+    const fmt = (n) => n === null || n === undefined ? '—' : '₦' + Number(n).toLocaleString('en-NG');
+    report.balance = `available ${fmt(bal.availableBalance)} · ledger ${fmt(bal.ledgerBalance)}`;
+    report.nextStep = 'All looks good. Webhooks deliver alerts in real time; the Sync button (uses ADMIN_ACCOUNT_INFLOW) is the manual backup.';
   } catch (err) {
-    report.trackingRef = `FAILED — ${err.message}`;
-    // The "do not have permission" message is Kuda's own — pass on what they want.
+    report.balance = `FAILED — ${err.message}`;
     if (/do not have permission/i.test(err.message) || /contact the api team/i.test(err.message)) {
       report.nextStep =
-        'Kuda has not granted this API key permission to read main-account data. ' +
-        'Email api@kudabank.com (or your Kuda account manager) asking them to enable ' +
-        'RETRIEVE_MAIN_ACCOUNT and ADMIN_MAIN_ACCOUNT_TRANSACTIONS for the API key ' +
-        'tied to ' + (process.env.KUDA_EMAIL || 'your business email') + '. ' +
-        'Once they confirm, click Run diagnostic again — no redeploy needed.';
+        'Kuda has not granted this API key permission for ADMIN_RETRIEVE_MAIN_ACCOUNT_BALANCE. ' +
+        'Email api@kudabank.com asking them to enable ADMIN_RETRIEVE_MAIN_ACCOUNT_BALANCE and ' +
+        'ADMIN_ACCOUNT_INFLOW for the API key tied to ' + (process.env.KUDA_EMAIL || 'your business email') + '. ' +
+        'Webhooks should continue to work regardless.';
     } else {
-      report.nextStep = 'Login worked but we could not get the main account tracking reference. Check that the Business API has main-account access enabled.';
+      report.nextStep = 'Login worked but balance read failed. Webhooks should still work — check the Recent webhook attempts panel below for incoming events.';
     }
   }
 

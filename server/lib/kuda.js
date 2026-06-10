@@ -124,65 +124,62 @@ async function getToken() {
   return token;
 }
 
-// Auto-discover the tracking reference for the main account if the env var
-// isn't set. Cached in memory after first successful call so we don't hit
-// Kuda for it on every sync.
-let _cachedMainRef = null;
-async function getMainAccountTrackingRef() {
-  if (process.env.KUDA_TRACKING_REF) return process.env.KUDA_TRACKING_REF;
-  if (_cachedMainRef) return _cachedMainRef;
-
+// Fetch the main-account balance.
+// Service type confirmed by Kuda API team: ADMIN_RETRIEVE_MAIN_ACCOUNT_BALANCE.
+// The 'ADMIN' prefix means it operates on the admin's main account implicitly,
+// so no tracking reference / account number is required in the data block.
+// Returns ledger + available balance in NGN (after kobo→naira conversion).
+async function getMainAccountBalance() {
   const token = await getToken();
-  // RETRIEVE_MAIN_ACCOUNT returns the main pool account info, including its tracking reference.
-  const json = await _call('RETRIEVE_MAIN_ACCOUNT', {}, token);
-  const ref =
-    json?.Data?.trackingReference ||
-    json?.data?.trackingReference ||
-    json?.Data?.TrackingReference ||
-    json?.data?.TrackingReference ||
-    json?.trackingReference;
-  if (!ref) throw new Error('Kuda RETRIEVE_MAIN_ACCOUNT succeeded but no trackingReference in response');
-  _cachedMainRef = ref;
-  return ref;
+  const json  = await _call('ADMIN_RETRIEVE_MAIN_ACCOUNT_BALANCE', {}, token);
+
+  // Tolerate capitalisation drift between docs and live API
+  const d = json?.Data || json?.data || json || {};
+  const koboToNgn = (v) => (v === undefined || v === null) ? null : Number(v) / 100;
+  return {
+    ledgerBalance:    koboToNgn(d.ledgerBalance    ?? d.LedgerBalance),
+    availableBalance: koboToNgn(d.availableBalance ?? d.AvailableBalance),
+    withdrawableBalance: koboToNgn(d.withdrawableBalance ?? d.WithdrawableBalance),
+    raw: json,
+  };
 }
 
-// Fetch credit transactions for the main account between two ISO timestamps.
-// Returns a normalised array (see normaliseTransaction below).
+// Fetch incoming credit transactions for the main account between two timestamps.
+// Service type confirmed by Kuda API team: ADMIN_ACCOUNT_INFLOW.
+// Returns only credits (Kuda has a separate ADMIN_ACCOUNT_OUTFLOW for debits).
 async function getCreditTransactions({ startDate, endDate, pageSize = 100 } = {}) {
-  // Use env var if set, otherwise auto-discover (and cache) from Kuda.
-  const trackingReference = await getMainAccountTrackingRef();
-
   const token = await getToken();
 
-  // Kuda's ADMIN_MAIN_ACCOUNT_TRANSACTIONS expects:
-  //   { TrackingReference, StartDate, EndDate, PageNumber, PageSize }
-  // Dates are 'YYYY-MM-DD HH:mm:ss' in Kuda's docs (UTC).
+  // Dates in Kuda's docs are 'YYYY-MM-DD HH:mm:ss' (UTC).
   const toKudaDate = (d) => {
     const dt = (d instanceof Date) ? d : new Date(d);
     return dt.toISOString().slice(0, 19).replace('T', ' ');
   };
 
-  const json = await _call('ADMIN_MAIN_ACCOUNT_TRANSACTIONS', {
-    TrackingReference: trackingReference,
-    StartDate:         toKudaDate(startDate),
-    EndDate:           toKudaDate(endDate),
-    PageNumber:        1,
-    PageSize:          pageSize,
+  const json = await _call('ADMIN_ACCOUNT_INFLOW', {
+    StartDate:  toKudaDate(startDate),
+    EndDate:    toKudaDate(endDate),
+    PageNumber: 1,
+    PageSize:   pageSize,
   }, token);
 
-  // Response shape: { Data: { mainAccountTransactions: [...] } }
-  // Capitalisation varies between Kuda's docs and the live API; check both.
+  // Response shape varies — try the common Kuda transaction array keys
   const list =
-    json?.Data?.mainAccountTransactions ||
-    json?.data?.mainAccountTransactions ||
-    json?.Data?.transactions ||
-    json?.data?.transactions ||
+    json?.Data?.accountInflowTransactions   ||
+    json?.data?.accountInflowTransactions   ||
+    json?.Data?.transactions                ||
+    json?.data?.transactions                ||
+    json?.Data?.mainAccountTransactions     ||
+    json?.data?.mainAccountTransactions     ||
+    (Array.isArray(json?.Data) ? json.Data : null) ||
+    (Array.isArray(json?.data) ? json.data : null) ||
     [];
 
-  // Filter to credits only (incoming money). Field names also vary.
+  // ADMIN_ACCOUNT_INFLOW already returns credits only, but defensive filter
+  // (in case Kuda mixes types in the future or returns empty/odd records)
   const credits = list.filter(t => {
-    const type = (t.transactionType || t.TransactionType || t.type || '').toString().toLowerCase();
-    return type.includes('credit') || type === 'c';
+    const type = (t.transactionType || t.TransactionType || t.type || 'credit').toString().toLowerCase();
+    return !type || type.includes('credit') || type === 'c';
   });
 
   return credits.map(normaliseTransaction);
@@ -220,7 +217,7 @@ function normaliseTransaction(t) {
 module.exports = {
   getToken,
   getCreditTransactions,
-  getMainAccountTrackingRef,
+  getMainAccountBalance,
   // Exposed for tests/dev — never call directly in routes
   _internals: { normaliseTransaction },
 };
