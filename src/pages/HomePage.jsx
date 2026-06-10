@@ -416,7 +416,11 @@ function SectionCertificate({ navigate }) {
           </button>
         </div>
 
-        <div style={{ position: 'relative', display: 'flex', justifyContent: 'center', overflowX: 'hidden' }}>
+        {/* No overflow style on this wrapper — setting only overflow-x triggers
+            an implicit overflow-y: auto in browsers, which was making a vertical
+            scrollbar appear on the section. The parent section#certificate
+            already has overflow: hidden so the rotated card is still clipped. */}
+        <div style={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
           <div style={{ width: '100%', maxWidth: isMobile ? '100%' : 540 }}>
             <Certificate isMobile={isMobile} />
           </div>
