@@ -638,7 +638,13 @@ const FOREX_APIS = [
 ];
 // Hardcoded last-resort — keeps the UI functional even when all live APIs are down.
 // Update this periodically to stay approximate.
-const FOREX_FALLBACK = 1680;
+const FOREX_FALLBACK = 1620;
+
+// Margin added on top of the live USD→NGN buying rate. Covers FX volatility
+// between order time and Apple-US settlement, plus card-clearing slippage.
+// Was ₦100 originally; reduced to ₦50 (2026-06) to pass the buffer down to
+// customers now that supply pipeline is more predictable.
+const FOREX_MARKUP_NGN = 50;
 
 app.get('/api/forex', async (req, res) => {
   for (const { url, extract } of FOREX_APIS) {
@@ -648,7 +654,7 @@ app.get('/api/forex', async (req, res) => {
       const data = await resp.json();
       const ngn  = extract(data);
       if (ngn && Number(ngn) > 0) {
-        return res.json({ rate: Math.round(Number(ngn)) + 100 });
+        return res.json({ rate: Math.round(Number(ngn)) + FOREX_MARKUP_NGN });
       }
     } catch (err) {
       console.warn('[forex] API failed:', url, err.message);

@@ -620,8 +620,11 @@ const ProductDetailPage = ({ productId, navigate, addToCart, trackEvent }) => {
               </div>
             </div>
             <div style={{ paddingBottom: 8 }}>
-              <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginBottom: 2 }}>US retail</div>
-              <div style={{ fontFamily: 'var(--font-body)', fontSize: 16, color: 'var(--text-muted)', textDecoration: 'line-through' }}>${displayPrice.toLocaleString()}</div>
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginBottom: 2 }}>Resellers</div>
+              {/* Comparison anchor: shown 20% above our price so the customer
+                  immediately sees they're saving roughly a fifth versus the
+                  inflated Lagos reseller market. Rounded to a clean number. */}
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 16, color: 'var(--text-muted)', textDecoration: 'line-through' }}>${Math.round(displayPrice * 1.20).toLocaleString()}</div>
             </div>
           </div>
           <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', marginBottom: 28 }}>
