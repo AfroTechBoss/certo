@@ -4,6 +4,7 @@ import React from 'react';
 import { CERTO_RATE, PRODUCTS, useResponsive } from '../data.js';
 import { ProductIcon, fmt } from './HomePage.jsx';
 import { GuidesStrip } from './BlogPage.jsx';
+import { toAxes, defaultSelection, totalPriceUsd, activeImages, selectionInStock, buildCartVariant } from '../lib/variants.js';
 
 // Strip the .v= cache-buster from Apple CDN URLs (it causes proxy encoding issues and isn't needed)
 const cleanAppleImg = (url) => url ? url.replace(/[&?]\.v=[^&]*/, '') : null;
@@ -437,11 +438,13 @@ const ProductDetailPage = ({ productId, navigate, addToCart, trackEvent }) => {
   const [added, setAdded] = React.useState(false);
   const [openSections, setOpenSections] = React.useState(new Set());
   const [selectedImg, setSelectedImg] = React.useState(0);
-  const [selectedColor,   setSelectedColor]   = React.useState(null);
-  const [selectedStorage, setSelectedStorage] = React.useState(null);
+  // N-axis selection — map of axisId → optionId. Replaces the old
+  // dual selectedColor/selectedStorage state. Works for any number of axes:
+  // Color, Storage, Chip, Screen, RAM, SSD … anything an admin defines.
+  const [selection, setSelection] = React.useState({});
 
   React.useEffect(() => {
-    setProduct(null); setLoadErr(false); setSelectedImg(0); setSelectedColor(null); setSelectedStorage(null);
+    setProduct(null); setLoadErr(false); setSelectedImg(0); setSelection({});
     fetch(`/api/products/${encodeURIComponent(productId)}`)
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
       .then(data => {
@@ -449,9 +452,9 @@ const ProductDetailPage = ({ productId, navigate, addToCart, trackEvent }) => {
         setProduct(p);
         // Track product view
         if (trackEvent) trackEvent('product_view', { product_id: p.id, product_name: p.name, page: window.location.pathname });
-        // Auto-select first color and first storage independently
-        setSelectedColor(p.variants?.colors?.[0]?.id || null);
-        setSelectedStorage(p.variants?.storages?.[0]?.id || null);
+        // Default selection: first in-stock option per axis (works for old
+        // {colors, storages} shape too via toAxes normalisation)
+        setSelection(defaultSelection(toAxes(p.variants, p.usdPrice)));
         // Fetch a few related products from the same category
         fetch(`/api/products?category=${encodeURIComponent(p.type)}&limit=6`)
           .then(r => r.json())
@@ -481,16 +484,19 @@ const ProductDetailPage = ({ productId, navigate, addToCart, trackEvent }) => {
 
   const realImages = (product.images || []).filter(img => img && (img.startsWith('http') || img.startsWith('/')));
 
-  const hasColors   = (product.variants?.colors   || []).length > 0;
-  const hasStorages = (product.variants?.storages || []).length > 0;
-  const hasVariants = hasColors || hasStorages;
-  const activeColor   = hasColors   ? (product.variants.colors.find(c => c.id === selectedColor)    || null) : null;
-  const activeStorage = hasStorages ? (product.variants.storages.find(s => s.id === selectedStorage) || null) : null;
-  const displayImages = (activeColor?.images?.length
-    ? activeColor.images.map(url => url ? `/api/img?url=${encodeURIComponent(url.replace(/[&?]\.v=[^&]*/, ''))}` : null).filter(Boolean)
-    : realImages);
-  const displayPrice  = activeStorage ? activeStorage.price_usd : product.usdPrice;
-  const variantInStock = activeStorage ? (activeStorage.in_stock !== false) : product.inStock;
+  // Normalise to N-axis shape (handles old {colors, storages} too via toAxes)
+  const axes        = toAxes(product.variants, product.usdPrice);
+  const hasVariants = axes.length > 0;
+  // Images: first axis whose selected option has images wins (typically the
+  // color/finish axis). Falls back to product.images.
+  const axisImages  = activeImages(axes, selection);
+  const displayImages = (axisImages && axisImages.length)
+    ? axisImages.map(url => url ? `/api/img?url=${encodeURIComponent(url.replace(/[&?]\.v=[^&]*/, ''))}` : null).filter(Boolean)
+    : realImages;
+  // Price: base + sum of selected option deltas across every axis
+  const displayPrice   = totalPriceUsd(product.usdPrice, axes, selection);
+  // In stock iff every selected option is in stock AND the product itself is
+  const variantInStock = (hasVariants ? selectionInStock(axes, selection) : true) && product.inStock !== false;
 
   const toggleSection = (key) => setOpenSections(prev => {
     const next = new Set(prev);
@@ -502,17 +508,10 @@ const ProductDetailPage = ({ productId, navigate, addToCart, trackEvent }) => {
   const totalUsd = displayPrice + careUsd;
 
   const handleAdd = () => {
-    if (hasColors && !activeColor) return;
-    if (hasStorages && !activeStorage) return;
-    const variant = hasVariants ? {
-      id:        `${activeColor?.id || 'nc'}_${activeStorage?.id || 'ns'}`,
-      colorId:   activeColor?.id   || null,
-      storageId: activeStorage?.id || null,
-      color:     activeColor?.name || null,
-      color_hex: activeColor?.hex  || null,
-      storage:   activeStorage?.size      || null,
-      price_usd: activeStorage?.price_usd || null,
-    } : null;
+    if (!variantInStock) return;
+    // Refuse if any axis has no selection (e.g. customer somehow cleared it)
+    if (hasVariants && axes.some(a => !selection[a.id])) return;
+    const variant = hasVariants ? buildCartVariant(axes, selection, displayPrice) : null;
     addToCart({ product, variant, applecare: null, billing: null });
     setAdded(true);
     setTimeout(() => setAdded(false), 2500);
@@ -631,73 +630,96 @@ const ProductDetailPage = ({ productId, navigate, addToCart, trackEvent }) => {
             Rate: ₦{CERTO_RATE.toLocaleString()}/USD · <button onClick={() => navigate('faq')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', fontSize: 12, padding: 0, fontFamily: 'var(--font-body)' }}>Forex clause explained →</button>
           </div>
 
-          {/* Variant selector — color and storage are independent */}
+          {/* Variant selector — renders one section per axis defined on the
+              product. Axis whose options have `hex` renders as colour swatches;
+              every other axis renders as a row of pills showing the option
+              name + price delta. Out-of-stock options are disabled. */}
           {hasVariants && (
             <div style={{ marginBottom: 28 }}>
+              {axes.map(axis => {
+                const selectedOptId  = selection[axis.id];
+                const selectedOpt    = axis.options.find(o => o.id === selectedOptId) || null;
+                // Treat the axis as "colour" if any of its options carries a hex
+                const isColorAxis    = axis.options.some(o => o.hex);
 
-              {/* Color swatches */}
-              {hasColors && (
-                <div style={{ marginBottom: 20 }}>
-                  <div style={{ fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 14, color: 'var(--text)', marginBottom: 10 }}>
-                    Color: <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>{activeColor?.name || '—'}</span>
-                  </div>
-                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                    {product.variants.colors.map(c => (
-                      <button
-                        key={c.id}
-                        title={c.name}
-                        aria-label={c.name}
-                        aria-pressed={selectedColor === c.id}
-                        onClick={() => { setSelectedColor(c.id); setSelectedImg(0); }}
-                        style={{
-                          width: 36, height: 36, borderRadius: '50%', cursor: 'pointer', flexShrink: 0,
-                          background: c.hex || '#888',
-                          border: selectedColor === c.id ? '3px solid var(--accent)' : '3px solid transparent',
-                          outline: selectedColor === c.id ? '2px solid var(--accent)' : '2px solid var(--border)',
-                          transition: 'all 0.15s',
-                        }}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
+                return (
+                  <div key={axis.id} style={{ marginBottom: 20 }}>
+                    <div style={{ fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 14, color: 'var(--text)', marginBottom: 10 }}>
+                      {axis.label}{selectedOpt && <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>: {selectedOpt.name}</span>}
+                    </div>
 
-              {/* Storage size pills — each shows its own price */}
-              {hasStorages && (
-                <div>
-                  <div style={{ fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 14, color: 'var(--text)', marginBottom: 10 }}>Storage</div>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    {product.variants.storages.map(s => {
-                      const isSelected = selectedStorage === s.id;
-                      return (
-                        <button
-                          key={s.id}
-                          onClick={() => setSelectedStorage(s.id)}
-                          disabled={s.in_stock === false}
-                          style={{
-                            padding: '9px 16px', borderRadius: 10, cursor: s.in_stock !== false ? 'pointer' : 'not-allowed',
-                            border: `2px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}`,
-                            background: isSelected ? 'var(--accent-tint)' : 'var(--bg)',
-                            fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: isSelected ? 700 : 400,
-                            color: isSelected ? 'var(--accent)' : s.in_stock !== false ? 'var(--text)' : 'var(--text-muted)',
-                            opacity: s.in_stock !== false ? 1 : 0.5,
-                            transition: 'all 0.15s', textAlign: 'left',
-                          }}
-                        >
-                          <div>{s.size}</div>
-                          <div style={{ fontSize: 11, marginTop: 1, fontWeight: 400, color: isSelected ? 'var(--accent)' : 'var(--text-muted)' }}>
-                            {s.in_stock !== false ? `$${Number(s.price_usd).toLocaleString()}` : 'Out of stock'}
-                          </div>
-                        </button>
-                      );
-                    })}
+                    {isColorAxis ? (
+                      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                        {axis.options.map(o => {
+                          const isSelected = selectedOptId === o.id;
+                          const oos = o.in_stock === false;
+                          return (
+                            <button
+                              key={o.id}
+                              title={oos ? `${o.name} — out of stock` : o.name}
+                              aria-label={o.name}
+                              aria-pressed={isSelected}
+                              disabled={oos}
+                              onClick={() => { setSelection(s => ({ ...s, [axis.id]: o.id })); setSelectedImg(0); }}
+                              style={{
+                                width: 36, height: 36, borderRadius: '50%',
+                                cursor: oos ? 'not-allowed' : 'pointer', flexShrink: 0,
+                                background: o.hex || '#888',
+                                border: isSelected ? '3px solid var(--accent)' : '3px solid transparent',
+                                outline: isSelected ? '2px solid var(--accent)' : '2px solid var(--border)',
+                                opacity: oos ? 0.35 : 1,
+                                position: 'relative',
+                                transition: 'all 0.15s',
+                              }}
+                            >
+                              {oos && (
+                                // Diagonal slash to make the out-of-stock state legible
+                                <span style={{ position: 'absolute', inset: -3, borderRadius: '50%', pointerEvents: 'none',
+                                  background: 'linear-gradient(to bottom right, transparent 47%, var(--text-muted) 47%, var(--text-muted) 53%, transparent 53%)' }}/>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        {axis.options.map(o => {
+                          const isSelected = selectedOptId === o.id;
+                          const oos = o.in_stock === false;
+                          const delta = Number(o.price_delta_usd) || 0;
+                          return (
+                            <button
+                              key={o.id}
+                              onClick={() => setSelection(s => ({ ...s, [axis.id]: o.id }))}
+                              disabled={oos}
+                              style={{
+                                padding: '9px 16px', borderRadius: 10,
+                                cursor: oos ? 'not-allowed' : 'pointer',
+                                border: `2px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}`,
+                                background: isSelected ? 'var(--accent-tint)' : 'var(--bg)',
+                                fontFamily: 'var(--font-body)', fontSize: 13,
+                                fontWeight: isSelected ? 700 : 400,
+                                color: isSelected ? 'var(--accent)' : oos ? 'var(--text-muted)' : 'var(--text)',
+                                opacity: oos ? 0.5 : 1,
+                                transition: 'all 0.15s', textAlign: 'left',
+                              }}
+                            >
+                              <div>{o.name}</div>
+                              <div style={{ fontSize: 11, marginTop: 1, fontWeight: 400, color: isSelected ? 'var(--accent)' : 'var(--text-muted)' }}>
+                                {oos ? 'Out of stock' : delta > 0 ? `+ $${delta.toLocaleString()}` : delta < 0 ? `– $${Math.abs(delta).toLocaleString()}` : 'Included'}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                </div>
-              )}
+                );
+              })}
 
-              {activeStorage && activeStorage.in_stock === false && (
+              {!variantInStock && (
                 <p style={{ marginTop: 10, fontFamily: 'var(--font-body)', fontSize: 13, color: 'oklch(50% 0.18 25)' }}>
-                  This storage option is currently out of stock.
+                  This configuration is currently out of stock. Pick a different option.
                 </p>
               )}
             </div>
@@ -740,24 +762,30 @@ const ProductDetailPage = ({ productId, navigate, addToCart, trackEvent }) => {
             </div>
           </div>
 
-          <button
-            onClick={handleAdd}
-            disabled={(hasColors && !activeColor) || (hasStorages && !activeStorage) || !variantInStock}
-            style={{
-              width: '100%', padding: '18px 0', borderRadius: 14, border: 'none',
-              background: added ? 'oklch(50% 0.18 145)' : variantInStock ? 'var(--accent)' : 'var(--border)',
-              color: variantInStock ? 'white' : 'var(--text-muted)',
-              cursor: variantInStock && !(hasColors && !activeColor) && !(hasStorages && !activeStorage) ? 'pointer' : 'not-allowed',
-              fontFamily: 'var(--font-body)', fontSize: 17, fontWeight: 700,
-              transition: 'all 0.2s',
-            }}
-          >
-            {(hasColors && !activeColor) || (hasStorages && !activeStorage)
-              ? 'Select Options'
-              : !variantInStock
-                ? (product.listingStatus === 'coming_soon' ? 'Coming Soon' : 'Out of Stock')
-                : added ? '✓ Added to Order' : 'Add to Order →'}
-          </button>
+          {(() => {
+            const missingSelection = hasVariants && axes.some(a => !selection[a.id]);
+            const disabled = missingSelection || !variantInStock;
+            return (
+              <button
+                onClick={handleAdd}
+                disabled={disabled}
+                style={{
+                  width: '100%', padding: '18px 0', borderRadius: 14, border: 'none',
+                  background: added ? 'oklch(50% 0.18 145)' : variantInStock ? 'var(--accent)' : 'var(--border)',
+                  color: variantInStock ? 'white' : 'var(--text-muted)',
+                  cursor: !disabled ? 'pointer' : 'not-allowed',
+                  fontFamily: 'var(--font-body)', fontSize: 17, fontWeight: 700,
+                  transition: 'all 0.2s',
+                }}
+              >
+                {missingSelection
+                  ? 'Select Options'
+                  : !variantInStock
+                    ? (product.listingStatus === 'coming_soon' ? 'Coming Soon' : 'Out of Stock')
+                    : added ? '✓ Added to Order' : 'Add to Order →'}
+              </button>
+            );
+          })()}
         </div>
       </div>
 

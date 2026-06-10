@@ -211,11 +211,18 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: 16, color: 'var(--text)', marginBottom: 2 }}>{item.product.name}</div>
                   {item.variant && (
-                    <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', display: 'flex', gap: 6, alignItems: 'center', marginTop: 2 }}>
+                    <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--text-muted)', display: 'flex', gap: 6, alignItems: 'center', marginTop: 2, flexWrap: 'wrap' }}>
                       {item.variant.color_hex && (
-                        <span style={{ width: 10, height: 10, borderRadius: '50%', background: item.variant.color_hex, display: 'inline-block', border: '1px solid var(--border)' }} />
+                        <span style={{ width: 10, height: 10, borderRadius: '50%', background: item.variant.color_hex, display: 'inline-block', border: '1px solid var(--border)', flexShrink: 0 }} />
                       )}
-                      <span>{item.variant.color}{item.variant.storage ? ` · ${item.variant.storage}` : ''}</span>
+                      {/* Prefer the N-axis `selection` map (shows Chip · Screen ·
+                          RAM · etc.) and fall back to the legacy color/storage
+                          fields so old carts still render. */}
+                      <span>
+                        {item.variant.selection
+                          ? Object.values(item.variant.selection).map(v => v.value).filter(Boolean).join(' · ')
+                          : `${item.variant.color || ''}${item.variant.storage ? ' · ' + item.variant.storage : ''}`}
+                      </span>
                     </div>
                   )}
                   <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-muted)', marginBottom: 6 }}>{item.product.subtitle}</div>

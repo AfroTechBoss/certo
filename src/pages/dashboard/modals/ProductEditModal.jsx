@@ -3,6 +3,7 @@ import { Modal } from '../components/Modal.jsx';
 import { authFetch } from '../lib/auth.js';
 import { PROD_CATS } from '../lib/constants.js';
 import { inputS, primaryBtn, actionBtn } from '../lib/styles.js';
+import { toAxes } from '../../../lib/variants.js';
 
 // Edit an existing product. Loads the full product from /api/products/:id
 // then PATCHes it back. NOTE: this does NOT re-apply the +7% margin —
@@ -26,13 +27,16 @@ export function ProductEditModal({ productId, onClose, onDone }) {
     authFetch(`/api/products/${productId}`)
       .then(r => r.json())
       .then(p => {
-        // Normalise variants: colours store images as a newline-joined string for the textarea
-        const rawV     = p.variants && !Array.isArray(p.variants) ? p.variants : { colors: [], storages: [] };
-        const colors   = (rawV.colors || []).map(c => ({
-          ...c,
-          images: Array.isArray(c.images) ? c.images.join('\n') : (c.images || ''),
+        // Auto-convert any legacy {colors, storages} shape to the new {axes} shape.
+        // For axis-image data, also convert images-array into the newline-joined
+        // string the textarea expects.
+        const axes = toAxes(p.variants, p.usd_price).map(ax => ({
+          ...ax,
+          options: ax.options.map(o => ({
+            ...o,
+            images: Array.isArray(o.images) ? o.images.join('\n') : (o.images || ''),
+          })),
         }));
-        const storages = rawV.storages || [];
 
         setForm({
           name:           p.name           || '',
@@ -54,7 +58,7 @@ export function ProductEditModal({ productId, onClose, onDone }) {
           includes:       Array.isArray(p.includes)    ? p.includes    : [],
           features:       Array.isArray(p.features)    ? p.features    : [],
           tech_specs:     Array.isArray(p.tech_specs)  ? p.tech_specs  : [],
-          variants:       { colors, storages },
+          variants:       { axes },
         });
         setLoading(false);
       })
@@ -68,29 +72,56 @@ export function ProductEditModal({ productId, onClose, onDone }) {
   const setItem    = (key, i, val) => set(key, form[key].map((v, j) => j === i ? val : v));
   const removeItem = (key, i)      => set(key, form[key].filter((_, j) => j !== i));
 
-  // ── variant helpers ───────────────────────────────────────────────────────
-  const addColor    = () => set('variants', { ...form.variants, colors: [...form.variants.colors, { id: Date.now().toString(36), name: '', hex: '#888888', images: '' }] });
-  const removeColor = (i) => set('variants', { ...form.variants, colors: form.variants.colors.filter((_, j) => j !== i) });
-  const setColor    = (i, k, v) => set('variants', { ...form.variants, colors: form.variants.colors.map((c, j) => j === i ? { ...c, [k]: v } : c) });
+  // ── N-axis variant helpers ────────────────────────────────────────────────
+  // The form keeps axes as an array under form.variants.axes. Helpers mutate
+  // immutably so React picks up the change. Slugify the label into a stable id
+  // when an axis is first created; admins can rename the label freely after.
+  const slug = (s) => String(s || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || ('axis-' + Date.now().toString(36));
 
-  const addStorage    = () => set('variants', { ...form.variants, storages: [...form.variants.storages, { id: Date.now().toString(36), size: '', price_usd: 0, in_stock: true }] });
-  const removeStorage = (i) => set('variants', { ...form.variants, storages: form.variants.storages.filter((_, j) => j !== i) });
-  const setStorage    = (i, k, v) => set('variants', { ...form.variants, storages: form.variants.storages.map((s, j) => j === i ? { ...s, [k]: v } : s) });
+  const updateAxes = (mut) => set('variants', { ...form.variants, axes: mut(form.variants.axes) });
+
+  const addAxis = () => updateAxes(axes => [...axes, {
+    id:      'axis-' + Date.now().toString(36),
+    label:   '',
+    options: [],
+  }]);
+  const removeAxis = (ai) => updateAxes(axes => axes.filter((_, j) => j !== ai));
+  const setAxis    = (ai, k, v) => updateAxes(axes => axes.map((a, j) => j === ai ? { ...a, [k]: v } : a));
+
+  const addOption    = (ai)     => updateAxes(axes => axes.map((a, j) => j !== ai ? a : { ...a, options: [...a.options, { id: 'opt-' + Date.now().toString(36), name: '', price_delta_usd: 0, in_stock: true, hex: '', images: '' }] }));
+  const removeOption = (ai, oi) => updateAxes(axes => axes.map((a, j) => j !== ai ? a : { ...a, options: a.options.filter((_, k) => k !== oi) }));
+  const setOption    = (ai, oi, k, v) => updateAxes(axes => axes.map((a, j) => j !== ai ? a : {
+    ...a,
+    options: a.options.map((o, k2) => k2 !== oi ? o : { ...o, [k]: v }),
+  }));
 
   const submit = async () => {
     if (!form.name.trim()) { setErr('Product name is required.'); setActiveTab('basic'); return; }
     setErr(''); setBusy(true);
     try {
-      const hasVariants = form.variants.colors.length > 0 || form.variants.storages.length > 0;
-      const variants = hasVariants ? {
-        colors:   form.variants.colors.map(c => ({
-          ...c,
-          images: typeof c.images === 'string'
-            ? c.images.split('\n').map(s => s.trim()).filter(Boolean)
-            : (c.images || []),
-        })),
-        storages: form.variants.storages.map(s => ({ ...s, price_usd: Number(s.price_usd) })),
-      } : [];
+      // Serialise the N-axis shape: ensure ids exist, normalise option fields,
+      // drop empty axes/options so the DB stays clean.
+      const axes = form.variants.axes
+        .map(a => ({
+          id:      a.id || slug(a.label),
+          label:   String(a.label || '').trim(),
+          options: a.options
+            .filter(o => String(o.name || '').trim().length > 0)
+            .map(o => ({
+              id:              o.id || slug(o.name),
+              name:            String(o.name).trim(),
+              price_delta_usd: Number(o.price_delta_usd) || 0,
+              in_stock:        o.in_stock !== false,
+              ...(o.hex ? { hex: o.hex } : {}),
+              ...(typeof o.images === 'string' && o.images.trim()
+                ? { images: o.images.split('\n').map(s => s.trim()).filter(Boolean) }
+                : Array.isArray(o.images) && o.images.length
+                  ? { images: o.images }
+                  : {}),
+            })),
+        }))
+        .filter(a => a.label && a.options.length > 0);
+      const variants = axes.length ? { axes } : [];
 
       const res = await authFetch(`/api/products/${productId}`, {
         method: 'PATCH',
@@ -274,50 +305,59 @@ export function ProductEditModal({ productId, onClose, onDone }) {
 
               {activeTab === 'variants' && <>
                 <div style={{ fontSize: 12.5, color: 'var(--text-muted)', lineHeight: 1.65, padding: '10px 14px', background: 'var(--bg-alt)', borderRadius: 9, border: '1px solid var(--border)' }}>
-                  Define colors and storage sizes separately. Customers choose their preferred color (which shows that color's images) and their storage size (which sets the price). Leave both empty for products with no variants.
+                  Add one axis per choice the customer has to make. Each option's <strong>price delta</strong> is added to the base USD price above — e.g. <em>M5 Pro: +$200</em>. Final price = base + sum of selected deltas across all axes (matches how Apple's configurator works).
+                  <br/><br/>
+                  Tick <strong>Hex / image fields</strong> on a colour axis so the shop renders swatches and swaps gallery images when the customer changes colour.
                 </div>
 
-                <div>
-                  <label style={L}>Colors</label>
-                  {form.variants.colors.map((c, i) => (
-                    <div key={c.id || i} style={{ padding: 14, background: 'var(--bg-alt)', borderRadius: 10, border: '1px solid var(--border)', marginBottom: 10 }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, marginBottom: 10 }}>
-                        <div><label style={{ ...L, marginBottom: 4 }}>Color Name</label><input value={c.name} onChange={e => setColor(i, 'name', e.target.value)} placeholder="Desert Titanium" style={I}/></div>
-                        <div>
-                          <label style={{ ...L, marginBottom: 4 }}>Hex Color</label>
-                          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                            <input value={c.hex} onChange={e => setColor(i, 'hex', e.target.value)} placeholder="#888888" style={{ ...I, width: 90 }}/>
-                            <input type="color" value={/^#[0-9a-f]{6}$/i.test(c.hex) ? c.hex : '#888888'} onChange={e => setColor(i, 'hex', e.target.value)} style={{ width: 32, height: 34, padding: 2, border: '1px solid var(--border)', borderRadius: 7, cursor: 'pointer', flexShrink: 0 }}/>
-                          </div>
+                {form.variants.axes.map((ax, ai) => {
+                  const isColorAxis = ax.options.some(o => o.hex);
+                  return (
+                    <div key={ax.id || ai} style={{ padding: 16, background: 'var(--bg-alt)', borderRadius: 12, border: '1px solid var(--border)', marginBottom: 14 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ ...L, marginBottom: 4 }}>Axis label</label>
+                          <input value={ax.label} onChange={e => setAxis(ai, 'label', e.target.value)} placeholder="Chip / Screen / RAM / SSD / Color…" style={I}/>
                         </div>
+                        <button onClick={() => removeAxis(ai)} style={{ alignSelf: 'flex-end', padding: '6px 12px', borderRadius: 8, border: '1px solid oklch(85% 0.1 25)', background: 'transparent', color: 'oklch(50% 0.18 25)', fontSize: 12, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>Remove axis</button>
                       </div>
-                      <label style={{ ...L, marginBottom: 4 }}>Images (one URL per line)</label>
-                      <textarea value={c.images} onChange={e => setColor(i, 'images', e.target.value)} rows={3} placeholder="https://store.storeimages.cdn-apple.com/…" style={{ ...TA, marginBottom: 8 }}/>
-                      <button onClick={() => removeColor(i)} style={{ fontSize: 12, color: 'oklch(50% 0.18 25)', border: 'none', background: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--font-body)' }}>Remove color</button>
-                    </div>
-                  ))}
-                  <button onClick={addColor} style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid var(--accent)', background: 'var(--accent-tint)', color: 'var(--accent)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>+ Add Color</button>
-                </div>
 
-                <div>
-                  <label style={L}>Storage Sizes & Prices</label>
-                  {form.variants.storages.map((s, i) => (
-                    <div key={s.id || i} style={{ padding: 14, background: 'var(--bg-alt)', borderRadius: 10, border: '1px solid var(--border)', marginBottom: 10 }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
-                        <div><label style={{ ...L, marginBottom: 4 }}>Size Label</label><input value={s.size} onChange={e => setStorage(i, 'size', e.target.value)} placeholder="256GB" style={I}/></div>
-                        <div><label style={{ ...L, marginBottom: 4 }}>Price (USD)</label><input type="number" min="0" step="0.01" value={s.price_usd} onChange={e => setStorage(i, 'price_usd', e.target.value)} style={I}/></div>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7 }}>
-                          <input type="checkbox" checked={s.in_stock !== false} onChange={e => setStorage(i, 'in_stock', e.target.checked)} style={{ width: 14, height: 14, accentColor: 'var(--accent)' }}/>
-                          <span style={{ fontSize: 13, color: 'var(--text)', fontFamily: 'var(--font-body)' }}>In stock</span>
-                        </label>
-                        <button onClick={() => removeStorage(i)} style={{ fontSize: 12, color: 'oklch(50% 0.18 25)', border: 'none', background: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--font-body)' }}>Remove</button>
-                      </div>
+                      {ax.options.map((o, oi) => (
+                        <div key={o.id || oi} style={{ padding: 12, background: 'var(--bg)', borderRadius: 9, border: '1px solid var(--border)', marginBottom: 8 }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 0.9fr auto', gap: 8, marginBottom: 8 }}>
+                            <div><label style={{ ...L, marginBottom: 4 }}>Option name</label><input value={o.name} onChange={e => setOption(ai, oi, 'name', e.target.value)} placeholder="M5 Pro / 16&quot; / 1TB" style={I}/></div>
+                            <div><label style={{ ...L, marginBottom: 4 }}>Price delta (USD)</label><input type="number" step="0.01" value={o.price_delta_usd} onChange={e => setOption(ai, oi, 'price_delta_usd', e.target.value)} placeholder="0, 200, …" style={I}/></div>
+                            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+                              <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'var(--text)', fontFamily: 'var(--font-body)' }}>
+                                <input type="checkbox" checked={o.in_stock !== false} onChange={e => setOption(ai, oi, 'in_stock', e.target.checked)} style={{ width: 14, height: 14, accentColor: 'var(--accent)' }}/>
+                                In stock
+                              </label>
+                            </div>
+                          </div>
+
+                          {/* Hex + images live on the option but only matter for colour-type axes.
+                              Auto-treated as colour axis if ANY option has a hex value. */}
+                          <details open={!!o.hex || isColorAxis}>
+                            <summary style={{ cursor: 'pointer', fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-body)', marginBottom: 6, userSelect: 'none' }}>
+                              Hex + images (colour swatches)
+                            </summary>
+                            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                              <input value={o.hex || ''} onChange={e => setOption(ai, oi, 'hex', e.target.value)} placeholder="#888888 (leave blank to skip swatch)" style={{ ...I, flex: 1 }}/>
+                              <input type="color" value={/^#[0-9a-f]{6}$/i.test(o.hex || '') ? o.hex : '#888888'} onChange={e => setOption(ai, oi, 'hex', e.target.value)} style={{ width: 32, height: 34, padding: 2, border: '1px solid var(--border)', borderRadius: 7, cursor: 'pointer', flexShrink: 0 }}/>
+                            </div>
+                            <textarea value={o.images} onChange={e => setOption(ai, oi, 'images', e.target.value)} rows={2} placeholder="One image URL per line" style={{ ...TA, marginBottom: 6 }}/>
+                          </details>
+
+                          <button onClick={() => removeOption(ai, oi)} style={{ fontSize: 12, color: 'oklch(50% 0.18 25)', border: 'none', background: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--font-body)' }}>Remove option</button>
+                        </div>
+                      ))}
+
+                      <button onClick={() => addOption(ai)} style={{ padding: '5px 12px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>+ Add option</button>
                     </div>
-                  ))}
-                  <button onClick={addStorage} style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid var(--accent)', background: 'var(--accent-tint)', color: 'var(--accent)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>+ Add Storage</button>
-                </div>
+                  );
+                })}
+
+                <button onClick={addAxis} style={{ padding: '8px 16px', borderRadius: 9, border: '1px solid var(--accent)', background: 'var(--accent-tint)', color: 'var(--accent)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>+ Add axis</button>
               </>}
 
               {activeTab === 'overview'   && <><label style={L}>Overview Bullets</label><ListEditor fieldKey="overview"   placeholder="e.g. 48MP Fusion camera system"/></>}
