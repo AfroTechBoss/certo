@@ -103,9 +103,12 @@ const FooterComponent = ({ navigate }) => {
           </div>
         </div>
 
-        {/* Disclaimer */}
-        <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 20, marginBottom: 20 }}>
-          <p style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'rgba(255,255,255,0.3)', lineHeight: 1.7, margin: 0 }}>
+        {/* Trademark disclaimer — legally required but kept out of Google
+            search snippets. The `data-nosnippet` attribute tells Googlebot
+            not to use this text in the SERP description, so customers see
+            the meta description in index.html instead of this paragraph. */}
+        <div data-nosnippet style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 20, marginBottom: 20 }}>
+          <p data-nosnippet style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'rgba(255,255,255,0.3)', lineHeight: 1.7, margin: 0 }}>
             Certo is not an Apple Authorized Reseller or distributor. Products are purchased directly from Apple US as retail imports. Certo is not affiliated with, endorsed by, or in any way connected to Apple Inc. Apple, iPhone, iPad, Mac, AirPods, Apple Watch, and AppleCare are trademarks of Apple Inc., registered in the US and other countries.
           </p>
         </div>
