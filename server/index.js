@@ -31,6 +31,8 @@ const PORT = process.env.PORT || 3000;
 const allowedOrigins = [
   'https://certo.ng',
   'https://www.certo.ng',
+  'https://beta.certo.ng',
+  'https://preview.certo.ng',
   'http://localhost:3000',
   'http://localhost:5173',
 ];
