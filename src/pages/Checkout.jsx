@@ -78,7 +78,6 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
     s.src   = 'https://checkout.flutterwave.com/v3.js';
     s.async = true;
     s.dataset.flutterwaveSdk = '1';
-    s.crossOrigin = 'anonymous'; // helps with CORP rejection on some networks
     s.onerror = () => console.warn('[checkout] Flutterwave SDK failed to load');
     document.head.appendChild(s);
   }, []);
