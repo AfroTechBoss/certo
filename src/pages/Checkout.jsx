@@ -470,9 +470,17 @@ const CheckoutFlow = ({ cart, navigate, clearCart, updateCartItemQty }) => {
         setSubmitting(false);
         navigate('thank-you', newOrderId);
       } else {
-        // Open Flutterwave inline popup
-        if (typeof window.FlutterwaveCheckout !== 'function') throw new Error('Flutterwave failed to load — check your connection and try again');
-        if (!payConfig.flutterwaveKey) throw new Error('Payment is not configured yet — please contact us directly');
+        // Open Flutterwave inline popup. If the remote SDK is blocked by browser/CORS,
+        // fall back to the configured payment link so checkout still works.
+        if (typeof window.FlutterwaveCheckout !== 'function' || !payConfig.flutterwaveKey) {
+          if (payConfig.helioPayLink) {
+            window.open(payConfig.helioPayLink, '_blank', 'noopener,noreferrer');
+            setSubmitting(false);
+            setSubmitError('Flutterwave is temporarily unavailable. A secure payment link has opened in a new tab to complete your order.');
+            return;
+          }
+          throw new Error('Flutterwave failed to load — check your connection and try again');
+        }
         window.FlutterwaveCheckout({
           public_key:      payConfig.flutterwaveKey,
           tx_ref:          `${newOrderId}-${Date.now()}`,
